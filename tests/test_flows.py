@@ -32,8 +32,10 @@ async def db():
 
 @pytest.fixture
 async def client(db):
+    from goldpulse.api.limiter import limiter
     from goldpulse.main import app
 
+    limiter.reset()  # giới hạn 10 lần/phút ở /login đếm dồn qua các test
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test", follow_redirects=False) as c:
         yield c
@@ -147,7 +149,7 @@ async def test_access_matrix(client):
     assert h.status_code == 200 and h.json() == {"ok": True}
     for path in ("/overview", "/coverage", "/query"):
         r = await client.get(path)
-        assert r.status_code == 303 and r.headers["location"] == f"/login?next={path}"
+        assert r.status_code == 303 and r.headers["location"] == f"/login?next=%2F{path[1:]}"
     for path in ("/api/overview", "/api/coverage", "/api/query?session=us&year_from=2004&year_to=2026"):
         assert (await client.get(path)).status_code == 401
     assert (await client.post("/api/crawl-days/2024-02-15/retry")).status_code == 401
@@ -175,6 +177,7 @@ async def test_query_and_speed_metric(client, db):
     body = r.json()
     assert r.status_code == 200
     assert body["count"] == 1 and body["span_years"] == 23
+    assert body["missing_years"] == [y for y in range(2004, 2027) if y != 2024]  # S3 phải nói rõ năm thiếu
     assert body["up_pct"] + body["down_pct"] + body["flat_pct"] == pytest.approx(100.0)
     r = await client.get("/api/query", params={"session": "europe", "year_from": 2024, "year_to": 2024, "dow": 5})
     assert r.json()["count"] == 0  # 15/02/2024 là thứ Năm
@@ -227,7 +230,9 @@ async def test_login_next_only_internal(client):
     """Sau khi nhập khoá quay về đúng màn cũ; không cho chuyển hướng ra ngoài (open redirect)."""
     r = await client.post("/login", data={"key": "test-key-0123456789", "next": "/query"})
     assert r.headers["location"] == "/query"
-    for bad in ("//evil.com", "https://evil.com", "/api/overview", "/login"):
+    r = await client.post("/login", data={"key": "test-key-0123456789", "next": "/query?session=us&year_from=2004"})
+    assert r.headers["location"] == "/query?session=us&year_from=2004"  # giữ bộ lọc S3
+    for bad in ("//evil.com", "https://evil.com", "/\evil.com", "/api/overview", "/login", "javascript:alert(1)"):
         r = await client.post("/login", data={"key": "test-key-0123456789", "next": bad})
         assert r.headers["location"] == "/overview"
 
@@ -236,3 +241,8 @@ async def test_html_404_page(client):
     r = await client.get("/khong-ton-tai")
     assert r.status_code == 404 and "Không có trang này" in r.text
     assert (await client.get("/api/khong-ton-tai")).headers["content-type"].startswith("application/json")
+
+
+async def test_login_rate_limited(client):
+    codes = [(await client.post("/login", data={"key": "sai"})).status_code for _ in range(12)]
+    assert codes[:10] == [401] * 10 and codes[-1] == 429

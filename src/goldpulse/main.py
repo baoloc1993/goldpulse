@@ -2,6 +2,7 @@
 
 import uuid
 from pathlib import Path
+from urllib.parse import urlencode
 
 import structlog
 from fastapi import FastAPI, Request
@@ -31,7 +32,8 @@ app.include_router(api.router)
 
 @app.exception_handler(LoginRequired)
 async def _to_login(request: Request, exc: LoginRequired) -> RedirectResponse:
-    return RedirectResponse(f"/login?next={request.url.path}", status_code=303)
+    target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+    return RedirectResponse(f"/login?{urlencode({'next': target})}", status_code=303)
 
 
 @app.exception_handler(StarletteHTTPException)

@@ -27,7 +27,7 @@
       .then(function (r) {
         if (r.status === 401) {
           // Hết phiên → S4 kèm lời nhắn, nhập xong quay lại đúng màn đang đứng
-          location.href = "/login?het=1&next=" + encodeURIComponent(location.pathname);
+          location.href = "/login?het=1&next=" + encodeURIComponent(location.pathname + location.search);
           throw new Error("auth");
         }
         return r.json().catch(function () { return {}; }).then(function (body) {
@@ -147,7 +147,8 @@
           "<p>Cách sửa (trên máy chạy GoldPulse): bật Cloudflare WARP.</p>"
         : "<p><strong>Kho lịch sử đang tải chậm lại</strong> — Dukascopy đang giới hạn tốc độ. Máy tự thử tiếp, không cần làm gì.</p>";
       var when = (hist.source_checked_vn ? "Lần thử gần nhất " + esc(hist.source_checked_vn) + " — chưa được" : "") +
-        (hist.retry_vn ? " · tự thử lại lúc " + esc(hist.retry_vn) : "");
+        (hist.retry_vn ? (Date.parse(hist.retry_at) > Date.now()
+          ? " · tự thử lại lúc " + esc(hist.retry_vn) : " · đang thử lại…") : "");
       h += '<div class="error warn" role="alert">' + detail + (when ? '<p class="num">' + when + "</p>" : "") +
         '<button class="btn" type="button" id="wake"' + (waiting ? " disabled" : "") + ">" +
         (waiting ? "Đang thử kết nối…" : "Thử nạp lại ngay") + "</button></div>";
@@ -190,14 +191,20 @@
   }
 
   /* ---------------- S2 Độ phủ ---------------- */
-  function gapText(g) {
-    if (g.kind === "missing") return vnTime(g.from) + " → " + vnTime(g.to) + " (giờ VN)";
+  function vnDateTime(iso) {  // "02/01/2007 20:05" — cùng kiểu dd/mm với ngày, tránh nhầm "02-01" thành 1 tháng 2
+    var d = new Date(iso);
+    var p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
+    var v = {}; p.forEach(function (x) { v[x.type] = x.value; });
+    return v.day + "/" + v.month + "/" + v.year + " " + v.hour + ":" + v.minute;
+  }
+  function gapLine(g) {
+    if (g.kind === "missing") return esc(vnDateTime(g.from) + " → " + vnDateTime(g.to) + " (giờ VN)");
     var span = g.days > 1 ? vnDate(g.from) + " → " + vnDate(g.last_day) + " (" + g.days + " ngày)" : vnDate(g.from);
-    return span + (g.kind === "error" ? " — ngày lỗi" : " — chưa nạp");
+    return g.kind === "error" ? '<span class="down">' + esc(span + " — ngày lỗi") + "</span>" : esc(span + " — chưa nạp");
   }
 
   function sourceWarning(src) {
-    if (src === "unreachable") return '<div class="error warn" role="alert"><p>Kho lịch sử đang tạm dừng — máy chạy GoldPulse không kết nối được nguồn Dukascopy. Cách sửa: bật Cloudflare WARP trên máy đó. Xem giờ thử gần nhất ở <a href="/overview">Tổng quan</a>.</p></div>';
+    if (src === "unreachable") return '<div class="error warn" role="alert"><p>Kho lịch sử đang tạm dừng — máy chạy GoldPulse không kết nối được nguồn Dukascopy. Cách sửa: bật Cloudflare WARP trên máy đó. </p><a class="tap" href="/overview">Xem giờ thử gần nhất ở Tổng quan</a></div>';
     if (src === "throttled") return '<div class="error warn" role="status"><p>Dukascopy đang giới hạn tốc độ — kho tải chậm lại, máy tự thử tiếp.</p></div>';
     return "";
   }
@@ -231,7 +238,19 @@
     });
 
     h += "<h2>Theo năm</h2>";
+    // Năm chưa bắt đầu nạp liên tiếp gộp một dòng — trên điện thoại, 18 dòng "0%" đẩy năm đang nạp xuống 4 màn
+    var waiting = [];
+    function flushWaiting() {
+      if (!waiting.length) return;
+      var first = waiting[waiting.length - 1], last = waiting[0];
+      var days = waiting.reduce(function (a, y) { return a + y.days; }, 0);
+      h += '<div class="year"><div class="top"><strong class="num">' + (first.year === last.year ? first.year : first.year + "–" + last.year) +
+        '</strong><span class="muted num">Chờ nạp · ' + fmt(days) + " ngày</span></div></div>";
+      waiting = [];
+    }
     d.years.forEach(function (y) {
+      if (y.pending_days && !y.done_days && !y.covered_pct) { waiting.push(y); return; }
+      flushWaiting();
       var loading = y.pending_days > 0;
       var hasGap = y.gaps.length > 0;
       var status = !loading ? "Có giao dịch thật: " + pct(y.traded_pct)
@@ -241,8 +260,9 @@
         '<div class="bar' + (hasGap || loading ? " part" : "") + '"><i style="width:' + (y.covered_pct || 0) + '%"></i></div>' +
         '<div class="top mt"><span class="muted num">' + status + "</span>" +
         (hasGap ? '<button class="toggle" type="button" aria-expanded="false">' + y.gaps.length + " đoạn thiếu ›</button>" : '<span class="muted">Không thiếu</span>') +
-        "</div>" + (hasGap ? '<div class="gaps">' + y.gaps.map(gapText).map(esc).join("<br>") + "</div>" : "") + "</div>";
+        "</div>" + (hasGap ? '<div class="gaps">' + y.gaps.map(gapLine).join("<br>") + "</div>" : "") + "</div>";
     });
+    flushWaiting();
     content.innerHTML = h;
   }
 
@@ -263,6 +283,7 @@
       if (tg) {
         var open = tg.closest(".year").classList.toggle("open");
         tg.setAttribute("aria-expanded", open ? "true" : "false");
+        tg.textContent = tg.textContent.replace(open ? "›" : "⌄", open ? "⌄" : "›");
         return;
       }
       var b = ev.target.closest(".retry");
@@ -288,11 +309,30 @@
 
   /* ---------------- S3 Tra thử ---------------- */
   var SESS = { asia: "Á", europe: "Âu", us: "Mỹ" };
+  var lastQuery = null;  // bộ lọc của kết quả đang hiện
   var DOW = ["", "thứ Hai", "thứ Ba", "thứ Tư", "thứ Năm", "thứ Sáu"];
 
   function querySummary(q) {
     return "Phiên " + SESS[q.session] + " · " + q.year_from + " → " + q.year_to + " · " +
       (q.dow ? DOW[q.dow] : "mọi thứ trong tuần") + " · tra lúc " + clock();
+  }
+
+  // [2010, 2011, 2012, 2020] → "2010–2012, 2020"
+  function yearRanges(ys) {
+    var out = [], a = null, b = null;
+    ys.forEach(function (y) {
+      if (a !== null && y === b + 1) { b = y; return; }
+      if (a !== null) out.push(a === b ? a : a + "–" + b);
+      a = b = y;
+    });
+    if (a !== null) out.push(a === b ? a : a + "–" + b);
+    return out.join(", ");
+  }
+
+  function revealResult() {
+    // Máy nhỏ: kết quả nằm dưới mép màn → cuộn tới, kẻo tưởng bấm chưa ăn
+    var rect = content.getBoundingClientRect();
+    if (rect.top > window.innerHeight * 0.6) content.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function renderQuery(r, q) {
@@ -309,7 +349,11 @@
       '<div class="card"><div class="label">Phiên tăng</div><div class="value num up">' + pct(r.up_pct) + "</div></div>" +
       '<div class="card"><div class="label">Phiên giảm</div><div class="value num down">' + pct(r.down_pct) + "</div></div>" +
       '<div class="card"><div class="label">Đứng giá</div><div class="value num">' + pct(r.flat_pct) + "</div></div></div>" +
-      '<p class="muted num">' + esc(querySummary(q)) + " · dữ liệu " + vnDate(r.first_day) + " → " + vnDate(r.last_day) + "</p>";
+      '<p class="muted num">' + esc(querySummary(q)) + " · dữ liệu " + vnDate(r.first_day) + " → " + vnDate(r.last_day) + "</p>" +
+      (r.missing_years.length ? '<div class="error warn" role="status"><p>Kết quả chỉ gồm năm đã có trong kho — <strong>thiếu ' +
+        esc(yearRanges(r.missing_years)) + '</strong> (chưa nạp). Số trung bình chưa đại diện cho cả khoảng.</p>' +
+        '<a href="/coverage">Xem độ phủ</a></div>' : "");
+    lastQuery = q;
   }
 
   if (screen === "s3") {
@@ -318,6 +362,20 @@
     var formErr = document.getElementById("formErr");
     var yearFields = document.querySelectorAll(".year-field");
     var busy = false;
+    function qsOf(q) {
+      return "session=" + q.session + "&year_from=" + q.year_from + "&year_to=" + q.year_to + (q.dow ? "&dow=" + q.dow : "");
+    }
+    form.addEventListener("change", function () {
+      // Người vội đổi bộ lọc sau khi tra: số đang hiện là của bộ lọc CŨ — nói rõ, đừng để đọc nhầm
+      if (!lastQuery || busy || document.getElementById("staleNote")) return;
+      content.classList.add("stale");
+      content.insertAdjacentHTML("afterbegin", '<p class="notice" id="staleNote" role="status">Bộ lọc đã đổi — số bên dưới là của lần tra trước. Bấm Tra để cập nhật.</p>');
+    });
+    var params = new URLSearchParams(location.search);
+    if (params.get("session")) {
+      ["session", "year_from", "year_to", "dow"].forEach(function (k) { if (params.has(k)) form[k].value = params.get(k); });
+      setTimeout(function () { form.requestSubmit(); }, 0);
+    }
     function markYears(bad) { yearFields.forEach(function (f) { f.classList.toggle("bad", bad); }); }
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
@@ -334,15 +392,17 @@
         return;
       }
       markYears(false); formErr.hidden = true;
+      content.classList.remove("stale");
+      history.replaceState(null, "", "/query?" + qsOf(q));  // quay lại / tải lại vẫn giữ bộ lọc
       busy = true; run.disabled = true; run.textContent = "Đang tra…";
       content.innerHTML = '<div class="grid g2"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>';
-      var qs = "session=" + q.session + "&year_from=" + q.year_from + "&year_to=" + q.year_to + (q.dow ? "&dow=" + q.dow : "");
-      api("/api/query?" + qs)
-        .then(function (r) { renderQuery(r, q); })
+      api("/api/query?" + qsOf(q))
+        .then(function (r) { renderQuery(r, q); revealResult(); })
         .catch(function (e) {
           if (e.message === "auth") return;
           content.innerHTML = '<div class="error" role="alert"><p>Tra không thành công — ' + esc(errText(e)) +
             ' Bộ lọc vẫn giữ nguyên.</p><button class="btn" type="button" id="retry">Thử lại</button></div>';
+          revealResult();
           document.getElementById("retry").addEventListener("click", function () { form.requestSubmit(); });
         })
         .then(function () { busy = false; run.disabled = false; run.textContent = "Tra"; });

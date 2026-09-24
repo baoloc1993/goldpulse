@@ -94,6 +94,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
             "retry_vn": _vn(datetime.fromisoformat(history_source["retry_at"]))
             if history_source.get("retry_at")
             else None,
+            "retry_at": history_source.get("retry_at"),
             "last_backfill_vn": _vn(backfill["updated_at"]) if backfill.get("days") else None,
         },
         "worker_alive": bool(worker_seen and (now - worker_seen).total_seconds() < 120),
@@ -201,6 +202,8 @@ async def session_query(
         "last_day": stats["last_day"].isoformat() if stats["last_day"] else None,
         "duration_ms": round(duration_ms, 1),
         "span_years": span,
+        # Năm trong khoảng tra KHÔNG có phiên nào — để S3 nói rõ kết quả đang lấp chỗ trống
+        "missing_years": [y for y in range(year_from, year_to + 1) if y not in set(stats["years"] or [])],
     }
 
 

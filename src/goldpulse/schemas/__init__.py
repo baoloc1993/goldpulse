@@ -30,6 +30,7 @@ class SessionQueryResult(BaseModel):
     last_day: str | None
     duration_ms: float
     span_years: int
+    missing_years: list[int]
 
 
 class RetryResult(BaseModel):

@@ -100,7 +100,8 @@ async def session_stats(session: AsyncSession, name: str, year_from: int, year_t
                count(*) FILTER (WHERE direction > 0) AS up,
                count(*) FILTER (WHERE direction < 0) AS down,
                count(*) FILTER (WHERE direction = 0) AS flat,
-               min(trade_date) AS first_day, max(trade_date) AS last_day
+               min(trade_date) AS first_day, max(trade_date) AS last_day,
+               array_agg(DISTINCT extract(year FROM trade_date)::int) AS years
         FROM session_bar
         WHERE session = :session
           AND close_ts <= now()  -- phiên đang chạy dở chưa có biên độ / hướng thật

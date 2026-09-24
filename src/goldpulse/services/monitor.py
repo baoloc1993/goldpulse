@@ -54,7 +54,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
     sessions = [{"key": k, "label": SESSIONS[k].label, "closes_vn": _vn(c)} for k, _, c in active_sessions(now)]
 
     prog = await crawl_repo.progress(session)
-    total = sum(prog.values())
+    total = sum(prog.values()) - prog["skipped"]  # chỉ ngày phải tải thật
     done = prog["ok"] + prog["empty"]
     history_source = await feed_repo.get_status(session, "history_source") or {}
     backfill = await feed_repo.get_status(session, "backfill") or {}
@@ -82,10 +82,11 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
         "history": {
             "total_days": total,
             "done_days": done,
+            "ok_days": prog["ok"],  # ngày có dữ liệu thật — thứ Bảy `empty` không tính
             "error_days": prog["error"],
             "source": history_source.get("state", "unknown"),  # ok | unreachable | throttled | unknown
             "source_message": history_source.get("message"),
-            "last_backfill_vn": _vn(backfill["updated_at"]) if backfill.get("updated_at") else None,
+            "last_backfill_vn": _vn(backfill["updated_at"]) if backfill.get("days") else None,
         },
         "worker_alive": bool(worker_seen and (now - worker_seen).total_seconds() < 120),
         "metrics": {

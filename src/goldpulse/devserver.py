@@ -1,4 +1,4 @@
-"""`make dev`: migrate → chạy web (uvicorn --reload) + worker cùng lúc, Ctrl+C dừng cả hai."""
+"""`make dev`: migrate → chạy web (uvicorn) + worker cùng lúc, Ctrl+C dừng cả hai."""
 
 import os
 import subprocess
@@ -10,9 +10,8 @@ WEB = [
     "-m",
     "uvicorn",
     "goldpulse.main:app",
-    "--reload",
-    "--reload-dir",
-    "src",
+    # Không --reload: trên Windows reloader treo khi tắt process cũ và lặng lẽ phục vụ code cũ
+    # (thử thật 2026-09-24). Sửa code → Ctrl+C, chạy lại make dev.
     "--host",
     "127.0.0.1",
     "--port",

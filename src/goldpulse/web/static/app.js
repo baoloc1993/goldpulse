@@ -81,7 +81,7 @@
 
     var hist = d.history;
     var srcBad = hist.source === "unreachable" || hist.source === "throttled";
-    if (hist.done_days === 0) {
+    if (!hist.ok_days) {
       // Rỗng: chưa nạp ngày nào
       h += '<div class="empty"><p>Chưa nạp dữ liệu lịch sử — worker đang tải từ 2004.<br><span class="num">' +
         fmt(hist.done_days) + " / " + fmt(hist.total_days) + " ngày</span></p>" +
@@ -148,7 +148,8 @@
   }
 
   function renderCoverage(d) {
-    if (!d.years.length) {
+    var anyData = d.years.some(function (y) { return y.covered_pct; });
+    if (!anyData && !d.errors.length) {  // năm có sẵn từ đầu (toàn ngày chờ) — rỗng = chưa ngày nào có nến
       content.innerHTML = '<div class="empty"><p>Chưa có năm nào được nạp. Worker bắt đầu từ 01/01/2004 khi khởi động.</p><a href="/overview">Về Tổng quan</a></div>';
       return;
     }

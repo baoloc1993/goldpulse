@@ -114,8 +114,14 @@ async def retry(session: AsyncSession, day: date) -> bool:
 
 
 async def progress(session: AsyncSession) -> dict[str, int]:
-    res = await session.execute(text("SELECT status, count(*) FROM crawl_day GROUP BY status"))
-    counts = {"pending": 0, "ok": 0, "empty": 0, "error": 0}
+    """Đếm theo trạng thái. Ngày không có phút mở (thứ Bảy — không tải) tách riêng thành `skipped`."""
+    res = await session.execute(
+        text("""
+            SELECT CASE WHEN calendar_minutes = 0 THEN 'skipped' ELSE status END, count(*)
+            FROM crawl_day GROUP BY 1
+        """)
+    )
+    counts = {"pending": 0, "ok": 0, "empty": 0, "error": 0, "skipped": 0}
     counts.update({r[0]: r[1] for r in res})
     return counts
 
@@ -128,8 +134,8 @@ async def coverage_by_year(session: AsyncSession) -> list[dict[str, Any]]:
                    sum(calendar_minutes) FILTER (WHERE status <> 'empty') AS calendar,
                    sum(covered_minutes) FILTER (WHERE status = 'ok') AS covered,
                    sum(traded_minutes) FILTER (WHERE status = 'ok') AS traded,
-                   count(*) AS days,
-                   count(*) FILTER (WHERE status IN ('ok', 'empty')) AS done_days,
+                   count(*) FILTER (WHERE calendar_minutes > 0) AS days,
+                   count(*) FILTER (WHERE calendar_minutes > 0 AND status IN ('ok', 'empty')) AS done_days,
                    count(*) FILTER (WHERE status = 'pending') AS pending_days,
                    count(*) FILTER (WHERE status = 'error') AS error_days
             FROM crawl_day GROUP BY 1 ORDER BY 1 DESC

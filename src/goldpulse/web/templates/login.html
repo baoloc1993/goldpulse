@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Nhập khoá{% endblock %}
+{% block body %}
+<h1>GoldPulse</h1>
+<p class="muted">Trang theo dõi dữ liệu — chỉ người vận hành.</p>
+<form method="post" action="/login" id="loginForm">
+  <div class="field{{ ' bad' if error }}">
+    <label for="key">Khoá truy cập</label>
+    <input id="key" name="key" type="password" autocomplete="current-password" placeholder="Nhập khoá" required autofocus
+      {% if error %}aria-invalid="true" aria-describedby="keyErr"{% endif %}>
+    {% if error %}<div class="err" id="keyErr" role="alert">{{ error }}</div>{% endif %}
+  </div>
+  <button class="btn block" type="submit" id="enter">Vào</button>
+</form>
+<script>
+document.getElementById("loginForm").addEventListener("submit", function () {
+  var b = document.getElementById("enter"); b.disabled = true; b.textContent = "Đang vào…";
+});
+</script>
+{% endblock %}

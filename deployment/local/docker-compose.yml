@@ -1,0 +1,19 @@
+# DB local cho `make dev` — Postgres 16. Dữ liệu nằm ở volume goldpulse_pgdata (~1 GB khi nạp đủ 20 năm).
+name: goldpulse
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: goldpulse
+      POSTGRES_PASSWORD: goldpulse
+      POSTGRES_DB: goldpulse
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goldpulse -d goldpulse"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+volumes:
+  pgdata:

@@ -1,0 +1,23 @@
+/* Design token — màu, cỡ chữ, khoảng cách dùng chung cho toàn bộ giao diện. */
+:root {
+  --color-bg: #131722;
+  --color-surface: #1E222D;
+  --color-text: #D1D4DC;
+  --color-text-muted: #9598A1;
+  --color-primary: #2962FF;
+  --color-on-primary: #FFFFFF;
+  --color-border: #787B86;
+  --color-danger: #F7525F;
+  --color-success: #22AB94;
+  --color-warning: #F7A600;
+  --font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-xl: 20px;
+  --text-hero: 32px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --radius: 6px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}

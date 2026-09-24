@@ -103,6 +103,7 @@ async def session_stats(session: AsyncSession, name: str, year_from: int, year_t
                min(trade_date) AS first_day, max(trade_date) AS last_day
         FROM session_bar
         WHERE session = :session
+          AND close_ts <= now()  -- phiên đang chạy dở chưa có biên độ / hướng thật
           AND trade_date >= make_date(:y1, 1, 1) AND trade_date < make_date(:y2 + 1, 1, 1)
     """
     params: dict = {"session": name, "y1": year_from, "y2": year_to}

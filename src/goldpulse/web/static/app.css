@@ -7,7 +7,8 @@ h1 { font-size: var(--text-xl); margin: 0 0 var(--space-md); font-weight: 600; }
 h2 { font-size: var(--text-base); margin: var(--space-lg) 0 var(--space-sm); font-weight: 600; color: var(--color-text-muted); }
 .muted { color: var(--color-text-muted); font-size: var(--text-sm); }
 .mt { margin-top: var(--space-sm); }
-a { color: var(--color-primary); }
+/* Link: --color-primary trên --color-surface chỉ 3.3:1 (< AA) → chữ chính + gạch chân (DECISIONS 2026-09-24) */
+a { color: var(--color-text); text-decoration: underline; }
 .up { color: var(--color-success); }
 .down { color: var(--color-danger); }
 

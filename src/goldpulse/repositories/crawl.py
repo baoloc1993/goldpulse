@@ -139,13 +139,12 @@ async def coverage_by_year(session: AsyncSession) -> list[dict[str, Any]]:
 
 
 async def gaps_of_year(session: AsyncSession, year: int) -> list[dict[str, Any]]:
-    """Ngày có đoạn thiếu trong năm: ngày ok có missing_ranges + ngày error/pending (thiếu cả ngày)."""
+    """Mọi ngày có phút thị trường mở trong năm, theo thứ tự — service tự gộp đoạn thiếu."""
     res = await session.execute(
         text("""
             SELECT day, status, missing_ranges, calendar_minutes FROM crawl_day
             WHERE day >= make_date(:y, 1, 1) AND day < make_date(:y + 1, 1, 1)
-              AND calendar_minutes > 0
-              AND (status IN ('error', 'pending') OR jsonb_array_length(missing_ranges) > 0)
+              AND calendar_minutes > 0 AND status <> 'empty'
             ORDER BY day
         """),
         {"y": year},

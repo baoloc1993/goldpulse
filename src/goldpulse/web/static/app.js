@@ -90,8 +90,10 @@
       var m = d.metrics;
       h += "<h2>Ba ngưỡng của vòng 1</h2><div class=\"grid\">";
       var c = m.coverage;
-      h += metricCard("Độ phủ từ 2004 · cần ≥ 99%", pct(c.value), c.value == null ? null : c.value >= c.target,
-        (c.value == null ? "Chưa đo" : c.value >= c.target ? "Đạt" : "Chưa đạt") + " · xem chi tiết ›", "/coverage");
+      var loading = hist.done_days < hist.total_days;  // đang nạp → chưa phán đạt/trượt
+      h += metricCard("Độ phủ từ 2004 · cần ≥ 99%", pct(c.value), c.value == null || loading ? null : c.value >= c.target,
+        (loading ? "Đang nạp " + fmt(hist.done_days) + "/" + fmt(hist.total_days) + " ngày — chưa tính xong"
+          : c.value == null ? "Chưa đo" : c.value >= c.target ? "Đạt" : "Chưa đạt") + " · xem chi tiết ›", "/coverage");
       var l = m.latency;
       h += metricCard("Phút giá trễ &lt; 30s · cần ≥ 95%", l.value == null ? "—" : fmt(l.value, 1) + "%", l.value == null ? null : l.value >= l.target,
         l.value == null ? "Chưa có phút thị trường mở nào để đo" : (l.value >= l.target ? "Đạt" : "Chưa đạt") + " · đo từ " + esc(l.since_vn) + " · " + fmt(l.minutes) + " phút");
@@ -152,8 +154,11 @@
     }
     var t = d.total, h = "";
     var pass = t.covered_pct != null && t.covered_pct >= 99;
-    h += '<div class="card ' + (t.covered_pct == null ? "" : pass ? "pass" : "fail") + '"><div class="label">Tổng phút có nến · 2004 → nay · cần ≥ 99%</div>' +
+    var pending = d.years.reduce(function (a, y) { return a + y.pending_days; }, 0);
+    var cls = t.covered_pct == null || pending ? "" : pass ? "pass" : "fail";  // đang nạp → chưa phán
+    h += '<div class="card ' + cls + '"><div class="label">Tổng phút có nến · 2004 → nay · cần ≥ 99%</div>' +
       '<div class="value num">' + pct(t.covered_pct) + "</div>" +
+      (pending ? '<div class="muted">Đang nạp — còn ' + fmt(pending) + " ngày chờ tải, số này tăng dần</div>" : "") +
       '<div class="muted">Phút có giao dịch thật: ' + pct(t.traded_pct) + " — năm cũ dữ liệu thưa hơn</div></div>";
 
     h += "<h2>Ngày lỗi (" + d.errors.length + ")</h2>";

@@ -18,6 +18,7 @@ def line(ok: bool, msg: str) -> bool:
 
 
 async def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     good = True
     print("GoldPulse doctor\n")
     names = set(re.findall(r"^#?\s*([A-Z_]+)=", EXAMPLE.read_text(encoding="utf-8"), re.M))

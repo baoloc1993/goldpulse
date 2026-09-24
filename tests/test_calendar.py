@@ -64,3 +64,24 @@ def test_merge_ranges():
 def test_last_complete_day_needs_24h_after_end():
     assert last_complete_day(utc(2024, 2, 20, 0, 0)) == date(2024, 2, 18)
     assert last_complete_day(utc(2024, 2, 20, 23, 59)) == date(2024, 2, 18)
+
+
+def test_gaps_merge_across_empty_days_and_break_on_ok():
+    from goldpulse.services.monitor import _gaps
+
+    def d(day, status, missing=()):
+        return {"day": date.fromisoformat(day), "status": status, "missing_ranges": list(missing)}
+
+    # thứ Bảy (empty) đã bị loại ở repo → 16/02 và 18/02 liền nhau trong danh sách
+    days = [
+        d("2024-02-15", "pending"),
+        d("2024-02-16", "pending"),
+        d("2024-02-18", "pending"),
+        d("2024-02-19", "ok", [["2024-02-19T10:00:00+00:00", "2024-02-19T10:05:00+00:00"]]),
+        d("2024-02-20", "error"),
+        d("2024-02-21", "pending"),
+    ]
+    out = _gaps(days)
+    assert out[0] == {"kind": "pending", "from": "2024-02-15", "last_day": "2024-02-18", "days": 3}
+    assert out[1]["kind"] == "missing"
+    assert [g["kind"] for g in out[2:]] == ["error", "pending"]

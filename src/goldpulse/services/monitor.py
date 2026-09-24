@@ -106,14 +106,7 @@ async def coverage(session: AsyncSession, fresh: bool = False) -> dict[str, Any]
     for r in rows:
         cal, cov, tr = r["calendar"] or 0, r["covered"] or 0, r["traded"] or 0
         cal_sum, cov_sum, tr_sum = cal_sum + cal, cov_sum + cov, tr_sum + tr
-        gaps = []
-        if cal > cov:
-            for g in await crawl_repo.gaps_of_year(session, r["year"]):
-                if g["status"] in ("error", "pending"):
-                    gaps.append({"from": g["day"].isoformat(), "to": None, "kind": g["status"]})
-                else:
-                    for a, b in g["missing_ranges"]:
-                        gaps.append({"from": a, "to": b, "kind": "missing"})
+        gaps = _gaps(await crawl_repo.gaps_of_year(session, r["year"])) if cal > cov else []
         years.append(
             {
                 "year": r["year"],
@@ -123,7 +116,7 @@ async def coverage(session: AsyncSession, fresh: bool = False) -> dict[str, Any]
                 "done_days": r["done_days"],
                 "pending_days": r["pending_days"],
                 "error_days": r["error_days"],
-                "gaps": _collapse_gaps(gaps),
+                "gaps": gaps,
             }
         )
     result = {
@@ -142,20 +135,24 @@ def invalidate_coverage_cache() -> None:
     _coverage_cache.update(at=0.0, value=None)
 
 
-def _collapse_gaps(gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Ngày thiếu cả ngày liên tiếp gộp thành một đoạn — năm đang nạp khỏi liệt kê 300 dòng."""
+def _gaps(days: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Đoạn thiếu của một năm. Ngày chờ/lỗi liên tiếp gộp thành một đoạn — ngày lễ/thứ Bảy (`empty`,
+    đã bị loại khỏi `days`) không cắt đoạn; chỉ một ngày `ok` mới cắt."""
     out: list[dict[str, Any]] = []
-    for g in gaps:
-        if g["to"] is None and out and out[-1]["kind"] == g["kind"] and out[-1]["days"]:
-            prev_last = date.fromisoformat(out[-1]["last_day"])
-            if date.fromisoformat(g["from"]) - prev_last == timedelta(days=1):
-                out[-1]["last_day"] = g["from"]
-                out[-1]["days"] += 1
-                continue
-        if g["to"] is None:
-            out.append({"kind": g["kind"], "from": g["from"], "last_day": g["from"], "days": 1})
-        else:
-            out.append({"kind": "missing", "from": g["from"], "to": g["to"], "days": 0})
+    run: dict[str, Any] | None = None
+    for d in days:
+        status, day = d["status"], d["day"].isoformat()
+        if status in ("pending", "error"):
+            if run and run["kind"] == status:
+                run["last_day"] = day
+                run["days"] += 1
+            else:
+                run = {"kind": status, "from": day, "last_day": day, "days": 1}
+                out.append(run)
+            continue
+        run = None
+        for a, b in d["missing_ranges"]:
+            out.append({"kind": "missing", "from": a, "to": b, "days": 0})
     return out
 
 

@@ -7,6 +7,7 @@ from .config import settings
 
 def setup_logging() -> None:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # mỗi lần poll 5s một dòng — quá ồn
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,

@@ -147,7 +147,7 @@ async def test_access_matrix(client):
     assert h.status_code == 200 and h.json() == {"ok": True}
     for path in ("/overview", "/coverage", "/query"):
         r = await client.get(path)
-        assert r.status_code == 303 and r.headers["location"] == "/login"
+        assert r.status_code == 303 and r.headers["location"] == f"/login?next={path}"
     for path in ("/api/overview", "/api/coverage", "/api/query?session=us&year_from=2004&year_to=2026"):
         assert (await client.get(path)).status_code == 401
     assert (await client.post("/api/crawl-days/2024-02-15/retry")).status_code == 401
@@ -160,6 +160,7 @@ async def test_access_matrix(client):
 async def test_login_wrong_key_and_cookie(client):
     r = await client.post("/login", data={"key": "sai"})
     assert r.status_code == 401 and "Khoá không đúng" in r.text
+    assert "OPS_ACCESS_KEY" not in r.text  # không lộ tên biến môi trường cho người vận hành
     r = await _login(client)
     cookie = r.headers["set-cookie"]
     assert "HttpOnly" in cookie and "samesite=strict" in cookie.lower()
@@ -220,3 +221,18 @@ async def test_latency_metric_counts_missing_minutes_as_fail(db):
     expected_open = sum(1 for i in range(1, 11) if is_market_open(since + timedelta(minutes=i)))
     assert open_min == expected_open
     assert good == sum(1 for i in range(1, 6) if is_market_open(since + timedelta(minutes=i)))
+
+
+async def test_login_next_only_internal(client):
+    """Sau khi nhập khoá quay về đúng màn cũ; không cho chuyển hướng ra ngoài (open redirect)."""
+    r = await client.post("/login", data={"key": "test-key-0123456789", "next": "/query"})
+    assert r.headers["location"] == "/query"
+    for bad in ("//evil.com", "https://evil.com", "/api/overview", "/login"):
+        r = await client.post("/login", data={"key": "test-key-0123456789", "next": bad})
+        assert r.headers["location"] == "/overview"
+
+
+async def test_html_404_page(client):
+    r = await client.get("/khong-ton-tai")
+    assert r.status_code == 404 and "Không có trang này" in r.text
+    assert (await client.get("/api/khong-ton-tai")).headers["content-type"].startswith("application/json")

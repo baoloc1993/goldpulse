@@ -64,6 +64,15 @@ def active_sessions(now: datetime) -> list[tuple[str, date, datetime]]:
     return out
 
 
+def session_hours_vn(on: date) -> dict[str, str]:
+    """Giờ VN của từng phiên vào ngày `on` — tự đổi theo giờ mùa hè từng trung tâm."""
+    out = {}
+    for key in SESSIONS:
+        o, c = session_window(key, on)
+        out[key] = f"{o.astimezone(VN):%H:%M}–{c.astimezone(VN):%H:%M}"
+    return out
+
+
 def is_market_open(ts: datetime) -> bool:
     """Phút bắt đầu lúc ts có nằm trong lịch thị trường không."""
     local = ts.astimezone(NY)

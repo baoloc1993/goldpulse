@@ -2,17 +2,23 @@
 {% block title %}Nhập khoá{% endblock %}
 {% block body %}
 <h1>GoldPulse</h1>
-<p class="muted">Trang theo dõi dữ liệu — chỉ người vận hành.</p>
+<p class="muted">Kho giá vàng XAUUSD từng phút từ 2004 — trang theo dõi cho người vận hành.</p>
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
 <form method="post" action="/login" id="loginForm">
+  <input type="hidden" name="next" value="{{ next }}">
   <div class="field{{ ' bad' if error }}">
     <label for="key">Khoá truy cập</label>
-    <input id="key" name="key" type="password" autocomplete="current-password" placeholder="Nhập khoá" required autofocus
+    <input id="key" name="key" type="password" autocomplete="current-password" placeholder="Dán khoá đã được gửi cho bạn" required autofocus
       {% if error %}aria-invalid="true" aria-describedby="keyErr"{% endif %}>
     {% if error %}<div class="err" id="keyErr" role="alert">{{ error }}</div>{% endif %}
+    <label class="check"><input type="checkbox" id="showKey"> Hiện khoá</label>
   </div>
   <button class="btn block" type="submit" id="enter">Vào</button>
 </form>
 <script>
+document.getElementById("showKey").addEventListener("change", function (e) {
+  document.getElementById("key").type = e.target.checked ? "text" : "password";
+});
 document.getElementById("loginForm").addEventListener("submit", function () {
   var b = document.getElementById("enter"); b.disabled = true; b.textContent = "Đang vào…";
 });

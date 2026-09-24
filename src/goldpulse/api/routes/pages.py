@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from ...config import settings
+from ...services.calendar import VN, session_hours_vn
 from ..deps import COOKIE, COOKIE_MAX_AGE, is_operator, key_matches, require_operator_page, session_token
 from ..limiter import limiter
 
@@ -31,25 +32,38 @@ async def root(request: Request) -> RedirectResponse:
     return RedirectResponse("/overview" if is_operator(request) else "/login", status_code=303)
 
 
+def safe_next(value: str | None) -> str:
+    """Chỉ nhận đường dẫn nội bộ của trang theo dõi — chặn open redirect (//evil.com, http://…)."""
+    allowed = {f"/{name}" for name in SCREENS}
+    return value if value in allowed else "/overview"
+
+
 @router.get("/login", response_class=HTMLResponse, include_in_schema=False)
-async def login_page(request: Request) -> HTMLResponse:
+async def login_page(request: Request, next: str | None = None, het: int = 0) -> HTMLResponse:
     if is_operator(request):
-        return RedirectResponse("/overview", status_code=303)  # type: ignore[return-value]
-    return templates.TemplateResponse(request, "login.html", {"error": None})
+        return RedirectResponse(safe_next(next), status_code=303)  # type: ignore[return-value]
+    notice = "Phiên đã hết — nhập lại khoá để tiếp tục." if het else None
+    return templates.TemplateResponse(request, "login.html", {"error": None, "notice": notice, "next": safe_next(next)})
 
 
 @router.post("/login", response_class=HTMLResponse, include_in_schema=False)
 @limiter.limit("10/minute")
-async def login(request: Request, key: Annotated[str, Form()] = "") -> HTMLResponse:
+async def login(
+    request: Request, key: Annotated[str, Form()] = "", next: Annotated[str, Form()] = "/overview"
+) -> HTMLResponse:
+    ctx = {"notice": None, "next": safe_next(next)}
     if not key.strip():
         return templates.TemplateResponse(
-            request, "login.html", {"error": "Nhập khoá truy cập để vào."}, status_code=400
+            request, "login.html", {**ctx, "error": "Nhập khoá truy cập để vào."}, status_code=400
         )
     if not key_matches(key):
         return templates.TemplateResponse(
-            request, "login.html", {"error": "Khoá không đúng. Kiểm tra lại OPS_ACCESS_KEY."}, status_code=401
+            request,
+            "login.html",
+            {**ctx, "error": "Khoá không đúng — dán lại khoá đã được gửi cho bạn."},
+            status_code=401,
         )
-    resp = RedirectResponse("/overview", status_code=303)
+    resp = RedirectResponse(safe_next(next), status_code=303)
     resp.set_cookie(
         COOKIE,
         session_token(),
@@ -68,7 +82,12 @@ def _screen(name: str):
         return templates.TemplateResponse(
             request,
             f"{name}.html",
-            {"screen": screen_id, "title": title, "years": _years()},
+            {
+                "screen": screen_id,
+                "title": title,
+                "years": _years(),
+                "hours": session_hours_vn(datetime.now(VN).date()),
+            },
         )
 
     page.__name__ = f"page_{name}"

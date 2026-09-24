@@ -5,10 +5,12 @@ from pathlib import Path
 
 import structlog
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.exception_handlers import http_exception_handler
+from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .api.deps import LoginRequired
 from .api.limiter import limiter
@@ -29,7 +31,15 @@ app.include_router(api.router)
 
 @app.exception_handler(LoginRequired)
 async def _to_login(request: Request, exc: LoginRequired) -> RedirectResponse:
-    return RedirectResponse("/login", status_code=303)
+    return RedirectResponse(f"/login?next={request.url.path}", status_code=303)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _not_found(request: Request, exc: StarletteHTTPException) -> Response:
+    """404 ở trang HTML → trang tối cùng giao diện; API vẫn trả JSON."""
+    if exc.status_code == 404 and not request.url.path.startswith(("/api/", "/static/")):
+        return pages.templates.TemplateResponse(request, "not_found.html", {}, status_code=404)
+    return await http_exception_handler(request, exc)
 
 
 @app.middleware("http")

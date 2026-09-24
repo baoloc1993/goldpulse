@@ -4,22 +4,24 @@
 <form id="queryForm" novalidate>
   <div class="field">
     <label for="sess">Phiên</label>
-    <select id="sess" name="session">
-      <option value="asia">Á (07:00–16:00 giờ VN mùa đông)</option>
-      <option value="europe" selected>Âu (14:00–23:00)</option>
-      <option value="us">Mỹ (20:00–05:00)</option>
+    <select id="sess" name="session" aria-describedby="sessNote">
+      <option value="asia">Á · {{ hours.asia }}</option>
+      <option value="europe" selected>Âu · {{ hours.europe }}</option>
+      <option value="us">Mỹ · {{ hours.us }}</option>
     </select>
+    <div class="hint" id="sessNote">Giờ VN hôm nay. Phiên tính theo giờ địa phương Tokyo 9–18 · London 7–16 · New York 8–17, nên giờ VN tự dời 1 tiếng khi London / New York đổi giờ mùa hè.</div>
   </div>
   <div class="row2">
-    <div class="field" id="yearField">
+    <div class="field year-field">
       <label for="y1">Từ năm</label>
       <select id="y1" name="year_from">{% for y in years %}<option{% if loop.first %} selected{% endif %}>{{ y }}</option>{% endfor %}</select>
     </div>
-    <div class="field">
+    <div class="field year-field">
       <label for="y2">Đến năm</label>
       <select id="y2" name="year_to">{% for y in years %}<option{% if loop.last %} selected{% endif %}>{{ y }}</option>{% endfor %}</select>
     </div>
   </div>
+  <div class="err field-err" id="formErr" role="alert" hidden></div>
   <div class="field">
     <label for="dow">Thứ trong tuần</label>
     <select id="dow" name="dow">
@@ -28,7 +30,6 @@
       <option value="4">Thứ Năm</option><option value="5">Thứ Sáu</option>
     </select>
   </div>
-  <div class="err down" id="formErr" role="alert" hidden></div>
   <button class="btn block" type="submit" id="run">Tra</button>
 </form>
 <h2>Kết quả</h2>

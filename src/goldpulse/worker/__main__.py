@@ -67,9 +67,12 @@ class Worker:
             finally:
                 await asyncio.sleep(settings.dukascopy_delay_seconds)
 
-    async def set_source(self, state: str, message: str | None = None) -> None:
+    async def set_source(self, state: str, message: str | None = None, retry_in: float | None = None) -> None:
+        value: dict = {"state": state, "message": message}
+        if retry_in:
+            value["retry_at"] = (datetime.now(UTC) + timedelta(seconds=retry_in)).isoformat()
         async with session_scope() as s:
-            await feed_repo.set_status(s, "history_source", {"state": state, "message": message})
+            await feed_repo.set_status(s, "history_source", value)
 
     # --- A. Nạp lịch sử --------------------------------------------------------------
     async def ensure_days(self) -> None:
@@ -127,11 +130,11 @@ class Worker:
                 self.throttle_s = THROTTLE_MIN_S
                 await self.set_source("ok")
             elif unreachable and unreachable + throttled == len(batch):
-                await self.set_source("unreachable", last_msg)
+                await self.set_source("unreachable", last_msg, UNREACHABLE_PAUSE_S)
                 log.warning("history_paused", state="unreachable", seconds=UNREACHABLE_PAUSE_S, reason=last_msg)
                 await self.sleep(UNREACHABLE_PAUSE_S, wake_key="history_wake")
             elif throttled == len(batch):
-                await self.set_source("throttled", last_msg)
+                await self.set_source("throttled", last_msg, self.throttle_s)
                 log.warning("history_paused", state="throttled", seconds=self.throttle_s, reason=last_msg)
                 await self.sleep(self.throttle_s, wake_key="history_wake")
                 self.throttle_s = min(self.throttle_s * 2, THROTTLE_MAX_S)
@@ -185,7 +188,9 @@ class Worker:
                     candles = await self.fetch(d)
                 except (Unreachable, Throttled) as e:
                     problems.append(f"{d}: {e}")
-                    await self.set_source("unreachable" if isinstance(e, Unreachable) else "throttled", str(e))
+                    await self.set_source(
+                        "unreachable" if isinstance(e, Unreachable) else "throttled", str(e), UNREACHABLE_PAUSE_S
+                    )
                     break
                 except (DayNotFound, BadFile) as e:
                     problems.append(f"{d}: {e}")

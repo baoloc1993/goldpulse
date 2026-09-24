@@ -46,6 +46,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
             "source_updated_vn": sample["source_ts"].astimezone(VN).strftime("%H:%M:%S")
             if sample["source_ts"]
             else None,
+            "source_ts": sample["source_ts"].isoformat() if sample["source_ts"] else None,  # JS tự tính trễ
             "stale": stale,
             "market_open": is_market_open(now),
             "poll_failing": bool(last and last["price"] is None and (now - last["polled_at"]).total_seconds() < 60),
@@ -86,6 +87,13 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
             "error_days": prog["error"],
             "source": history_source.get("state", "unknown"),  # ok | unreachable | throttled | unknown
             "source_message": history_source.get("message"),
+            "source_checked_vn": history_source["updated_at"].astimezone(VN).strftime("%H:%M:%S")
+            if history_source.get("updated_at")
+            else None,
+            "source_checked": history_source["updated_at"].isoformat() if history_source.get("updated_at") else None,
+            "retry_vn": _vn(datetime.fromisoformat(history_source["retry_at"]))
+            if history_source.get("retry_at")
+            else None,
             "last_backfill_vn": _vn(backfill["updated_at"]) if backfill.get("days") else None,
         },
         "worker_alive": bool(worker_seen and (now - worker_seen).total_seconds() < 120),
@@ -98,7 +106,12 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
 
 
 async def coverage(session: AsyncSession, fresh: bool = False) -> dict[str, Any]:
-    """Độ phủ theo năm + đoạn thiếu. Cache 10 phút (ARCHITECTURE §7 D3)."""
+    """Độ phủ theo năm + đoạn thiếu (cache 10 phút, ARCHITECTURE §7 D3) + trạng thái nguồn lúc này."""
+    src = await feed_repo.get_status(session, "history_source") or {}
+    return {**await _coverage_years(session, fresh), "source": src.get("state", "unknown")}
+
+
+async def _coverage_years(session: AsyncSession, fresh: bool) -> dict[str, Any]:
     if not fresh and _coverage_cache["value"] and time.monotonic() - _coverage_cache["at"] < COVERAGE_CACHE_S:
         return _coverage_cache["value"]
     rows = await crawl_repo.coverage_by_year(session)

@@ -11,7 +11,9 @@ from datetime import date
 import httpx
 
 URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
-UA = "Mozilla/5.0 (GoldPulse worker)"
+# Đo thật 2026-09-26: từ container Linux, CDN của FRED treo kết nối (ReadTimeout) với UA "Mozilla/5.0 (…)" — 0/5
+# lần; UA kiểu curl qua 5/5 (trên máy Windows cả hai đều qua). Giữ chữ GoldPulse để FRED biết ai gọi.
+UA = "curl/8.5.0 (GoldPulse)"
 
 
 class FredError(Exception):

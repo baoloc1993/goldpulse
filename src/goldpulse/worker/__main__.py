@@ -47,6 +47,7 @@ HD_BATCH = 400  # ngày một lượt — một file năm HistData phủ ~300 ng
 SIGNAL_DELAY_S = 60  # tính tín hiệu 60s sau mốc 15 phút — nến phút cuối của nến 15m đã được ghi
 CHAT_EXPIRE_S = 600  # câu hỏi chờ não quá 10 phút → lỗi "Quá lâu — gửi lại" (ARCHITECTURE §6)
 FED_HOUR_UTC = 6
+FED_RETRY_S = 1800
 FED_SINCE = date(2003, 6, 1)  # mức lãi suất trước kỳ họp đầu tiên 2004
 
 
@@ -393,6 +394,7 @@ class Worker:
             while not self.stop.is_set():
                 async with session_scope() as s:
                     prev = await feed_repo.get_status(s, "fed") or {}
+                failed = False
                 try:
                     rows = fed_svc.build_decisions(await fred.target_rates(FED_SINCE))
                     async with session_scope() as s:
@@ -406,11 +408,13 @@ class Worker:
                     log.warning("fed_failed", error=str(e), kind=type(e).__name__)
                     async with session_scope() as s:
                         await feed_repo.set_status(s, "fed", {**prev, "last_error": f"{type(e).__name__}: {e}"[:300]})
+                    failed = True
                 now = datetime.now(UTC)
                 nxt = now.replace(hour=FED_HOUR_UTC, minute=0, second=0, microsecond=0)
                 if nxt <= now:
                     nxt += timedelta(days=1)
-                await self.sleep((nxt - now).total_seconds())
+                # Lỗi → thử lại sau 30 phút (không để S7 trống tới 06:00 hôm sau); vẫn thưa, không bão request
+                await self.sleep(FED_RETRY_S if failed else (nxt - now).total_seconds())
         finally:
             await fred.close()
 

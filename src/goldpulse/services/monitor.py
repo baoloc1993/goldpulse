@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..integrations.histdata import FIRST_DAY as HD_FIRST
 from ..repositories import candles as candle_repo
 from ..repositories import crawl as crawl_repo
 from ..repositories import feed as feed_repo
@@ -87,6 +88,8 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
             "error_days": prog["error"],
             "source": history_source.get("state", "unknown"),  # ok | unreachable | throttled | unknown
             "source_message": history_source.get("message"),
+            "provider": history_source.get("provider", "dukascopy"),
+            "old_pending": await crawl_repo.pending_before(session, HD_FIRST),
             "source_checked_vn": history_source["updated_at"].astimezone(VN).strftime("%H:%M:%S")
             if history_source.get("updated_at")
             else None,
@@ -109,7 +112,11 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
 async def coverage(session: AsyncSession, fresh: bool = False) -> dict[str, Any]:
     """Độ phủ theo năm + đoạn thiếu (cache 10 phút, ARCHITECTURE §7 D3) + trạng thái nguồn lúc này."""
     src = await feed_repo.get_status(session, "history_source") or {}
-    return {**await _coverage_years(session, fresh), "source": src.get("state", "unknown")}
+    return {
+        **await _coverage_years(session, fresh),
+        "source": src.get("state", "unknown"),
+        "provider": src.get("provider", "dukascopy"),
+    }
 
 
 async def _coverage_years(session: AsyncSession, fresh: bool) -> dict[str, Any]:
@@ -173,6 +180,8 @@ def _gaps(days: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 async def retry_day(session: AsyncSession, day: date) -> bool:
     ok = await crawl_repo.retry(session, day)
+    if ok:
+        await wake_history(session)  # worker đang nghỉ vì hết việc → làm ngay, không đợi 10 phút
     invalidate_coverage_cache()
     return ok
 

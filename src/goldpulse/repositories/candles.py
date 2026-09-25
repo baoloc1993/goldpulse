@@ -8,18 +8,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..integrations.dukascopy import RawCandle
 
-# Nến Dukascopy luôn đè (kể cả nến tạm goldapi). Một câu lệnh với mảng unnest — không vòng lặp từng dòng.
-_UPSERT_FINAL = text("""
+# Nến final: Dukascopy đè mọi thứ; HistData đè nến tạm + nến HistData cũ nhưng KHÔNG đè Dukascopy
+# (2004–2009 lấy từ Dukascopy, giữ nguyên). Một câu lệnh với mảng unnest — không vòng lặp từng dòng.
+_UPSERT_FINAL = """
     INSERT INTO candle_1m (ts, open, high, low, close, volume, source, is_final, updated_at)
-    SELECT t.ts, t.o, t.h, t.l, t.c, t.v, 'dukascopy', true, now()
+    SELECT t.ts, t.o, t.h, t.l, t.c, t.v, :source, true, now()
     FROM unnest(
         CAST(:ts AS timestamptz[]), CAST(:o AS float8[]), CAST(:h AS float8[]),
         CAST(:l AS float8[]), CAST(:c AS float8[]), CAST(:v AS float8[])
     ) AS t(ts, o, h, l, c, v)
     ON CONFLICT (ts) DO UPDATE SET
         open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low, close = EXCLUDED.close,
-        volume = EXCLUDED.volume, source = 'dukascopy', is_final = true, updated_at = now()
-""")
+        volume = EXCLUDED.volume, source = EXCLUDED.source, is_final = true, updated_at = now()
+"""
+_KEEP_DUKASCOPY = " WHERE candle_1m.source <> 'dukascopy'"
 
 # Nến tạm goldapi KHÔNG BAO GIỜ đè nến final (ARCHITECTURE §6).
 _UPSERT_TEMP = text("""
@@ -54,12 +56,14 @@ _UPSERT_SESSION = text("""
 """)
 
 
-async def upsert_final(session: AsyncSession, candles: Sequence[RawCandle]) -> int:
+async def upsert_final(session: AsyncSession, candles: Sequence[RawCandle], source: str = "dukascopy") -> int:
     if not candles:
         return 0
+    sql = _UPSERT_FINAL + (_KEEP_DUKASCOPY if source != "dukascopy" else "")
     await session.execute(
-        _UPSERT_FINAL,
+        text(sql),
         {
+            "source": source,
             "ts": [c.ts for c in candles],
             "o": [c.open for c in candles],
             "h": [c.high for c in candles],

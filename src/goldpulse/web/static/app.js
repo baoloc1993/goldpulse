@@ -142,10 +142,13 @@
     // Nguồn lịch sử hỏng: một câu cho người xem, một câu cho người giữ máy, kèm giờ thử
     if (srcBad) {
       var waiting = wakeClickedAt && (!hist.source_checked || hist.source_checked < wakeClickedAt);
+      var src = hist.provider === "histdata" ? "HistData.com" : "Dukascopy";
       var detail = hist.source === "unreachable"
-        ? "<p><strong>Kho lịch sử đang tạm dừng</strong> — máy chạy GoldPulse không kết nối được nguồn Dukascopy. Giá realtime ở trên không bị ảnh hưởng.</p>" +
-          "<p>Cách sửa (trên máy chạy GoldPulse): bật Cloudflare WARP.</p>"
-        : "<p><strong>Kho lịch sử đang tải chậm lại</strong> — Dukascopy đang giới hạn tốc độ. Máy tự thử tiếp, không cần làm gì.</p>";
+        ? "<p><strong>Kho lịch sử đang tạm dừng</strong> — máy chạy GoldPulse không kết nối được " + src + ". Giá realtime ở trên không bị ảnh hưởng.</p>" +
+          (hist.provider === "histdata"
+            ? "<p>Cách sửa: kiểm tra mạng Internet của máy chạy GoldPulse. Không cần WARP hay proxy.</p>"
+            : "<p>Cách sửa (trên máy chạy GoldPulse): bật Cloudflare WARP.</p>")
+        : "<p><strong>Kho lịch sử đang tải chậm lại</strong> — " + src + " đang giới hạn tốc độ. Máy tự thử tiếp, không cần làm gì.</p>";
       var when = (hist.source_checked_vn ? "Lần thử gần nhất " + esc(hist.source_checked_vn) + " — chưa được" : "") +
         (hist.retry_vn ? (Date.parse(hist.retry_at) > Date.now()
           ? " · tự thử lại lúc " + esc(hist.retry_vn) : " · đang thử lại…") : "");
@@ -154,14 +157,16 @@
         (waiting ? "Đang thử kết nối…" : "Thử nạp lại ngay") + "</button></div>";
     }
 
-    h += "<h2>Nạp lịch sử</h2><div class=\"card\"><div class=\"label\">Dukascopy · nến 1 phút</div>" +
+    h += "<h2>Nạp lịch sử</h2><div class=\"card\"><div class=\"label\">Nến 1 phút · HistData (03/2009 → nay) · Dukascopy (2004 → 2009)</div>" +
       '<div class="value num">' + fmt(hist.done_days) + " / " + fmt(hist.total_days) + " ngày</div><div class=\"mt\">";
     if (hist.source === "ok") h += '<span class="badge ok">Nguồn lịch sử tới được</span>';
-    else if (hist.source === "unreachable") h += '<span class="badge warn">Không tới được nguồn — kiểm tra WARP</span>';
+    else if (hist.source === "unreachable") h += '<span class="badge warn">Không tới được nguồn — ' + (hist.provider === "histdata" ? "kiểm tra mạng" : "kiểm tra WARP") + "</span>";
     else if (hist.source === "throttled") h += '<span class="badge warn">Nguồn đang giới hạn tốc độ</span>';
     else h += '<span class="badge warn">Chưa kết nối nguồn lần nào</span>';
     if (hist.error_days) h += ' <a class="badge err" href="/coverage">' + fmt(hist.error_days) + " ngày lỗi</a>";
-    h += "</div>" + (hist.last_backfill_vn ? '<div class="muted mt">Lấy bù lần cuối ' + esc(hist.last_backfill_vn) + "</div>" : "") + "</div>";
+    h += "</div>" + (hist.old_pending ? '<div class="muted mt">Còn ' + fmt(hist.old_pending) +
+      " ngày 2004 → 03/2009 chưa nạp — đoạn này chỉ Dukascopy có (cần WARP một lần).</div>" : "") +
+      (hist.last_backfill_vn ? '<div class="muted mt">Lấy bù lần cuối ' + esc(hist.last_backfill_vn) + "</div>" : "") + "</div>";
 
     content.innerHTML = h;
     var r = document.getElementById("retry");
@@ -203,14 +208,17 @@
     return g.kind === "error" ? '<span class="down">' + esc(span + " — ngày lỗi") + "</span>" : esc(span + " — chưa nạp");
   }
 
-  function sourceWarning(src) {
-    if (src === "unreachable") return '<div class="error warn" role="alert"><p>Kho lịch sử đang tạm dừng — máy chạy GoldPulse không kết nối được nguồn Dukascopy. Cách sửa: bật Cloudflare WARP trên máy đó. </p><a class="tap" href="/overview">Xem giờ thử gần nhất ở Tổng quan</a></div>';
-    if (src === "throttled") return '<div class="error warn" role="status"><p>Dukascopy đang giới hạn tốc độ — kho tải chậm lại, máy tự thử tiếp.</p></div>';
+  function sourceWarning(src, provider) {
+    var name = provider === "histdata" ? "HistData.com" : "Dukascopy";
+    if (src === "unreachable") return '<div class="error warn" role="alert"><p>Kho lịch sử đang tạm dừng — máy chạy GoldPulse không kết nối được ' + name + ". " +
+      (provider === "histdata" ? "Cách sửa: kiểm tra mạng Internet của máy đó." : "Cách sửa: bật Cloudflare WARP trên máy đó.") +
+      '</p><a class="tap" href="/overview">Xem giờ thử gần nhất ở Tổng quan</a></div>';
+    if (src === "throttled") return '<div class="error warn" role="status"><p>' + name + " đang giới hạn tốc độ — kho tải chậm lại, máy tự thử tiếp.</p></div>";
     return "";
   }
 
   function renderCoverage(d) {
-    var warn = sourceWarning(d.source);
+    var warn = sourceWarning(d.source, d.provider);
     var anyData = d.years.some(function (y) { return y.covered_pct; });
     if (!anyData && !d.errors.length) {  // năm có sẵn từ đầu (toàn ngày chờ) — rỗng = chưa ngày nào có nến
       content.innerHTML = warn + '<div class="empty"><p>' + (warn

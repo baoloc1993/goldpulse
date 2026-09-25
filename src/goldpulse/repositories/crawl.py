@@ -34,18 +34,21 @@ async def insert_pending(session: AsyncSession, rows: Sequence[tuple[date, int]]
     )
 
 
-async def next_batch(session: AsyncSession, limit: int) -> list[date]:
+async def next_batch(
+    session: AsyncSession, limit: int, before: date | None = None, since: date | None = None
+) -> list[date]:
     """Ngày pending (lần đầu, hoặc đã nghỉ ≥ 2 phút sau lỗi chập chờn), hoặc error còn lượt
     thử và đã nghỉ ≥ 10 phút — cũ nhất trước."""
     res = await session.execute(
         text("""
             SELECT day FROM crawl_day
-            WHERE (status = 'pending' AND (attempts = 0 OR fetched_at < now() - interval '2 minutes'))
+            WHERE ((status = 'pending' AND (attempts = 0 OR fetched_at < now() - interval '2 minutes'))
                OR (status = 'error' AND attempts < :max
                    AND (fetched_at IS NULL OR fetched_at < now() - interval '10 minutes'))
+            ) AND day < :before AND day >= :since
             ORDER BY day LIMIT :limit
         """),
-        {"max": MAX_ATTEMPTS, "limit": limit},
+        {"max": MAX_ATTEMPTS, "limit": limit, "before": before or date.max, "since": since or date.min},
     )
     return [r[0] for r in res]
 
@@ -170,3 +173,16 @@ async def error_days(session: AsyncSession) -> list[dict[str, Any]]:
 
 async def total_days(session: AsyncSession) -> int:
     return (await session.execute(text("SELECT count(*) FROM crawl_day"))).scalar() or 0
+
+
+async def pending_before(session: AsyncSession, day: date) -> int:
+    """Ngày có phút mở trước `day` chưa nạp được (pending/error) — vùng chỉ Dukascopy có."""
+    return (
+        await session.execute(
+            text("""
+                SELECT count(*) FROM crawl_day
+                WHERE day < :d AND calendar_minutes > 0 AND status IN ('pending', 'error')
+            """),
+            {"d": day},
+        )
+    ).scalar() or 0

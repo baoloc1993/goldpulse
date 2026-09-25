@@ -81,3 +81,52 @@ async def store_temp_minute(session: AsyncSession, minute: datetime, prices: Seq
     await candle_repo.upsert_temp(session, minute, *ohlc)
     await recompute_sessions(session, minute, minute + MINUTE)
     return True
+
+
+def slice_and_fill(day: date, candles: Sequence[RawCandle], until: datetime | None = None) -> list[RawCandle]:
+    """Nến của ngày UTC `day` từ một dãy nến đã sắp xếp (HistData), điền nến đứng giá cho phút thị trường mở
+    không có tick — cùng quy ước với Dukascopy (DECISIONS 2026-09-25). Không điền quá `until` (mép dữ liệu)."""
+    start, end = day_bounds(day)
+    by_ts = {c.ts: c for c in candles if start <= c.ts < end}
+    prev = None
+    for c in candles:  # giá đóng cửa cuối cùng trước ngày — nền cho nến đứng giá đầu ngày
+        if c.ts >= start:
+            break
+        prev = c.close
+    out: list[RawCandle] = []
+    for m in open_minutes_of_day(day):
+        if until is not None and m > until:
+            break
+        c = by_ts.get(m)
+        if c is not None:
+            out.append(c)
+            prev = c.close
+        elif prev is not None:
+            out.append(RawCandle(m, prev, prev, prev, prev, 0.0))
+    return out
+
+
+def day_complete(day: date, last_ts: datetime | None) -> bool:
+    """File dữ liệu đã phủ tới phút mở cuối cùng của ngày chưa (trừ hao 30 phút yên ắng cuối phiên)."""
+    minutes = open_minutes_of_day(day)
+    if not minutes:
+        return True
+    return last_ts is not None and last_ts >= minutes[-1] - 30 * MINUTE
+
+
+async def store_histdata_day(session: AsyncSession, day: date, candles: Sequence[RawCandle]) -> DaySummary:
+    """Như store_history_day nhưng không đè nến Dukascopy đã có (nguồn gốc 2004–2009)."""
+    summary = summarize_day(day, candles)
+    await candle_repo.upsert_final(session, candles, source="histdata")
+    start, end = day_bounds(day)
+    await recompute_sessions(session, start, end)
+    await crawl_repo.mark_done(
+        session, day, summary.status, summary.candles, summary.traded, summary.covered, summary.missing
+    )
+    return summary
+
+
+async def store_histdata_backfill(session: AsyncSession, day: date, candles: Sequence[RawCandle]) -> None:
+    await candle_repo.upsert_final(session, candles, source="histdata")
+    start, end = day_bounds(day)
+    await recompute_sessions(session, start, end)

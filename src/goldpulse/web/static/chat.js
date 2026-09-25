@@ -96,7 +96,7 @@
         '<div class="card"><div class="label">XAUUSD · gold-api</div><div class="value num">' + (p.price == null ? "—" : fmt(p.price, 2)) + '</div><div id="lagBadge">' + priceBadge() + "</div></div>" +
         '<div class="card"><div class="label">Phiên</div><div class="value">' + esc(sess) + '</div><div class="muted">' + esc(closes) + "</div></div>" +
         '<a class="card" href="/fed"><div class="label">FED gần nhất ›</div>' + fed + "</a>";
-      var b = h.brain, name = (b.backend || "").toUpperCase() + (b.model ? " · " + b.model : "");
+      var b = h.brain, name = (b.backend || "").toUpperCase() + (b.model && b.model !== b.backend ? " · " + b.model : "");
       brainState = b.state;
       if (b.state === "down") {
         brainBadge.className = "badge err"; brainBadge.textContent = "Não bot chưa chạy — chạy make brain";

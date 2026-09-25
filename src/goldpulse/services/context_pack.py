@@ -44,8 +44,10 @@ async def live_state(session: AsyncSession, now: datetime) -> dict[str, Any]:
     else:
         reason = None
     nxt = next_open(now) if not market_open else None
+    src = sample["source_ts"] if sample else None
     return {
         "price": round(sample["price"], 2) if sample else None,
+        "price_time_vn": src.astimezone(VN).strftime("%H:%M %d/%m") if src else None,
         "lag_seconds": round(lag) if lag is not None else None,
         "fresh": fresh,
         "market_open": market_open,
@@ -117,6 +119,7 @@ async def market_pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
         "live": {**live, "note": PRICE_NOTE},
         "signals_15m": {
             **{k: v for k, v in sig.items() if k != "recent"},
+            "computed_on_bars_until_vn": sig["recent"][-1]["vn"] if sig["recent"] else None,
             "rules": "bollinger %b<0→lên, >100→xuống · streak ≥6 nến giảm→lên, ≥6 tăng→xuống · rsi9 <20→lên, >80→xuống",
             "backtest": "Mỗi tín hiệu 53–57% đúng hướng nến 15m kế tiếp (2012–2026); chiều 'xuống' chỉ ~51% từ 2022. "
             "Không tín hiệu: ~50% (tung đồng xu).",

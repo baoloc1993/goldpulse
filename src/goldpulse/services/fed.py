@@ -178,6 +178,7 @@ async def screen(session: AsyncSession, now: datetime | None = None) -> dict[str
     """Dữ liệu S7: kỳ kế tiếp · thẻ nguồn (lần nạp, số kỳ, lỗi FRED) · mọi kỳ họp mới nhất trước + phản ứng."""
     now = now or datetime.now(UTC)
     st = await feed_repo.get_status(session, "fed") or {}
+    w = await feed_repo.get_status(session, "worker")
     return {
         "next_meeting": next_meeting(now.astimezone(NY).date()),
         "source": {
@@ -186,4 +187,5 @@ async def screen(session: AsyncSession, now: datetime | None = None) -> dict[str
             "last_error": st.get("last_error"),
         },
         "rows": await listing(session),
+        "worker_alive": bool(w and (now - w["updated_at"]).total_seconds() < 120),
     }

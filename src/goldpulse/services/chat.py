@@ -32,7 +32,13 @@ def brain_view(st: dict[str, Any] | None, now: datetime) -> dict[str, Any]:
         return {"state": "down", "backend": None, "model": None, "last_error": None}
     age = (now - st["updated_at"]).total_seconds()
     err_at = datetime.fromisoformat(st["last_error_at"]) if st.get("last_error_at") else None
-    recent_err = err_at is not None and (now - err_at).total_seconds() < BRAIN_ERROR_WINDOW_S
+    ok_at = datetime.fromisoformat(st["last_ok_at"]) if st.get("last_ok_at") else None
+    # Đỏ chỉ khi lỗi gần đây VÀ chưa có câu trả lời thành công nào sau lỗi đó
+    recent_err = (
+        err_at is not None
+        and (now - err_at).total_seconds() < BRAIN_ERROR_WINDOW_S
+        and (ok_at is None or ok_at < err_at)
+    )
     state = "down" if age > BRAIN_STALE_S else "error" if recent_err else "ok"
     return {
         "state": state,
@@ -42,6 +48,12 @@ def brain_view(st: dict[str, Any] | None, now: datetime) -> dict[str, Any]:
         "last_error_at": st.get("last_error_at"),
         "seen_seconds_ago": round(age),
     }
+
+
+async def worker_alive(session: AsyncSession, now: datetime) -> bool:
+    """Worker ghi nhịp tim 30s (worker_status.worker) — cũ > 2 phút là máy nạp dữ liệu đang dừng."""
+    w = await feed_repo.get_status(session, "worker")
+    return bool(w and (now - w["updated_at"]).total_seconds() < BRAIN_STALE_S)
 
 
 async def header(session: AsyncSession, now: datetime | None = None) -> dict[str, Any]:
@@ -63,6 +75,7 @@ async def header(session: AsyncSession, now: datetime | None = None) -> dict[str
         "fed": fed.reaction_row(last_fed[0]) if last_fed else None,
         "next_meeting": fed.next_meeting(now.astimezone(NY).date()),
         "brain": brain_view(brain, now),
+        "worker_alive": await worker_alive(session, now),
         "pending_jobs": await job_repo.pending_count(session),
     }
 
@@ -86,6 +99,7 @@ async def message_view(session: AsyncSession, m: dict[str, Any]) -> dict[str, An
         "status": m["status"],
         "prediction": pred,
         "created_vn": m["created_at"].astimezone(VN).strftime("%d/%m %H:%M"),
+        "attempts": m.get("attempts") or 0,
         "waited_seconds": round((datetime.now(UTC) - m["created_at"]).total_seconds()),
     }
 

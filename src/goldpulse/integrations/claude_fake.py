@@ -58,8 +58,14 @@ class ClaudeFake:
         sig = data.get("signals_15m") or {}
         fed = (data.get("fed") or {}).get("next_meeting") or {}
         price = live.get("price")
+        if not price:
+            first = "(fake) Chưa có giá realtime."
+        elif live.get("fresh"):
+            first = f"(fake) Giá hiện tại **{price:,.2f} USD** (gold-api)."
+        else:
+            first = f"(fake) Giá lúc {live.get('price_time_vn')}: **{price:,.2f} USD** (gold-api) — đang trễ."
         lines = [
-            f"(fake) Giá hiện tại **{price:,.2f} USD** (gold-api)." if price else "(fake) Chưa có giá realtime.",
+            first,
             f"Tín hiệu 15 phút: %b = **{sig.get('pct_b')}**, chuỗi {sig.get('streak')} nến,"
             f" RSI 9 = **{sig.get('rsi9')}**"
             f" — {'có' if sig.get('has_signal') else 'không có'} tín hiệu.",
@@ -76,5 +82,10 @@ class ClaudeFake:
                     "prediction": {"direction": d, "confidence": "low", "reason": "(fake) theo tín hiệu"},
                     "suggests_trade": True,
                 }
-            lines.append("Thị trường đang đóng hoặc giá chưa tươi — mình không gợi ý mua/bán.")
+            if live.get("no_suggest_reason") == "market_closed":
+                lines.append(
+                    f"Thị trường đang nghỉ (mở lại lúc {live.get('next_open_vn')}) — mình không gợi ý mua/bán."
+                )
+            else:
+                lines.append("Giá realtime đang trễ nên mình không gợi ý mua/bán và không ghi dự đoán.")
         return {**base, "answer": "\n".join(lines)}

@@ -1,5 +1,6 @@
 /* Chỉ dùng var(--…) từ tokens.css — không mã màu thô. */
 * { box-sizing: border-box; }
+html { color-scheme: dark; }
 html, body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); font-size: var(--text-base); line-height: 1.4; }
 .num { font-variant-numeric: tabular-nums; }
 .wrap { max-width: 720px; margin: 0 auto; padding: var(--space-md) var(--space-md) 96px; }
@@ -116,15 +117,19 @@ p.muted { margin: var(--space-sm) 0; }
 /* Nút phụ: nền trang + viền — không tranh với nút Gửi */
 .btn.line { background: var(--color-bg); color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-border); }
 .btn.small { font-size: var(--text-sm); padding: var(--space-sm); }
-a.back { color: var(--color-text); font-size: var(--text-sm); }
+a.back { color: var(--color-text); font-size: var(--text-sm); padding-right: var(--space-md); min-width: 44px; }
 
 /* C3 gọn — đầu màn S5 */
 .head3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-sm); margin-bottom: var(--space-sm); }
 .head3 .card { margin: 0; padding: var(--space-sm); min-width: 0; }
 .head3 .value { font-size: var(--text-base); overflow-wrap: anywhere; }
 .head3 .muted { overflow-wrap: anywhere; }
-.skel.head { height: 92px; margin: 0; }
-.brainrow { margin-bottom: var(--space-md); }
+.skel.head { height: 101px; margin: 0; }
+/* Đầu màn dính trên cùng khi cuộn: đọc câu trả lời vẫn thấy giá + độ trễ (dogfood 2026-09-26) */
+.head3 { position: sticky; top: 0; z-index: 1; background: var(--color-bg); padding: var(--space-sm) 0; margin-top: calc(-1 * var(--space-sm)); }
+.nowrap { white-space: nowrap; }
+.brainrow { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
+.brainerr { margin: calc(-1 * var(--space-sm)) 0 var(--space-md); overflow-wrap: anywhere; }
 
 /* C9 bong bóng chat */
 .chat { display: flex; flex-direction: column; gap: var(--space-sm); padding-bottom: var(--space-lg); }
@@ -147,9 +152,14 @@ a.back { color: var(--color-text); font-size: var(--text-sm); }
 
 /* C13 thanh gửi dính đáy, ngay trên C8 */
 .sendbar { position: fixed; left: 0; right: 0; bottom: calc(49px + env(safe-area-inset-bottom)); background: var(--color-bg); padding: var(--space-sm) var(--space-md); box-shadow: var(--shadow); }
-.sendbar .inner { max-width: 720px; margin: 0 auto; display: flex; gap: var(--space-sm); align-items: flex-end; }
+.sendbar .inner { max-width: 688px; margin: 0 auto; display: flex; gap: var(--space-sm); align-items: flex-end; }
 .sendbar textarea { flex: 1; font: inherit; font-size: 16px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-sm); min-height: 44px; max-height: 108px; resize: none; }
 .sendbar textarea:focus { outline: 2px solid var(--color-primary); }
+/* Chữ gợi ý: mặc định trình duyệt #757575 chỉ 3.45:1 trên surface */
+.sendbar textarea::placeholder { color: var(--color-text-muted); opacity: 1; }
+/* Nút Gửi giữ một bề rộng qua "Gửi" / "Đang gửi…" / "Đang chờ…" — ô nhập không nhảy */
+.sendbar .btn { min-width: 104px; }
+.sendbar .count { margin-top: var(--space-sm); }
 .sendbar .field-err { margin: var(--space-sm) 0 0; }
 body[data-screen="s5"] .wrap { padding-bottom: 180px; }
 

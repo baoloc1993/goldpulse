@@ -6,7 +6,10 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-_MSG_COLS = "id, thread_id, role, content, status, job_id, prediction_id, usage, created_at"
+_MSG_COLS = (
+    "id, thread_id, role, content, status, job_id, prediction_id, usage, created_at,"
+    " (SELECT attempts FROM bot_job WHERE bot_job.id = chat_message.job_id) AS attempts"
+)
 
 
 async def latest_thread(session: AsyncSession) -> dict[str, Any] | None:

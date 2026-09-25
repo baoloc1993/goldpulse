@@ -85,7 +85,7 @@
       if (!p || p.price == null) return '<span class="badge err">Chưa có giá</span>';
       if (!p.market_open) return '<span class="badge warn">Thị trường nghỉ</span>';
       var lag = lagNow();
-      if (lag == null || lag >= p.lag_limit) return '<span class="badge err">Trễ ' + (lag == null ? "?" : dur(lag)) + " — chờ nguồn</span>";
+      if (lag == null || lag >= p.lag_limit) return '<span class="badge err">Trễ ' + (lag == null ? "?" : dur(lag)) + (lag != null && lag >= 120 ? "" : " — chờ nguồn") + "</span>";
       return '<span class="badge ok">Trễ ' + lag + "s</span>";
     }
     function renderHead() {
@@ -97,12 +97,17 @@
       var fed = h.fed
         ? '<div class="value num">' + fmt(h.fed.rate_upper, 2) + "%</div><div class=\"muted num\">" + vnDate(h.fed.meeting_date).slice(0, 5) + " · " +
           (h.fed.change_bp < 0 ? "▼ −" + Math.abs(h.fed.change_bp) : h.fed.change_bp > 0 ? "▲ +" + h.fed.change_bp : "— 0") + " bp</div>"
-        : '<div class="value">Chưa nạp</div><div class="muted">Đang nạp từ FRED</div>';
+        : h.next_meeting
+          ? '<div class="value num">Kỳ tới ' + vnDate(h.next_meeting.date).slice(0, 5) + '</div><div class="muted">còn ' + h.next_meeting.days + " ngày · chưa có kết quả kỳ trước</div>"
+          : '<div class="value">Chưa có</div><div class="muted">' + (h.worker_alive ? "Đang nạp lịch FED" : "Máy nạp dữ liệu đang dừng") + "</div>";
       head.innerHTML =
-        '<div class="card"><div class="label">XAUUSD · gold-api</div><div class="value num">' + (p.price == null ? "—" : fmt(p.price, 2)) + '</div><div id="lagBadge">' + priceBadge() + "</div></div>" +
+        '<div class="card"><div class="label">XAUUSD <span class="nowrap">· gold-api</span></div><div class="value num">' + (p.price == null ? "—" : fmt(p.price, 2)) + '</div><div id="lagBadge">' + priceBadge() + "</div></div>" +
         '<div class="card"><div class="label">Phiên</div><div class="value">' + esc(sess) + '</div><div class="muted">' + esc(closes) + "</div></div>" +
         '<a class="card" href="/fed"><div class="label">FED gần nhất ›</div>' + fed + "</a>";
-      var b = h.brain, name = (b.backend || "").toUpperCase() + (b.model && b.model !== b.backend ? " · " + b.model : "");
+      var b = h.brain;
+      var name = b.backend === "fake" ? "chế độ thử (câu mẫu, không phải Claude)" : (b.backend || "").toUpperCase() + (b.model ? " · " + b.model : "");
+      var brainErr = document.getElementById("brainErr");
+      brainErr.hidden = b.state !== "error"; brainErr.textContent = b.state === "error" ? "Lỗi gần nhất: " + (b.last_error || "") : "";
       brainState = b.state;
       if (b.state === "down") {
         brainBadge.className = "badge err"; brainBadge.textContent = "Não bot chưa chạy — chạy make brain";
@@ -124,7 +129,7 @@
       return api("/api/chat/header").then(function (h) { headData = h; headAt = Date.now(); renderHead(); })
         .catch(function (e) {
           if (e.message === "auth") return;
-          brainBadge.className = "badge err"; brainBadge.textContent = errText(e);
+          brainBadge.className = "badge err"; brainBadge.textContent = e.status ? "Không tải được trạng thái" : "Mất kết nối — đang thử lại";
         });
     }
 
@@ -141,9 +146,13 @@
       return md(body) + note + (disc ? '<div class="disclaimer">' + esc(disc) + "</div>" : "");
     }
     function waitNote(m) {
-      var mins = Math.floor((m.waited_seconds || 0) / 60);
+      if (m._offline) return "Mất kết nối — đang thử nối lại… (câu hỏi đã lưu trên máy chủ)";
+      var sec = m.waited_seconds || 0, mins = Math.floor(sec / 60);
       if (brainState === "down") return "Đang chờ não bot…" + (mins ? " (xếp hàng " + mins + " phút)" : "");
-      return "Đang nghĩ…";
+      var t = sec >= 10 ? " " + (mins ? mins + " phút " + (sec % 60) + "s" : sec + "s") : "";
+      if ((m.attempts || 0) > 1) return "Đang thử lại lần " + m.attempts + "/3…" + t;
+      if (headData && headData.pending_jobs > 1 && sec >= 5) return "Đang xếp hàng sau câu khác…" + t;
+      return "Đang nghĩ…" + t;
     }
     function nodeFor(m) {
       var el = document.createElement("div");
@@ -187,17 +196,22 @@
         setTimeout(function () {
           api("/api/chat/messages/" + id).then(function (m) {
             fails = 0;
+            var el = log.querySelector('[data-id="' + id + '"]');
             if (m.status === "pending") {
-              var el = log.querySelector('[data-id="' + id + '"]');
               if (el) { el._msg = m; el.textContent = waitNote(m); }
               return tick();
             }
+            if (!polling[id]) return;  // đã bấm "Chat mới" — bỏ theo dõi
             delete polling[id]; setWaiting(-1);
-            put(m); scrollEnd();
+            // Câu trả lời thuộc đoạn chat đang xem mới chèn — không lọt sang "Chat mới"
+            if (el) { put(m); scrollEnd(); }
           }).catch(function (e) {
             if (e.message === "auth") return;
-            // Mất mạng chốc lát: poll tiếp, câu trả lời vẫn ở máy chủ — không đánh rơi
-            fails += 1; tick();
+            // Mất mạng chốc lát: poll tiếp, câu trả lời vẫn ở máy chủ — không đánh rơi, nhưng nói ra
+            fails += 1;
+            var el2 = log.querySelector('[data-id="' + id + '"]');
+            if (el2 && el2._msg && fails >= 2) { el2._msg._offline = true; el2.textContent = waitNote(el2._msg); }
+            tick();
           });
         }, fails ? Math.min(10000, 2000 * (fails + 1)) : 2000);
       })();
@@ -220,7 +234,8 @@
       }).catch(function (e) {
         if (e.message === "auth") return;
         log.innerHTML = errorBlock("Không tải được đoạn chat — " + errText(e), "reloadThread");
-        document.getElementById("reloadThread").addEventListener("click", loadThread);
+        head.innerHTML = "";
+        document.getElementById("reloadThread").addEventListener("click", function () { loadHead(); loadThread(); });
       });
     }
 
@@ -256,10 +271,24 @@
     function grow() { ask.style.height = "auto"; ask.style.height = Math.min(ask.scrollHeight + 2, 108) + "px"; }
 
     form.addEventListener("submit", function (ev) { ev.preventDefault(); submit(ask.value); });
-    ask.addEventListener("input", function () { grow(); sendErr.hidden = true; });
+    var askCount = document.getElementById("askCount");
+    ask.addEventListener("input", function () {
+      grow(); sendErr.hidden = true;
+      var n = ask.value.length;
+      askCount.hidden = n < 1800;
+      askCount.textContent = n + "/2000 ký tự" + (n >= 2000 ? " — không gõ thêm được" : "");
+    });
+    // Điện thoại: Enter = xuống dòng, bấm Gửi mới gửi (DESIGN-SYSTEM C13). Bàn phím rời: Ctrl/⌘ + Enter gửi
+    ask.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); submit(ask.value); }
+    });
     document.getElementById("newChat").addEventListener("click", function (ev) {
       var b = ev.target; b.disabled = true;
-      api("/api/chat/threads", { method: "POST" }).then(function (r) { threadId = r.thread_id; renderEmpty(); ask.focus(); })
+      api("/api/chat/threads", { method: "POST" }).then(function (r) {
+        threadId = r.thread_id; renderEmpty(); ask.focus();
+        // Câu đang chờ của đoạn cũ vẫn được trả lời trên máy chủ; không khoá nút Gửi của đoạn mới
+        polling = {}; waiting = 0; setWaiting(0);
+      })
         .catch(function (e) { if (e.message !== "auth") { sendErr.textContent = errText(e); sendErr.hidden = false; } })
         .then(function () { b.disabled = false; });
     });
@@ -301,15 +330,18 @@
       });
     }
     function sigText(sig) {
-      if (!sig) return "chưa tính";
+      if (!sig) return "chưa có (máy nạp dữ liệu chưa tính)";
       var f = sig.fired.map(function (x) { return SIG[x.name] || x.name; }).join(", ");
       return sig.bar_vn + " · " + (f || "không tín hiệu");
     }
     function render(d) {
       var s = d.summary;
       if (!s.total) {
-        content.innerHTML = '<div class="empty"><p>Chưa có dự đoán nào — bot chỉ dự đoán khi có tín hiệu 15 phút hoặc khi bạn hỏi "tăng hay giảm". ' +
-          "Nến 15 phút gần nhất: " + esc(sigText(d.signal)) + '.</p><a href="/chat">Sang Chat hỏi thử</a></div>';
+        var lv = d.live, why = lv.can_suggest ? "" : lv.no_suggest_reason === "market_closed"
+          ? " Hiện thị trường đang nghỉ nên bot tạm không dự đoán."
+          : " Hiện giá realtime đang trễ nên bot tạm không dự đoán.";
+        content.innerHTML = '<div class="empty"><p>Chưa có dự đoán nào — bot chỉ dự đoán khi thị trường mở, giá realtime tươi, và có tín hiệu 15 phút hoặc bạn hỏi "tăng hay giảm".' +
+          esc(why) + " Nến 15 phút gần nhất: " + esc(sigText(d.signal)) + '.</p><a href="/chat">Sang Chat hỏi thử</a></div>';
         return;
       }
       var cls = s.scored < s.min_scored ? "card" : s.rate >= s.go ? "card pass" : s.rate < s.kill ? "card fail" : "card";
@@ -386,10 +418,15 @@
     function render(d) {
       var src = d.source;
       if (!d.rows.length) {
-        box.innerHTML = src.last_error
-          ? errorBlock("Chưa nạp được lịch FED từ FRED — " + src.last_error + ". Worker sẽ tự thử lại.", "retry")
-          : '<div class="empty"><p>Đang nạp lịch FED từ FRED — worker vừa khởi động, chờ khoảng một phút.</p><a href="/chat">Về Chat</a></div>';
+        var nx0 = d.next_meeting;
+        var nextRow = nx0 ? '<div class="prow next"><div class="top"><span>Kỳ họp kế tiếp</span><span class="num">' + vnDate(nx0.date) + " · còn " + nx0.days + " ngày</span></div></div>" : "";
+        box.innerHTML = nextRow + (src.last_error
+          ? errorBlock("Chưa nạp được lịch FED từ FRED — " + src.last_error + ". Máy nạp dữ liệu sẽ tự thử lại mỗi ngày.", "retry")
+          : d.worker_alive
+            ? '<div class="empty"><p>Đang nạp lịch FED từ FRED — trang tự cập nhật khi xong.</p><a href="/chat">Về Chat</a></div>'
+            : '<div class="empty"><p>Chưa có lịch FED — máy nạp dữ liệu đang dừng. Trên máy chủ bật lại GoldPulse (make dev, hoặc bản production) rồi quay lại.</p><a href="/chat">Về Chat</a></div>');
         var rb = document.getElementById("retry"); if (rb) rb.addEventListener("click", load);
+        if (d.worker_alive && !src.last_error) setTimeout(load, 10000);
         return;
       }
       var nx = d.next_meeting;

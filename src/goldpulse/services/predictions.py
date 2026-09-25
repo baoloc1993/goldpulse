@@ -145,6 +145,9 @@ async def page(session: AsyncSession, before_id: int | None, limit: int = 50) ->
 
 async def screen(session: AsyncSession) -> dict[str, Any]:
     """Dữ liệu S6: tỉ lệ + tách nguồn/hướng · tín hiệu gần nhất · 50 hàng đầu · số job dự đoán bỏ qua vì lỗi."""
+    from .context_pack import live_state  # context_pack import module này — tránh vòng lặp import
+
+    live = await live_state(session, datetime.now(VN))
     sig = await feed_repo.get_status(session, "signal")
     counts = await job_repo.counts(session, datetime(2000, 1, 1, tzinfo=VN))
     return {
@@ -160,5 +163,6 @@ async def screen(session: AsyncSession) -> dict[str, Any]:
         if sig
         else None,
         "skipped_errors": counts.get("signal_prediction:error", 0),
+        "live": {k: live[k] for k in ("can_suggest", "no_suggest_reason", "lag_seconds", "market_open")},
         "rows": await page(session, None),
     }

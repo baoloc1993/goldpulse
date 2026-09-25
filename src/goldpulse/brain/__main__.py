@@ -17,7 +17,7 @@ import structlog
 
 from ..config import settings
 from ..db import engine, session_scope
-from ..integrations.claude_base import Brain, BrainError
+from ..integrations.claude_base import Brain, BrainError, JobSkipped
 from ..logs import setup_logging
 from ..repositories import chat as chat_repo
 from ..repositories import feed as feed_repo
@@ -78,6 +78,15 @@ def compose_answer(data: dict[str, Any], live: dict[str, Any]) -> tuple[str, dic
     return answer, pred
 
 
+def user_error(e: BrainError) -> str:
+    """Câu lỗi cho người đọc 10–30 giây: làm gì tiếp trước, chi tiết kỹ thuật sau (dogfood 2026-09-26)."""
+    if e.retryable:
+        head = "Bot chưa trả lời được sau 3 lần thử — bấm Gửi lại, hoặc thử lại sau vài phút."
+    else:
+        head = "Bot tạm không dùng được — cần xử lý trên máy chủ (xem `make doctor`), xong thì bấm Gửi lại."
+    return f"{head}\nChi tiết: {e.message}"
+
+
 class BrainLoop:
     def __init__(self, backend: Brain) -> None:
         self.backend = backend
@@ -88,6 +97,7 @@ class BrainLoop:
         self.predict_schema = json.loads(load("schemas/predict.json"))
         self.last_error: str | None = None
         self.last_error_at: str | None = None
+        self.last_ok_at: str | None = None
         self.done = 0
 
     async def beat(self) -> None:
@@ -102,6 +112,7 @@ class BrainLoop:
                     "jobs_done": self.done,
                     "last_error": self.last_error,
                     "last_error_at": self.last_error_at,
+                    "last_ok_at": self.last_ok_at,
                 },
             )
 
@@ -155,14 +166,16 @@ class BrainLoop:
             else:
                 await self.predict(job)
             self.done += 1
+            self.last_ok_at = datetime.now(UTC).isoformat()
             return True
         except BrainError as e:
-            self.note_error(e.message)
+            if not isinstance(e, JobSkipped):
+                self.note_error(e.message)
             log.warning("job_failed", id=job["id"], error=e.message, retryable=e.retryable)
             async with session_scope() as s:
                 status = await job_repo.fail(s, job["id"], e.message, e.retryable)
                 if status == "error" and job["kind"] == "chat":
-                    await chat_repo.complete(s, job["payload"]["message_id"], e.message, "error", None, None, None)
+                    await chat_repo.complete(s, job["payload"]["message_id"], user_error(e), "error", None, None, None)
             return status == "error"
 
     async def chat(self, job: dict[str, Any]) -> None:
@@ -201,11 +214,11 @@ class BrainLoop:
         now = datetime.now(UTC)
         bar_end = datetime.fromisoformat(job["payload"]["bar_ts"])
         if (now - job["created_at"]).total_seconds() > AUTO_MAX_AGE_S:
-            raise BrainError("Quá hạn — job chờ não quá 5 phút, bỏ nến này.", retryable=False)
+            raise JobSkipped("Quá hạn — job chờ não quá 5 phút, bỏ nến này.")
         async with session_scope() as s:
             live = await context_pack.live_state(s, now)
             if not live["can_suggest"] or not signals.auto_allowed(bar_end):
-                raise BrainError("Thị trường sắp nghỉ hoặc giá realtime đang trễ — bỏ nến này.", retryable=False)
+                raise JobSkipped("Thị trường sắp nghỉ hoặc giá realtime đang trễ — bỏ nến này.")
             pack = await context_pack.build_prediction(s, job["payload"], now)
         user = json.dumps({"data": pack}, ensure_ascii=False, default=str)
         reply = await self.backend.ask(self.predict_system, user, self.predict_schema)
@@ -216,7 +229,7 @@ class BrainLoop:
             made = datetime.now(UTC)
             price = await predictions.price_at(s, made)
             if price is None:
-                raise BrainError("Không có nến phút gần nhất để lấy giá lúc dự đoán — bỏ nến này.", retryable=False)
+                raise JobSkipped("Không có nến phút gần nhất để lấy giá lúc dự đoán — bỏ nến này.")
             pid = await predictions.create(
                 s,
                 made_at=made,

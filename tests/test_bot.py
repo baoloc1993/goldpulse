@@ -205,7 +205,15 @@ async def test_chat_roundtrip_with_fake_brain(client, db, monkeypatch):
 
 
 async def _open_live(session, now):
-    return {"can_suggest": True, "price": 4300.0, "lag_seconds": 1, "fresh": True, "market_open": True}
+    return {
+        "can_suggest": True,
+        "no_suggest_reason": None,
+        "price": 4300.0,
+        "price_time_vn": "00:00 26/09",
+        "lag_seconds": 1,
+        "fresh": True,
+        "market_open": True,
+    }
 
 
 @needs_db

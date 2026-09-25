@@ -30,18 +30,19 @@ async def count(session: AsyncSession) -> int:
     return int((await session.execute(text("SELECT count(*) FROM fed_decision"))).scalar() or 0)
 
 
-# Giá tại mốc = close nến phút cuối trước mốc, trong 5 phút (thiếu → null, kỳ đó bị loại khỏi trung bình).
-_REACTIONS = """
+# Giá tại mốc = close nến phút SỐNG cuối trước mốc, trong 5 phút (thiếu → null, kỳ đó bị loại khỏi trung bình).
+_LIVE = "(volume > 0 OR source = 'goldapi')"
+_REACTIONS = f"""
     SELECT f.meeting_date, f.announced_at, f.rate_lower, f.rate_upper, f.change_bp, f.kind,
            p0.close AS p0, p15.close AS p15, p60.close AS p60, p1d.close AS p1d
     FROM fed_decision f
-    LEFT JOIN LATERAL (SELECT close FROM candle_1m WHERE ts < f.announced_at
+    LEFT JOIN LATERAL (SELECT close FROM candle_1m WHERE {_LIVE} AND ts < f.announced_at
                        AND ts >= f.announced_at - interval '5 minutes' ORDER BY ts DESC LIMIT 1) p0 ON true
-    LEFT JOIN LATERAL (SELECT close FROM candle_1m WHERE ts < f.announced_at + interval '15 minutes'
+    LEFT JOIN LATERAL (SELECT close FROM candle_1m WHERE {_LIVE} AND ts < f.announced_at + interval '15 minutes'
                        AND ts >= f.announced_at + interval '10 minutes' ORDER BY ts DESC LIMIT 1) p15 ON true
-    LEFT JOIN LATERAL (SELECT close FROM candle_1m WHERE ts < f.announced_at + interval '1 hour'
+    LEFT JOIN LATERAL (SELECT close FROM candle_1m WHERE {_LIVE} AND ts < f.announced_at + interval '1 hour'
                        AND ts >= f.announced_at + interval '55 minutes' ORDER BY ts DESC LIMIT 1) p60 ON true
-    LEFT JOIN LATERAL (SELECT close FROM candle_1m WHERE ts < f.announced_at + interval '1 day'
+    LEFT JOIN LATERAL (SELECT close FROM candle_1m WHERE {_LIVE} AND ts < f.announced_at + interval '1 day'
                        AND ts >= f.announced_at + interval '1 day' - interval '5 minutes'
                        ORDER BY ts DESC LIMIT 1) p1d ON true
 """

@@ -62,6 +62,24 @@ async def add_message(
     return int(row.scalar_one())
 
 
+async def reopen_if_error(session: AsyncSession, message_id: int) -> bool:
+    """Chỉ MỘT request "Gửi lại" thắng: đổi error → pending nguyên tử (hai request song song → một 409)."""
+    row = await session.execute(
+        text("""
+            UPDATE chat_message SET status = 'pending', content = ''
+            WHERE id = :id AND role = 'assistant' AND status = 'error' RETURNING id
+        """),
+        {"id": message_id},
+    )
+    return row.first() is not None
+
+
+async def current_job(session: AsyncSession, message_id: int) -> int | None:
+    return (
+        await session.execute(text("SELECT job_id FROM chat_message WHERE id = :id FOR UPDATE"), {"id": message_id})
+    ).scalar()
+
+
 async def set_job(session: AsyncSession, message_id: int, job_id: int) -> None:
     await session.execute(text("UPDATE chat_message SET job_id = :j WHERE id = :id"), {"id": message_id, "j": job_id})
 

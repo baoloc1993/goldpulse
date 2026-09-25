@@ -23,6 +23,7 @@ from pathlib import Path  # noqa: E402
 from typing import Any  # noqa: E402
 
 import structlog  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 
 from ..config import settings  # noqa: E402
 from ..db import engine, session_scope  # noqa: E402
@@ -45,8 +46,11 @@ REFUSALS = {
     "not_gold": "Hiện mình chỉ có dữ liệu vàng (XAUUSD) — mình chưa trả lời được về tài sản khác.",
     "trade_request": "GoldPulse không đặt lệnh trên bất kỳ tài khoản nào — mình chỉ phân tích dữ liệu vàng.",
 }
-# Chữ có ý gợi ý mua/bán — lưới an toàn cho dòng miễn trừ khi não quên khai `suggests_trade`
-TRADE_WORDS = re.compile(r"\b(nên|có thể|hãy)\s+(mua|bán|vào lệnh|chốt)|\b(buy|sell|long|short)\b", re.IGNORECASE)
+# Chữ có ý gợi ý mua/bán — khi không được gợi ý (đóng cửa/giá trễ) thì code thêm câu lưu ý
+TRADE_WORDS = re.compile(
+    r"\b(nên|có thể|hãy|cân nhắc)\s+(mua|bán|vào lệnh|chốt)|\bmua vào\b|\bbán ra\b|\bvào lệnh\b|\b(buy|sell)\b",
+    re.IGNORECASE,
+)
 AUTO_MAX_AGE_S = 300  # job dự đoán tự động chờ quá 5 phút → giá đã trôi, bỏ nến đó
 RETRY_PAUSE_S = 20
 HEARTBEAT_S = 30
@@ -87,7 +91,7 @@ def compose_answer(data: dict[str, Any], live: dict[str, Any]) -> tuple[str, dic
     pred = raw if isinstance(raw, dict) and raw.get("direction") in ("up", "down") else None
     if pred and pred.get("confidence") not in ("low", "medium", "high"):
         pred = {**pred, "confidence": "low"}
-    # Dòng miễn trừ KHÔNG chỉ dựa vào cờ của não: có dự đoán, não tự khai, HOẶC chữ có ý mua/bán
+    # Câu có ý mua/bán (dự đoán, não tự khai, hoặc chữ) — chỉ để thêm câu lưu ý khi không được gợi ý
     trade_talk = bool(pred) or bool(data.get("suggests_trade")) or bool(TRADE_WORDS.search(answer))
     if not live.get("can_suggest"):
         if trade_talk:
@@ -96,9 +100,8 @@ def compose_answer(data: dict[str, Any], live: dict[str, Any]) -> tuple[str, dic
             )
             answer = f"{answer}\n\nLưu ý: {why} — câu trả lời này không phải gợi ý mua/bán và không được ghi dự đoán."
         pred = None
-    if trade_talk:
-        answer = f"{answer}\n\n---\n{DISCLAIMER}"
-    return answer, pred
+    # Dòng miễn trừ cho MỌI câu trả lời không phải từ chối — không phụ thuộc cờ hay cách viết của não (AC-9)
+    return f"{answer}\n\n---\n{DISCLAIMER}", pred
 
 
 def user_error(e: BrainError) -> str:
@@ -155,7 +158,16 @@ class BrainLoop:
         self.last_error_at = datetime.now(UTC).isoformat()
 
     async def run(self) -> None:
-        log.info("brain_start", backend=self.backend.name, model=self.backend.model)
+        # Hai não trên một kho (vd make dev + make brain) → job requeue bị xử đôi: giữ advisory lock suốt đời não
+        self.lock_conn = await engine.connect()
+        if not (await self.lock_conn.execute(text("SELECT pg_try_advisory_lock(20260926)"))).scalar():
+            await self.lock_conn.close()
+            await engine.dispose()
+            raise SystemExit("Đã có một não GoldPulse khác đang chạy trên kho này — dừng.")
+        db = engine.url
+        log.info(
+            "brain_start", backend=self.backend.name, model=self.backend.model, db=f"{db.host}:{db.port}/{db.database}"
+        )
         hb = asyncio.create_task(self.heartbeat_loop())
         while not self.stop.is_set():
             try:
@@ -177,6 +189,7 @@ class BrainLoop:
         hb.cancel()
         await asyncio.gather(hb, return_exceptions=True)
         await self.backend.close()
+        await self.lock_conn.close()
         await engine.dispose()
         log.info("brain_stop")
 
@@ -201,8 +214,9 @@ class BrainLoop:
             log.warning("job_failed", id=job["id"], error=e.message, retryable=e.retryable)
             async with session_scope() as s:
                 status = await job_repo.fail(s, job["id"], e.message, e.retryable)
-                if status == "error" and job["kind"] == "chat":
-                    await chat_repo.complete(s, job["payload"]["message_id"], user_error(e), "error", None, None, None)
+                mid = job["payload"].get("message_id")
+                if status == "error" and job["kind"] == "chat" and await chat_repo.current_job(s, mid) == job["id"]:
+                    await chat_repo.complete(s, mid, user_error(e), "error", None, None, None)
             return status == "error"
 
     async def chat(self, job: dict[str, Any]) -> None:
@@ -214,6 +228,11 @@ class BrainLoop:
         user = json.dumps({"question": q["content"] if q else "", "data": pack}, ensure_ascii=False, default=str)
         reply = await self.backend.ask(self.chat_system, user, self.chat_schema)
         async with session_scope() as s:
+            # Tin nhắn đã được "Gửi lại" sang job khác trong lúc chờ → job này hết phận sự, không ghi đè/không ghi
+            # dự đoán thứ hai (khoá dòng tới hết transaction)
+            if await chat_repo.current_job(s, mid) != job["id"]:
+                await job_repo.finish(s, job["id"], {"superseded": True})
+                return
             live = await context_pack.live_state(s, datetime.now(UTC))  # tình trạng LÚC ghi, không phải lúc hỏi
             answer, pred = compose_answer(reply.data, live)
             pid = None

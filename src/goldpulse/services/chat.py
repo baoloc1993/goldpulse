@@ -11,7 +11,7 @@ from ..repositories import feed as feed_repo
 from ..repositories import jobs as job_repo
 from ..repositories import predictions as pred_repo
 from . import fed
-from .calendar import NY, SESSIONS, VN, active_sessions
+from .calendar import SESSIONS, VN, active_sessions
 from .context_pack import live_state
 
 BRAIN_STALE_S = 120  # nhịp tim não 30s — cũ hơn 2 phút là não chưa chạy (PRD §7)
@@ -74,7 +74,7 @@ async def header(session: AsyncSession, now: datetime | None = None) -> dict[str
             for k, _, c in active_sessions(now)
         ],
         "fed": fed.reaction_row(last_fed[0]) if last_fed else None,
-        "next_meeting": fed.next_meeting(now.astimezone(NY).date()),
+        "next_meeting": fed.next_meeting(now),
         "brain": brain_view(brain, now),
         "worker_alive": await worker_alive(session, now),
         "pending_jobs": await job_repo.pending_count(session),
@@ -156,11 +156,10 @@ async def resend(session: AsyncSession, message_id: int) -> dict[str, Any]:
     m = await chat_repo.get_message(session, message_id)
     if not m or m["role"] != "assistant":
         raise ChatError(404, "Không có câu trả lời này.")
-    if m["status"] != "error":
+    if m["status"] != "error" or not await chat_repo.reopen_if_error(session, m["id"]):
         raise ChatError(409, "Câu trả lời này không ở trạng thái lỗi.")
     job = await job_repo.enqueue(session, "chat", {"thread_id": m["thread_id"], "message_id": m["id"]})
     assert job is not None
-    await chat_repo.complete(session, m["id"], "", "pending", None, None, None)
     await chat_repo.set_job(session, m["id"], job)
     await chat_repo.touch_thread(session, m["thread_id"], "")
     return await get(session, m["id"])

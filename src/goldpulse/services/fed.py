@@ -32,14 +32,18 @@ def meetings() -> list[dict[str, Any]]:
     ]
 
 
-def announced_at(day: date) -> datetime:
+def announced_at(day: date, local: str | None = None) -> datetime:
+    """14:00 New York ngày họp; kỳ khẩn có giờ công bố riêng (`announce_local`, giờ NY) trong lịch."""
+    if local:
+        return datetime.fromisoformat(local).replace(tzinfo=NY).astimezone(UTC)
     return datetime.combine(day, ANNOUNCE, tzinfo=NY).astimezone(UTC)
 
 
-def next_meeting(today: date) -> dict[str, Any] | None:
-    """Kỳ họp kế tiếp (ngày công bố ≥ hôm nay giờ NY)."""
+def next_meeting(now: datetime) -> dict[str, Any] | None:
+    """Kỳ họp kế tiếp = kỳ chưa công bố (giờ công bố > now) — ngày họp sau 14:00 NY là kỳ SAU, không "còn 0 ngày"."""
+    today = now.astimezone(NY).date()
     for m in meetings():
-        if m["date"] >= today:
+        if announced_at(m["date"], m.get("announce_local")) > now:
             return {"date": m["date"].isoformat(), "days": (m["date"] - today).days, "label": m["label"]}
     return None
 
@@ -51,9 +55,10 @@ def _bp(a: float, b: float) -> int:
 def build_decisions(points: list[RatePoint]) -> list[dict[str, Any]]:
     """Một dòng fed_decision cho mỗi kỳ họp đã có mức lãi suất sau họp trên FRED.
 
-    Mức trước = điểm FRED cuối cùng TRƯỚC ngày họp; mức sau = điểm đầu tiên sau (ngày họp + 2) — FRED ghi theo
-    NGÀY HIỆU LỰC: thường hôm sau, có khi +2 (cuộc gọi 02/03/2020, công bố 03/03, hiệu lực 04/03); không vượt
-    sang ngày trước kỳ họp kế tiếp để khỏi đếm lẫn thay đổi của kỳ sau. Ngày FRED đổi mức mà không nằm trong
+    Mức trước = điểm FRED cuối cùng TRƯỚC ngày họp; mức sau = điểm đầu tiên trong (ngày họp, ngày họp + 2] có mức
+    KHÁC mức trước — FRED ghi theo NGÀY HIỆU LỰC: thường hôm sau, có khi +2 (cuộc gọi 02/03/2020, công bố 03/03,
+    hiệu lực 04/03); không đổi thì lấy điểm đầu tiên sau ngày họp (kỳ vừa họp hôm qua hiện ngay, không chờ +3).
+    Không vượt sang ngày trước kỳ họp kế tiếp để khỏi đếm lẫn thay đổi của kỳ sau. Ngày FRED đổi mức mà không nằm trong
     [họp, họp + 2 ngày] của kỳ nào (cắt khẩn giữa hai kỳ) → dòng `unscheduled` riêng.
     """
     if not points:
@@ -89,13 +94,22 @@ def build_decisions(points: list[RatePoint]) -> list[dict[str, Any]]:
         cap = (
             min(m["date"] + timedelta(days=2), later[0] - timedelta(days=1)) if later else m["date"] + timedelta(days=2)
         )
-        before, after = last_before(m["date"]), first_after(max(cap, m["date"]))
+        before, after = last_before(m["date"]), first_after(m["date"])
         if not before or not after:
             continue
+        # Mức đổi trong cửa sổ hiệu lực (≤ cap) → lấy điểm đổi đầu tiên; không đổi → giữ điểm ngay sau ngày họp
+        p = after
+        while p.day <= max(cap, m["date"]) and (p.upper, p.lower) == (before.upper, before.lower):
+            nxt = first_after(p.day)
+            if nxt is None or nxt.day > max(cap, m["date"]):
+                break
+            p = nxt
+        if (p.upper, p.lower) != (before.upper, before.lower):
+            after = p
         rows.append(
             {
                 "meeting_date": m["date"],
-                "announced_at": announced_at(m["date"]),
+                "announced_at": announced_at(m["date"], m.get("announce_local")),
                 "rate_lower": after.lower,
                 "rate_upper": after.upper,
                 "change_bp": _bp(before.upper, after.upper),
@@ -166,11 +180,12 @@ async def pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
     cuts = [reaction_row(r) for r in await fed_repo.with_reactions(session, limit=8, change="cut", before=now)]
     hikes = [reaction_row(r) for r in await fed_repo.with_reactions(session, limit=8, change="hike", before=now)]
     return {
-        "next_meeting": next_meeting(now.astimezone(NY).date()),
+        "next_meeting": next_meeting(now),
         "recent": recent,
         "last_cuts": {"rows": cuts, "summary": summarize(cuts)},
         "last_hikes": {"rows": hikes, "summary": summarize(hikes)},
-        "note": "Phản ứng = giá vàng tại mốc − giá ngay trước 14:00 New York ngày công bố (USD, nến phút trong kho)",
+        "note": "Phản ứng = giá vàng tại mốc − giá ngay trước giờ công bố (14:00 New York; kỳ khẩn theo giờ thật)"
+        " (USD, nến phút có giao dịch trong kho; kỳ công bố lúc thị trường đóng không có số)",
     }
 
 
@@ -180,7 +195,7 @@ async def screen(session: AsyncSession, now: datetime | None = None) -> dict[str
     st = await feed_repo.get_status(session, "fed") or {}
     w = await feed_repo.get_status(session, "worker")
     return {
-        "next_meeting": next_meeting(now.astimezone(NY).date()),
+        "next_meeting": next_meeting(now),
         "source": {
             "loaded_at": st.get("loaded_at"),
             "count": st.get("count"),

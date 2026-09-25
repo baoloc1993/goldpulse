@@ -20,7 +20,7 @@ from ..integrations.dukascopy import (
     Throttled,
     Unreachable,
 )
-from ..integrations.fred import FredClient, FredError
+from ..integrations.fred import FredClient
 from ..integrations.goldapi import GoldApiClient, GoldApiError
 from ..integrations.histdata import FIRST_DAY as HD_FIRST
 from ..integrations.histdata import FileNotAvailable, HistDataClient
@@ -357,7 +357,10 @@ class Worker:
             sig = await signals.compute(s, bar_end)
             sig.pop("recent", None)
             job_id = None
-            if allowed and sig["has_signal"]:
+            # Nến mới nhất phải là nến vừa đóng ngay trước mốc — 18:00 NY mở cửa thì nến cuối là 16:45 (trước giờ
+            # nghỉ / cuối tuần), không phải "nến vừa đóng" (AC-10)
+            fresh_bar = sig["last_bar_ts"] == (bar_end - timedelta(minutes=signals.BAR_MINUTES)).isoformat()
+            if allowed and fresh_bar and sig["has_signal"]:
                 job_id = await job_repo.enqueue(s, "signal_prediction", {"bar_ts": bar_end.isoformat(), "signals": sig})
             await feed_repo.set_status(s, "signal", {**sig, "market_ok": allowed, "job_id": job_id})
         log.info("signal", bar_end=bar_end.isoformat(), fired=[f["name"] for f in sig["fired"]], job=job_id)
@@ -399,10 +402,10 @@ class Worker:
                             s, "fed", {"loaded_at": datetime.now(UTC).isoformat(), "count": n, "last_error": None}
                         )
                     log.info("fed_loaded", meetings=n)
-                except FredError as e:
-                    log.warning("fed_failed", error=str(e))
+                except Exception as e:  # noqa: BLE001 — lỗi gì cũng ghi cho S7 rồi chờ lượt sau
+                    log.warning("fed_failed", error=str(e), kind=type(e).__name__)
                     async with session_scope() as s:
-                        await feed_repo.set_status(s, "fed", {**prev, "last_error": str(e)})
+                        await feed_repo.set_status(s, "fed", {**prev, "last_error": f"{type(e).__name__}: {e}"[:300]})
                 now = datetime.now(UTC)
                 nxt = now.replace(hour=FED_HOUR_UTC, minute=0, second=0, microsecond=0)
                 if nxt <= now:

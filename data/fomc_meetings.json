@@ -1,7 +1,7 @@
 {
  "source_url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm (+ fomchistorical<year>.htm 2004–2020)",
  "compiled_at": "2026-09-25",
- "announce_time_local": "14:00 America/New_York (trước 2011 một số kỳ 14:15 — ROADMAP §3)",
+ "announce_time_local": "14:00 America/New_York; kỳ có `announce_local` dùng giờ đó (đổi lãi suất khẩn). Trước 2011 một số kỳ công bố 14:15 — ROADMAP §3",
  "meetings": [
   {
    "date": "2004-01-28",
@@ -223,7 +223,8 @@
    "date": "2008-01-21",
    "kind": "unscheduled",
    "label": "January 21 Conference Call - 2008",
-   "note": "Conference Call"
+   "note": "Conference Call",
+   "announce_local": "2008-01-22T08:20"
   },
   {
    "date": "2008-01-30",
@@ -283,7 +284,8 @@
    "date": "2008-10-07",
    "kind": "unscheduled",
    "label": "October 7 Conference Call - 2008",
-   "note": "Conference Call"
+   "note": "Conference Call",
+   "announce_local": "2008-10-08T07:00"
   },
   {
    "date": "2008-10-29",
@@ -887,21 +889,17 @@
   },
   {
    "date": "2020-03-02",
-   "kind": "scheduled",
+   "kind": "unscheduled",
    "label": "March 2 (unscheduled) Meeting - 2020",
-   "note": "unscheduled"
+   "note": "unscheduled",
+   "announce_local": "2020-03-03T10:00"
   },
   {
    "date": "2020-03-15",
-   "kind": "scheduled",
+   "kind": "unscheduled",
    "label": "March 15 (unscheduled) Meeting - 2020",
-   "note": "unscheduled"
-  },
-  {
-   "date": "2020-03-18",
-   "kind": "scheduled",
-   "label": "March 17-18 (cancelled) Meeting - 2020",
-   "note": "cancelled"
+   "note": "unscheduled",
+   "announce_local": "2020-03-15T17:00"
   },
   {
    "date": "2020-03-19",

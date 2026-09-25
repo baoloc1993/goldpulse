@@ -147,7 +147,7 @@
 
     function botHtml(m) {
       var body = m.content, disc = "";
-      var i = body.indexOf(DISCLAIMER_SEP);
+      var i = body.lastIndexOf(DISCLAIMER_SEP);
       if (i >= 0) { disc = body.slice(i + DISCLAIMER_SEP.length); body = body.slice(0, i); }
       var note = "";
       if (m.prediction) {

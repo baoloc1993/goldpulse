@@ -17,6 +17,7 @@ from .monitor import LAG_LIMIT_S
 
 WEEKDAYS = ["thứ Hai", "thứ Ba", "thứ Tư", "thứ Năm", "thứ Sáu", "thứ Bảy", "Chủ nhật"]
 HISTORY_MESSAGES = 20
+HISTORY_CHARS = 800
 PRICE_NOTE = "Giá realtime từ gold-api.com (trung bình ~1,2 USD cao hơn giá Bid chính thức); nến lịch sử là Bid."
 
 
@@ -141,8 +142,9 @@ async def market_pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
 async def build_chat(session: AsyncSession, thread_id: int, answer_id: int, now: datetime | None = None) -> dict:
     now = now or datetime.now(UTC)
     pack = await market_pack(session, now)
+    # Mỗi tin cắt 800 ký tự: 20 × 2000 ký tự sẽ vượt trần ~12k token của gói (ARCHITECTURE §6)
     history = [
-        {"role": m["role"], "content": m["content"]}
+        {"role": m["role"], "content": m["content"][:HISTORY_CHARS]}
         for m in await chat_repo.messages_before(session, thread_id, answer_id, HISTORY_MESSAGES)
     ]
     pack["conversation"] = history

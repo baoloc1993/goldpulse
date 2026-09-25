@@ -67,7 +67,11 @@ def test_fed_uses_effective_date_and_marks_emergency_moves():
     rows = {r["meeting_date"]: r for r in fed.build_decisions(pts)}
     assert rows[date(2020, 3, 2)]["change_bp"] == -50
     assert rows[date(2020, 3, 15)]["change_bp"] == -100
-    assert rows[date(2020, 3, 18)]["change_bp"] == 0  # không đếm lẫn thay đổi của kỳ trước
+    assert date(2020, 3, 18) not in rows  # kỳ 17–18/03/2020 bị huỷ — bỏ khỏi lịch
+    assert rows[date(2020, 3, 19)]["change_bp"] == 0  # không đếm lẫn thay đổi của kỳ 15/03
+    assert rows[date(2020, 3, 2)]["kind"] == "unscheduled"
+    # Kỳ khẩn dùng giờ công bố thật: 03/03/2020 10:00 New York (mùa đông, UTC−5)
+    assert rows[date(2020, 3, 2)]["announced_at"] == utc(2020, 3, 3, 15)
     assert sum(r["change_bp"] for r in rows.values()) == -150
     # 14:00 New York mùa đông = 19:00 UTC; mùa hè = 18:00 UTC (zoneinfo tự đổi)
     assert fed.announced_at(date(2020, 1, 29)) == utc(2020, 1, 29, 19)
@@ -102,12 +106,13 @@ def test_code_enforces_disclaimer_and_refusals_regardless_of_brain():
     closed = {"can_suggest": False, "no_suggest_reason": "market_closed"}
     text_, p = compose_answer({"answer": "…", "prediction": pred, "suggests_trade": False}, closed)
     assert p is None and "thị trường đang nghỉ" in text_ and text_.endswith(DISCLAIMER)
-    # Thống kê thuần, không nhắc mua/bán → không cần miễn trừ
-    text_, p = compose_answer({"answer": "Phiên Á biên độ TB 9,8 USD", "prediction": None}, CLOSED)
-    assert p is None and DISCLAIMER not in text_
-    # Não "quên" khai cờ nhưng chữ có ý mua/bán → vẫn có miễn trừ (lưới an toàn bằng từ khoá)
-    text_, _ = compose_answer({"answer": "Bạn nên mua lúc này", "prediction": None, "suggests_trade": False}, OPEN)
-    assert text_.endswith(DISCLAIMER)
+    # Mọi câu trả lời không phải từ chối đều có miễn trừ — không phụ thuộc cờ hay cách viết của não
+    for words in ("Phiên Á biên độ TB 9,8 USD", "Mua vào lúc này hợp lý", "bạn cân nhắc bán ra"):
+        text_, p = compose_answer({"answer": words, "prediction": None, "suggests_trade": False}, OPEN)
+        assert p is None and text_.endswith(DISCLAIMER), words
+    # Thống kê thuần lúc đóng cửa: không thêm câu "không phải gợi ý"
+    text_, _ = compose_answer({"answer": "Phiên Á biên độ TB 9,8 USD", "prediction": None}, CLOSED)
+    assert "không phải gợi ý" not in text_
     # Não trả rác → lỗi của não, không phải câu trả lời
     with pytest.raises(BrainError):
         compose_answer("không phải dict", OPEN)  # type: ignore[arg-type]

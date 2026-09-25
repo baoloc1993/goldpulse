@@ -19,8 +19,10 @@ class BrainError(Exception):
 class JobSkipped(BrainError):
     """Bỏ một job vì điều kiện (thị trường sắp nghỉ, giá trễ, quá hạn) — không phải não hỏng, không làm đỏ huy hiệu."""
 
+    PREFIX = "Bỏ nến: "
+
     def __init__(self, message: str) -> None:
-        super().__init__(message, retryable=False)
+        super().__init__(self.PREFIX + message, retryable=False)
 
 
 @dataclass

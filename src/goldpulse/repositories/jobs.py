@@ -113,6 +113,22 @@ async def counts(session: AsyncSession, since: datetime) -> dict[str, int]:
     return {k: int(v) for k, v in rows}
 
 
+async def brain_failures(session: AsyncSession, kind: str, skip_prefix: str) -> int:
+    """Job lỗi vì não (không tính job bỏ có chủ đích — last_error bắt đầu bằng `skip_prefix`)."""
+    return int(
+        (
+            await session.execute(
+                text("""
+                    SELECT count(*) FROM bot_job
+                    WHERE kind = :k AND status = 'error' AND coalesce(last_error, '') NOT LIKE :p
+                """),
+                {"k": kind, "p": skip_prefix + "%"},
+            )
+        ).scalar()
+        or 0
+    )
+
+
 async def pending_count(session: AsyncSession) -> int:
     return int(
         (await session.execute(text("SELECT count(*) FROM bot_job WHERE status IN ('pending', 'running')"))).scalar()

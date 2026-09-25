@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
+from ..integrations.claude_base import JobSkipped
 from ..repositories import candles as candle_repo
 from ..repositories import feed as feed_repo
 from ..repositories import jobs as job_repo
@@ -23,8 +24,10 @@ MIN_SCORED = 100
 
 
 async def price_at(session: AsyncSession, at: datetime) -> float | None:
-    """Close nến phút cuối trước `at` (trong 5 phút) — cùng quy tắc ở hai đầu dự đoán."""
-    c = await candle_repo.close_before(session, at, at - PRICE_WINDOW)
+    """Close nến phút cuối có ts < đầu phút chứa `at` (trong 5 phút) — tức giá tại mốc phút ≤ at. Cùng một quy tắc
+    ở hai đầu dự đoán: lúc tạo, nến của phút đang chạy chưa ghi; lúc chấm (due + 90s) nó đã ghi — không được dùng."""
+    floor = at.replace(second=0, microsecond=0)
+    c = await candle_repo.close_before(session, floor, floor - PRICE_WINDOW)
     return float(c["close"]) if c else None
 
 
@@ -149,7 +152,6 @@ async def screen(session: AsyncSession) -> dict[str, Any]:
 
     live = await live_state(session, datetime.now(VN))
     sig = await feed_repo.get_status(session, "signal")
-    counts = await job_repo.counts(session, datetime(2000, 1, 1, tzinfo=VN))
     return {
         "summary": await summary(session),
         "signal": {
@@ -162,7 +164,7 @@ async def screen(session: AsyncSession) -> dict[str, Any]:
         }
         if sig
         else None,
-        "skipped_errors": counts.get("signal_prediction:error", 0),
+        "skipped_errors": await job_repo.brain_failures(session, "signal_prediction", JobSkipped.PREFIX),
         "live": {k: live[k] for k in ("can_suggest", "no_suggest_reason", "lag_seconds", "market_open")},
         "rows": await page(session, None),
     }

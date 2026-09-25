@@ -43,12 +43,26 @@ def safe_next(value: str | None) -> str:
     return parts.path + (f"?{urlencode(parse_qsl(parts.query))}" if parts.query else "")
 
 
+LOGIN_ERRORS = {
+    "empty": "Nhập khoá truy cập để vào.",
+    "wrong": "Khoá không đúng — dán lại khoá đã được gửi cho bạn.",
+    "rate": "Thử sai quá nhiều lần — đợi 1 phút rồi nhập lại.",
+}
+
+
+def login_redirect(next_path: str, err: str) -> RedirectResponse:
+    """Nộp khoá lỗi → 303 về GET /login?err=… (POST-redirect-GET): bấm Back không gặp trang "gửi lại biểu mẫu"."""
+    return RedirectResponse(f"/login?{urlencode({'next': safe_next(next_path), 'err': err})}", status_code=303)
+
+
 @router.get("/login", response_class=HTMLResponse, include_in_schema=False)
-async def login_page(request: Request, next: str | None = None, het: int = 0) -> HTMLResponse:
+async def login_page(request: Request, next: str | None = None, het: int = 0, err: str | None = None) -> HTMLResponse:
     if is_operator(request):
         return RedirectResponse(safe_next(next), status_code=303)  # type: ignore[return-value]
     notice = "Phiên đã hết — nhập lại khoá để tiếp tục." if het else None
-    return templates.TemplateResponse(request, "login.html", {"error": None, "notice": notice, "next": safe_next(next)})
+    return templates.TemplateResponse(
+        request, "login.html", {"error": LOGIN_ERRORS.get(err or ""), "notice": notice, "next": safe_next(next)}
+    )
 
 
 @router.post("/login", response_class=HTMLResponse, include_in_schema=False)
@@ -56,18 +70,10 @@ async def login_page(request: Request, next: str | None = None, het: int = 0) ->
 async def login(
     request: Request, key: Annotated[str, Form()] = "", next: Annotated[str, Form()] = "/overview"
 ) -> HTMLResponse:
-    ctx = {"notice": None, "next": safe_next(next)}
     if not key.strip():
-        return templates.TemplateResponse(
-            request, "login.html", {**ctx, "error": "Nhập khoá truy cập để vào."}, status_code=400
-        )
+        return login_redirect(next, "empty")  # type: ignore[return-value]
     if not key_matches(key):
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            {**ctx, "error": "Khoá không đúng — dán lại khoá đã được gửi cho bạn."},
-            status_code=401,
-        )
+        return login_redirect(next, "wrong")  # type: ignore[return-value]
     resp = RedirectResponse(safe_next(next), status_code=303)
     resp.set_cookie(
         COOKIE,

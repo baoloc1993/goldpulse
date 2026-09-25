@@ -33,12 +33,7 @@ app.include_router(api.router)
 @app.exception_handler(RateLimitExceeded)
 async def _too_many(request: Request, exc: RateLimitExceeded) -> Response:
     if request.url.path == "/login":
-        return pages.templates.TemplateResponse(
-            request,
-            "login.html",
-            {"error": "Thử sai quá nhiều lần — đợi 1 phút rồi nhập lại.", "notice": None, "next": "/overview"},
-            status_code=429,
-        )
+        return pages.login_redirect("/overview", "rate")
     return JSONResponse({"detail": "Thao tác quá nhanh — đợi 1 phút rồi thử lại."}, status_code=429)
 
 

@@ -342,6 +342,7 @@
   /* ---------------- S3 Tra thử ---------------- */
   var SESS = { asia: "Á", europe: "Âu", us: "Mỹ" };
   var lastQuery = null;  // bộ lọc của kết quả đang hiện
+  var syncStale = function () {};
   var DOW = ["", "thứ Hai", "thứ Ba", "thứ Tư", "thứ Năm", "thứ Sáu"];
 
   function querySummary(q) {
@@ -372,6 +373,7 @@
       content.innerHTML = '<div class="empty"><p>Chưa có phiên nào trong khoảng này — các năm đã chọn chưa được nạp vào kho.</p>' +
         '<a href="/coverage">Xem độ phủ</a></div>' +
         '<p class="muted num">' + esc(querySummary(q)) + " · tra mất " + fmt(r.duration_ms, 0) + " ms</p>";
+      lastQuery = q;
       return;
     }
     content.innerHTML = '<div class="grid g2">' +
@@ -386,6 +388,7 @@
         esc(yearRanges(r.missing_years)) + '</strong> (chưa nạp). Số trung bình chưa đại diện cho cả khoảng.</p>' +
         '<a href="/coverage">Xem độ phủ</a></div>' : "");
     lastQuery = q;
+    try { sessionStorage.setItem("gp_last_query", location.search.slice(1)); } catch (e) { /* chế độ riêng tư */ }
   }
 
   if (screen === "s3") {
@@ -397,12 +400,21 @@
     function qsOf(q) {
       return "session=" + q.session + "&year_from=" + q.year_from + "&year_to=" + q.year_to + (q.dow ? "&dow=" + q.dow : "");
     }
-    form.addEventListener("change", function () {
-      // Người vội đổi bộ lọc sau khi tra: số đang hiện là của bộ lọc CŨ — nói rõ, đừng để đọc nhầm
-      if (!lastQuery || busy || document.getElementById("staleNote")) return;
-      content.classList.add("stale");
-      content.insertAdjacentHTML("afterbegin", '<p class="notice" id="staleNote" role="status">Bộ lọc đã đổi — số bên dưới là của lần tra trước. Bấm Tra để cập nhật.</p>');
-    });
+    // Số đang hiện có khớp bộ lọc trên form không — kiểm cả khi đổi form lẫn khi kết quả vừa về (người vội đổi
+    // bộ lọc lúc đang tra thì kết quả về là của bộ lọc CŨ). Lệch → nhắc; khớp lại → tắt nhắc.
+    syncStale = function () {
+      var note = document.getElementById("staleNote");
+      var cur = form.session.value + "|" + form.year_from.value + "|" + form.year_to.value + "|" + (form.dow.value || "");
+      var shown = lastQuery && [lastQuery.session, lastQuery.year_from, lastQuery.year_to, lastQuery.dow || ""].join("|");
+      var stale = !!lastQuery && !busy && cur !== shown;
+      content.classList.toggle("stale", stale);
+      if (stale && !note) {
+        content.insertAdjacentHTML("afterbegin", '<p class="notice" id="staleNote" role="status">Bộ lọc đã đổi — số bên dưới là của lần tra trước. Bấm Tra để cập nhật.</p>');
+      } else if (!stale && note) {
+        note.remove();
+      }
+    };
+    form.addEventListener("change", function () { syncStale(); });
     var params = new URLSearchParams(location.search);
     if (params.get("session")) {
       ["session", "year_from", "year_to", "dow"].forEach(function (k) {
@@ -448,11 +460,17 @@
           revealResult();
           document.getElementById("retry").addEventListener("click", function () { form.requestSubmit(); });
         })
-        .then(function () { busy = false; run.disabled = false; run.textContent = "Tra"; });
+        .then(function () { busy = false; run.disabled = false; run.textContent = "Tra"; syncStale(); });
     });
   }
 
   /* ---------------- khởi động ---------------- */
+  // Tab "Tra thử" mở lại lần tra gần nhất trong phiên — quay từ Tổng quan về không phải chọn lại 4 ô
+  try {
+    var lastQs = sessionStorage.getItem("gp_last_query");
+    var tab = document.querySelector('.tabbar a[href="/query"]');
+    if (lastQs && tab) tab.href = "/query?" + lastQs;
+  } catch (e) { /* chế độ riêng tư: giữ link mặc định */ }
   if (screen === "s1") {
     loadOverview();
     setInterval(function () { if (!document.hidden) loadOverview(); }, 5000);

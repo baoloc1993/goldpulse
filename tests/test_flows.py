@@ -161,8 +161,10 @@ async def test_access_matrix(client):
 
 async def test_login_wrong_key_and_cookie(client):
     r = await client.post("/login", data={"key": "sai"})
-    assert r.status_code == 401 and "Khoá không đúng" in r.text
-    assert "OPS_ACCESS_KEY" not in r.text  # không lộ tên biến môi trường cho người vận hành
+    assert r.status_code == 303 and "err=wrong" in r.headers["location"]  # POST-redirect-GET
+    page = await client.get(r.headers["location"])
+    assert "Khoá không đúng" in page.text
+    assert "OPS_ACCESS_KEY" not in page.text  # không lộ tên biến môi trường cho người vận hành
     r = await _login(client)
     cookie = r.headers["set-cookie"]
     assert "HttpOnly" in cookie and "samesite=strict" in cookie.lower()
@@ -244,8 +246,8 @@ async def test_html_404_page(client):
 
 
 async def test_login_rate_limited(client):
-    codes = [(await client.post("/login", data={"key": "sai"})).status_code for _ in range(12)]
-    assert codes[:10] == [401] * 10 and codes[-1] == 429
+    locs = [(await client.post("/login", data={"key": "sai"})).headers["location"] for _ in range(12)]
+    assert all("err=wrong" in x for x in locs[:10]) and "err=rate" in locs[-1]
 
 
 def test_client_ip_trusts_cloudflare_header_only_from_internal_peer():
@@ -278,7 +280,8 @@ async def test_login_rate_limit_message_is_vietnamese(client):
     for _ in range(10):
         await client.post("/login", data={"key": "sai"})
     r = await client.post("/login", data={"key": "sai"})
-    assert r.status_code == 429 and "đợi 1 phút" in r.text
+    assert "err=rate" in r.headers["location"]
+    assert "đợi 1 phút" in (await client.get(r.headers["location"])).text
 
 
 async def test_security_headers(client):

@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 
     history_start_date: date = date(2004, 1, 1)
     realtime_poll_seconds: float = 5.0
+    # Lấy bù HistData: HistData chỉ phát hành ~1 lần/tuần nên một lần/ngày là đủ (DECISIONS 2026-09-25)
+    backfill_hours: float = 24.0
     # Số file Dukascopy tải song song — Dukascopy chậm 15–50s/file, hay trả 503 (DECISIONS 2026-09-24)
     dukascopy_concurrency: int = 3
     dukascopy_delay_seconds: float = 0.5

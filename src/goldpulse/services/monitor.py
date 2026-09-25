@@ -98,7 +98,9 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
             if history_source.get("retry_at")
             else None,
             "retry_at": history_source.get("retry_at"),
-            "last_backfill_vn": _vn(backfill["updated_at"]) if backfill.get("days") else None,
+            "last_backfill_vn": backfill["updated_at"].astimezone(VN).strftime("%H:%M %d/%m")
+            if backfill.get("days")
+            else None,
         },
         "worker_alive": bool(worker_seen and (now - worker_seen).total_seconds() < 120),
         "metrics": {

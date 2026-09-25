@@ -35,7 +35,6 @@ UNREACHABLE_PAUSE_S = 300
 THROTTLE_MIN_S = 60
 THROTTLE_MAX_S = 900
 IDLE_S = 600
-BACKFILL_EVERY_S = 3600
 HD_BATCH = 400  # ngày một lượt — một file năm HistData phủ ~300 ngày
 
 
@@ -144,7 +143,7 @@ class Worker:
                 self.throttle_s = min(self.throttle_s * 2, THROTTLE_MAX_S)
             elif not tried:
                 # Chỉ còn ngày HistData chưa phát hành (trễ ~1 tuần) — chờ lượt sau, đừng tải lại liên tục
-                await self.sleep(BACKFILL_EVERY_S, wake_key="history_wake")
+                await self.sleep(settings.backfill_hours * 3600, wake_key="history_wake")
 
     async def histdata_file(self, key: str) -> list[RawCandle] | Exception | None:
         """File HistData theo khoá, nhớ tạm vài file gần nhất (một file năm ~350 nghìn nến).
@@ -272,8 +271,8 @@ class Worker:
 
     # --- C. Lấy bù --------------------------------------------------------------------
     async def backfill_loop(self) -> None:
-        """Mỗi giờ: tải lại file HistData của tháng hiện tại (+ tháng trước ở đầu tháng), nến final đè nến
-        tạm của 14 ngày gần nhất. KHÔNG ghi crawl_day — ngày chỉ thành ok qua luồng A."""
+        """Mỗi BACKFILL_HOURS giờ (mặc định 24): tải lại file HistData tháng hiện tại (+ tháng trước ở đầu
+        tháng), nến final đè nến tạm của 14 ngày gần nhất. KHÔNG ghi crawl_day — ngày chỉ thành ok qua luồng A."""
         while not self.stop.is_set():
             now = datetime.now(UTC)
             today = datetime.now(NY).date()
@@ -307,7 +306,9 @@ class Worker:
                     s, "backfill", {"days": done, "problems": problems, "until": data[-1].ts if data else None}
                 )
             log.info("backfill", days=done, problems=problems)
-            await self.sleep(BACKFILL_EVERY_S if not problems else UNREACHABLE_PAUSE_S, wake_key="history_wake")
+            await self.sleep(
+                settings.backfill_hours * 3600 if not problems else UNREACHABLE_PAUSE_S, wake_key="history_wake"
+            )
 
     async def cleanup_loop(self) -> None:
         while not self.stop.is_set():

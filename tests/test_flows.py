@@ -220,7 +220,7 @@ async def test_latency_metric_counts_missing_minutes_as_fail(db):
         for i in range(1, 6):
             t = since + timedelta(minutes=i, seconds=10)
             await feed_repo.insert_sample(s, t, t - timedelta(seconds=5), 2000.0, 5.0, True)
-        open_min, good = await feed_repo.latency_metric(s, since)
+        open_min, good = await feed_repo.latency_metric(s, since, 60)
     from goldpulse.services.calendar import is_market_open
 
     expected_open = sum(1 for i in range(1, 11) if is_market_open(since + timedelta(minutes=i)))

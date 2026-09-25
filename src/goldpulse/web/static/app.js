@@ -69,7 +69,7 @@
     // Độ trễ tính lại mỗi giây ngay trên máy: mất kết nối thì số vẫn chạy và chuyển đỏ, không đứng im màu xanh
     var lag = p.lag_seconds == null ? null : p.lag_seconds + Math.round((Date.now() - receivedAt) / 1000);
     if (!p.market_open) return { cls: "warn", text: "Thị trường đang nghỉ — giá cuối phiên", fail: false };
-    if (lag == null || lag >= 30) {
+    if (lag == null || lag >= (p.lag_limit || 60)) {
       // Mất kết nối điện thoại–máy chủ thì lỗi không nằm ở nguồn giá — nói đúng chỗ hỏng
       var why = offline ? "mất kết nối tới máy chủ" : "đang chờ nguồn";
       return { cls: "err", text: "Giá trễ " + (lag == null ? "?" : fmt(lag)) + " giây — " + why, fail: true };
@@ -97,7 +97,7 @@
         '<div class="hero num">' + fmt(p.value, 2) + "</div>" +
         '<div class="mt"><span id="lagBadge" class="badge ' + b.cls + '">' + esc(b.text) + "</span>" +
         (p.source_updated_vn ? ' <span class="muted">cập nhật ' + esc(p.source_updated_vn) + "</span>" : "") + "</div>" +
-        '<div class="muted mt">Trễ dưới 30 giây là đạt. Nguồn đổi giá khoảng 30 giây một lần.</div></div>';
+        '<div class="muted mt">Trễ dưới ' + (p.lag_limit || 60) + ' giây là đạt. Nguồn đổi giá khoảng 30 giây một lần.</div></div>';
     } else {
       h += '<div class="card fail"><div class="label">XAUUSD · giá giao ngay · gold-api.com</div><div class="value">Chưa có giá</div>' +
         '<div class="mt"><span class="badge err">Chưa nhận được mẫu giá nào — đang chờ nguồn</span></div></div>';
@@ -140,9 +140,9 @@
         (loading ? "Đang nạp " + fmt(hist.done_days) + "/" + fmt(hist.total_days) + " ngày — chưa tính xong"
           : c.value == null ? "Chưa đo" : c.value >= c.target ? "Đạt" : "Chưa đạt") + " · xem chi tiết ›", "/coverage");
       var l = m.latency;
-      h += metricCard("Phút giá trễ &lt; 30s · cần ≥ 95%", l.value == null ? "—" : fmt(l.value, 1) + "%", l.value == null ? null : l.value >= l.target,
+      h += metricCard("Phút giá trễ &lt; " + (l.lag_limit || 60) + "s · cần ≥ 95%", l.value == null ? "—" : fmt(l.value, 1) + "%", l.value == null ? null : l.value >= l.target,
         l.value == null ? "Chưa có phút thị trường mở nào để đo" : (l.value >= l.target ? "Đạt" : "Chưa đạt") + " · " + fmt(l.good) + "/" + fmt(l.minutes) +
-          " phút thị trường mở có giá tươi, đo từ " + esc(l.since_vn) + ". Nguồn gold-api đổi giá ~30 giây/lần nên hay chạm ngưỡng — bạn không cần làm gì");
+          " phút thị trường mở có giá tươi, đo từ " + esc(l.since_vn) + ". Phút không có mẫu giá (máy tắt) tính là trượt");
       var sp = m.speed;
       h += metricCard("Tra 20 năm (95% số lần tra) · cần &lt; 1 giây", sp.value == null ? "—" : fmt(sp.value) + " ms", sp.value == null ? null : sp.value < sp.target,
         sp.value == null ? 'Chưa tra lần nào — <a href="/query">tra thử</a>' : (sp.value < sp.target ? "Đạt" : "Chưa đạt") + " · " + fmt(sp.count) + " lần tra");

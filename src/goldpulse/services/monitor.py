@@ -13,7 +13,8 @@ from ..repositories import crawl as crawl_repo
 from ..repositories import feed as feed_repo
 from .calendar import SESSIONS, VN, active_sessions, is_market_open
 
-LAG_LIMIT_S = 30
+# Ngưỡng độ trễ giá realtime — 60s (chủ dự án chốt 2026-09-25; gold-api đổi giá ~30s/lần nên 30s không đạt nổi)
+LAG_LIMIT_S = 60
 COVERAGE_TARGET = 99.0
 LATENCY_TARGET = 95.0
 SPEED_TARGET_MS = 1000.0
@@ -51,6 +52,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
             "source_ts": sample["source_ts"].isoformat() if sample["source_ts"] else None,  # JS tự tính trễ
             "stale": stale,
             "market_open": is_market_open(now),
+            "lag_limit": LAG_LIMIT_S,  # JS dùng đúng một ngưỡng với server
             "poll_failing": bool(last and last["price"] is None and (now - last["polled_at"]).total_seconds() < 60),
         }
 
@@ -69,7 +71,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
     if first_run:
         since = datetime.fromisoformat(first_run["at"])
         since = max(since, now - timedelta(days=30))
-        open_min, good = await feed_repo.latency_metric(session, since)
+        open_min, good = await feed_repo.latency_metric(session, since, LAG_LIMIT_S)
         latency = {
             "value": _pct(good, open_min),
             "minutes": open_min,
@@ -119,7 +121,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
         "last_error": recent_error,  # lỗi hệ thống trong 24 giờ qua — thay Sentry khi chưa bật
         "metrics": {
             "coverage": {"value": cov["total"]["covered_pct"], "target": COVERAGE_TARGET},
-            "latency": {**latency, "target": LATENCY_TARGET},
+            "latency": {**latency, "target": LATENCY_TARGET, "lag_limit": LAG_LIMIT_S},
             "speed": {"value": round(p95) if p95 is not None else None, "count": n_queries, "target": SPEED_TARGET_MS},
         },
     }

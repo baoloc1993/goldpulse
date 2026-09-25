@@ -72,8 +72,10 @@ async def ok_prices_in(session: AsyncSession, start: datetime, end: datetime) ->
     return [r[0] for r in res]
 
 
-async def latency_metric(session: AsyncSession, since: datetime) -> tuple[int, int]:
-    """(phút thị trường mở từ `since` tới phút vừa xong, số phút trong đó mọi mẫu ok).
+async def latency_metric(session: AsyncSession, since: datetime, limit_s: float) -> tuple[int, int]:
+    """(phút thị trường mở từ `since` tới phút vừa xong, số phút trong đó mọi mẫu có giá và trễ < limit_s).
+
+    Chấm theo `lag_seconds` đã lưu (không theo cờ `ok` ghi lúc poll) → đổi ngưỡng thì mẫu cũ cũng chấm lại.
 
     Phút không có mẫu nào (worker chết) tính là trượt. Ngày `empty` (lễ) bị loại.
     """
@@ -90,12 +92,13 @@ async def latency_metric(session: AsyncSession, since: datetime) -> tuple[int, i
                       AND (t AT TIME ZONE 'UTC')::date NOT IN (SELECT day FROM crawl_day WHERE status = 'empty')
                 ),
                 s AS (
-                    SELECT date_trunc('minute', polled_at) AS t, bool_and(ok) AS good
+                    SELECT date_trunc('minute', polled_at) AS t,
+                           bool_and(price IS NOT NULL AND lag_seconds < :limit) AS good
                     FROM feed_sample WHERE polled_at >= :since GROUP BY 1
                 )
                 SELECT count(*), count(*) FILTER (WHERE s.good) FROM open_m LEFT JOIN s USING (t)
             """),
-            {"since": since},
+            {"since": since, "limit": limit_s},
         )
     ).one()
     return int(row[0]), int(row[1])

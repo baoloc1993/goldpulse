@@ -15,7 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .api.deps import LoginRequired
 from .api.limiter import limiter
-from .api.routes import api, health, pages
+from .api.routes import api, chat, health, pages
 from .logs import setup_logging
 from .services.errors import record_error
 
@@ -28,6 +28,8 @@ app.mount("/static", StaticFiles(directory=Path(__file__).parent / "web" / "stat
 app.include_router(health.router)
 app.include_router(pages.router)
 app.include_router(api.router)
+app.include_router(chat.pages)
+app.include_router(chat.api)
 
 
 @app.exception_handler(RateLimitExceeded)

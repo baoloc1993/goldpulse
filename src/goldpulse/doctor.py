@@ -1,4 +1,4 @@
-"""`make doctor`: kiểm biến môi trường + kết nối DB / gold-api / Dukascopy, in cái gì thiếu."""
+"""`make doctor`: kiểm biến môi trường + kết nối DB / gold-api / Dukascopy + (v2) FRED, não Claude — in cái gì thiếu."""
 
 import asyncio
 import re
@@ -89,6 +89,39 @@ async def main() -> int:
 
     print("\nỔn." if good else "\nCó mục ✗ ở trên.")
     return 0 if good else 1
+
+
+async def check_brain(settings) -> bool:
+    """Chỉ kiểm cấu hình + đăng nhập, KHÔNG hỏi Claude thật (không tốn credit)."""
+    backend = settings.brain_backend
+    if backend == "fake":
+        return line(not settings.is_production, "BRAIN_BACKEND=fake (chỉ cho test/dogfood — cấm ở production)")
+    if backend == "api":
+        return line(
+            bool(settings.anthropic_api_key),
+            f"BRAIN_BACKEND=api · model {settings.claude_api_model} · có ANTHROPIC_API_KEY",
+        )
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            settings.claude_cli_bin, "auth", "status",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+        )  # fmt: skip
+        out, _ = await asyncio.wait_for(proc.communicate(), 30)
+    except FileNotFoundError:
+        return line(False, f"BRAIN_BACKEND=cli nhưng không có lệnh `{settings.claude_cli_bin}` — cài Claude Code")
+    except TimeoutError:
+        return line(False, "BRAIN_BACKEND=cli: `claude auth status` treo quá 30 giây")
+    text = out.decode("utf-8", "replace").strip()
+    ok = proc.returncode == 0 and '"loggedIn": false' not in text
+    return line(
+        ok,
+        f"BRAIN_BACKEND=cli · model {settings.claude_cli_model} · "
+        + (
+            "Claude Code đã đăng nhập"
+            if ok
+            else f"Claude Code CHƯA đăng nhập — chạy `claude` rồi /login ({text[:120]})"
+        ),
+    )
 
 
 if __name__ == "__main__":

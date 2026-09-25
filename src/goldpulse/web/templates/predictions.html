@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Dự đoán 15 phút</h1>
+<div id="content" aria-live="polite">
+  <div class="skel metric"></div>
+  <div class="grid g2"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+  <div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/chat.js" defer></script>{% endblock %}

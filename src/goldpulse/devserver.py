@@ -1,4 +1,4 @@
-"""`make dev`: migrate → chạy web (uvicorn) + worker cùng lúc, Ctrl+C dừng cả hai."""
+"""`make dev`: migrate → chạy web (uvicorn) + worker + (v2) não bot cùng lúc, Ctrl+C dừng cả ba."""
 
 import os
 import subprocess
@@ -21,6 +21,7 @@ WEB = [
     "3",
 ]
 WORKER = [sys.executable, "-m", "goldpulse.worker"]
+BRAIN = [sys.executable, "-m", "goldpulse.brain"]
 
 
 def main() -> int:
@@ -28,7 +29,7 @@ def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}
     subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], check=True, env=env)
-    procs = [subprocess.Popen(WEB, env=env), subprocess.Popen(WORKER, env=env)]
+    procs = [subprocess.Popen(WEB, env=env), subprocess.Popen(WORKER, env=env), subprocess.Popen(BRAIN, env=env)]
     print("\n  GoldPulse: http://127.0.0.1:8000  (khoá ở deployment/local/.env → OPS_ACCESS_KEY)\n", flush=True)
     try:
         while all(p.poll() is None for p in procs):

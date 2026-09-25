@@ -1,4 +1,5 @@
-"""Worker: `python -m goldpulse.worker` — luồng A (nạp lịch sử), B (realtime), C (lấy bù), dọn dẹp."""
+"""Worker: `python -m goldpulse.worker` — luồng A (nạp lịch sử), B (realtime), C (lấy bù), dọn dẹp;
+(v2) F (tín hiệu 15 phút → job dự đoán), G (chấm dự đoán + dọn hàng chờ não), H (nạp lịch FED)."""
 
 import asyncio
 import signal
@@ -19,14 +20,19 @@ from ..integrations.dukascopy import (
     Throttled,
     Unreachable,
 )
+from ..integrations.fred import FredClient, FredError
 from ..integrations.goldapi import GoldApiClient, GoldApiError
 from ..integrations.histdata import FIRST_DAY as HD_FIRST
 from ..integrations.histdata import FileNotAvailable, HistDataClient
 from ..integrations.histdata import file_key as hd_file_key
 from ..logs import setup_logging
+from ..repositories import chat as chat_repo
 from ..repositories import crawl as crawl_repo
+from ..repositories import fed as fed_repo
 from ..repositories import feed as feed_repo
-from ..services import ingest
+from ..repositories import jobs as job_repo
+from ..services import fed as fed_svc
+from ..services import ingest, predictions, signals
 from ..services.calendar import MINUTE, NY, last_complete_day, open_minutes_of_day
 from ..services.errors import record_error
 from ..services.monitor import LAG_LIMIT_S
@@ -38,6 +44,10 @@ THROTTLE_MIN_S = 60
 THROTTLE_MAX_S = 900
 IDLE_S = 600
 HD_BATCH = 400  # ngày một lượt — một file năm HistData phủ ~300 ngày
+SIGNAL_DELAY_S = 60  # tính tín hiệu 60s sau mốc 15 phút — nến phút cuối của nến 15m đã được ghi
+CHAT_EXPIRE_S = 600  # câu hỏi chờ não quá 10 phút → lỗi "Quá lâu — gửi lại" (ARCHITECTURE §6)
+FED_HOUR_UTC = 6
+FED_SINCE = date(2003, 6, 1)  # mức lãi suất trước kỳ họp đầu tiên 2004
 
 
 @dataclass
@@ -322,6 +332,82 @@ class Worker:
                 settings.backfill_hours * 3600 if not problems else UNREACHABLE_PAUSE_S, wake_key="history_wake"
             )
 
+    # --- F. Tín hiệu 15 phút → job dự đoán (v2) ---------------------------------------
+    async def signal_loop(self) -> None:
+        """Mỗi mốc :00/:15/:30/:45 + 60s: tính tín hiệu trên nến 15m vừa đóng, ghi worker_status.signal; có tín
+        hiệu và thị trường mở suốt 15 phút tới → job signal_prediction (unique bar_ts — khởi động lại không trùng)."""
+        while not self.stop.is_set():
+            now = datetime.now(UTC)
+            bar_end = signals.bar_boundary(now)
+            wait = (bar_end + timedelta(minutes=signals.BAR_MINUTES, seconds=SIGNAL_DELAY_S) - now).total_seconds()
+            if (now - bar_end).total_seconds() < SIGNAL_DELAY_S:
+                wait = (bar_end + timedelta(seconds=SIGNAL_DELAY_S) - now).total_seconds()
+                await self.sleep(wait)
+                continue
+            async with session_scope() as s:
+                last = await feed_repo.get_status(s, "signal")
+            if not last or last.get("bar_end") != bar_end.isoformat():
+                await self.signal_once(bar_end)
+            await self.sleep(max(1.0, wait))
+
+    async def signal_once(self, bar_end: datetime) -> None:
+        # Worker vừa khởi động giữa nến: tín hiệu của mốc đã qua > 5 phút không còn là "lúc này" → chỉ ghi trạng thái
+        allowed = signals.auto_allowed(bar_end) and (datetime.now(UTC) - bar_end).total_seconds() < 300
+        async with session_scope() as s:
+            sig = await signals.compute(s, bar_end)
+            sig.pop("recent", None)
+            job_id = None
+            if allowed and sig["has_signal"]:
+                job_id = await job_repo.enqueue(s, "signal_prediction", {"bar_ts": bar_end.isoformat(), "signals": sig})
+            await feed_repo.set_status(s, "signal", {**sig, "market_ok": allowed, "job_id": job_id})
+        log.info("signal", bar_end=bar_end.isoformat(), fired=[f["name"] for f in sig["fired"]], job=job_id)
+
+    # --- G. Chấm dự đoán + dọn hàng chờ não (v2) -------------------------------------
+    async def score_loop(self) -> None:
+        """Mỗi phút: chấm dự đoán tới hạn; job 'running' quá 180s (não chết giữa chừng) về pending; câu hỏi chat
+        chờ quá 10 phút → lỗi; job dự đoán tự động chờ quá 5 phút → bỏ. Chạy ở worker vì não có thể đang chết."""
+        while not self.stop.is_set():
+            async with session_scope() as s:
+                scored = await predictions.score_due(s)
+                await job_repo.requeue_stuck(s)
+                expired = await job_repo.expire_pending(
+                    s, "chat", CHAT_EXPIRE_S, "Quá lâu — não bot không trả lời trong 10 phút"
+                )
+                await chat_repo.fail_by_jobs(s, expired, "Quá lâu — não bot không trả lời trong 10 phút. Gửi lại nhé.")
+                await job_repo.expire_pending(s, "signal_prediction", 300, "Quá hạn — não không xử kịp nến này")
+            if scored or expired:
+                log.info("scored", predictions=scored, chat_expired=len(expired))
+            await self.sleep(60)
+
+    # --- H. Lịch FED (v2) -------------------------------------------------------------
+    async def fed_loop(self) -> None:
+        """Lúc khởi động + mỗi ngày 06:00 UTC: FRED + lịch FOMC tĩnh → upsert fed_decision. FRED hỏng → giữ bảng cũ."""
+        fred = FredClient()
+        try:
+            while not self.stop.is_set():
+                async with session_scope() as s:
+                    prev = await feed_repo.get_status(s, "fed") or {}
+                try:
+                    rows = fed_svc.build_decisions(await fred.target_rates(FED_SINCE))
+                    async with session_scope() as s:
+                        await fed_repo.upsert_many(s, rows)
+                        n = await fed_repo.count(s)
+                        await feed_repo.set_status(
+                            s, "fed", {"loaded_at": datetime.now(UTC).isoformat(), "count": n, "last_error": None}
+                        )
+                    log.info("fed_loaded", meetings=n)
+                except FredError as e:
+                    log.warning("fed_failed", error=str(e))
+                    async with session_scope() as s:
+                        await feed_repo.set_status(s, "fed", {**prev, "last_error": str(e)})
+                now = datetime.now(UTC)
+                nxt = now.replace(hour=FED_HOUR_UTC, minute=0, second=0, microsecond=0)
+                if nxt <= now:
+                    nxt += timedelta(days=1)
+                await self.sleep((nxt - now).total_seconds())
+        finally:
+            await fred.close()
+
     async def cleanup_loop(self) -> None:
         while not self.stop.is_set():
             async with session_scope() as s:
@@ -346,6 +432,9 @@ class Worker:
             asyncio.create_task(self._guard(self.realtime_loop), name="realtime"),
             asyncio.create_task(self._guard(self.backfill_loop), name="backfill"),
             asyncio.create_task(self._guard(self.cleanup_loop), name="cleanup"),
+            asyncio.create_task(self._guard(self.signal_loop), name="signal"),
+            asyncio.create_task(self._guard(self.score_loop), name="score"),
+            asyncio.create_task(self._guard(self.fed_loop), name="fed"),
         ]
         await self.stop.wait()
         for t in tasks:

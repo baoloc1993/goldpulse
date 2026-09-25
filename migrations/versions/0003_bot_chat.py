@@ -80,14 +80,16 @@ def upgrade() -> None:
         sa.CheckConstraint("source IN ('auto', 'chat')", name="ck_pred_source"),
         sa.CheckConstraint("direction IN ('up', 'down')", name="ck_pred_direction"),
         sa.CheckConstraint("confidence IN ('low', 'medium', 'high')", name="ck_pred_confidence"),
-        sa.CheckConstraint(
-            "outcome IN ('pending', 'correct', 'wrong', 'flat', 'unscored')", name="ck_pred_outcome"
-        ),
+        sa.CheckConstraint("outcome IN ('pending', 'correct', 'wrong', 'flat', 'unscored')", name="ck_pred_outcome"),
     )
     op.create_index("ix_prediction_outcome_due", "prediction", ["outcome", "due_at"])
     op.create_index("ix_prediction_made_at", "prediction", ["made_at"])
     op.create_index(
-        "ux_prediction_auto_made_at", "prediction", ["made_at"], unique=True, postgresql_where=sa.text("source = 'auto'")
+        "ux_prediction_auto_made_at",
+        "prediction",
+        ["made_at"],
+        unique=True,
+        postgresql_where=sa.text("source = 'auto'"),
     )
     op.create_table(
         "chat_message",

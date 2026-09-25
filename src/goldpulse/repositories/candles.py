@@ -142,3 +142,59 @@ async def data_years(session: AsyncSession) -> tuple[int | None, int | None]:
         )
     ).one()
     return row[0], row[1]
+
+
+# --- vòng 2: nến gộp cho tín hiệu + giá chấm dự đoán (ARCHITECTURE §6 "Tín hiệu 15 phút") --------------
+
+# Phút "sống" = có giao dịch thật hoặc nến tạm gold-api (chỉ dựng khi có mẫu tươi) — bỏ nến đứng giá tự điền.
+LIVE = "(volume > 0 OR source = 'goldapi')"
+
+
+async def live_bars(session: AsyncSession, minutes: int, end: datetime, since: datetime, limit: int) -> list[dict]:
+    """Nến `minutes` phút gộp từ phút sống, chỉ nến ĐÃ ĐÓNG trước `end` (bin + khung ≤ end), cũ → mới."""
+    rows = (
+        await session.execute(
+            text(f"""
+                SELECT b AS ts, o AS open, h AS high, l AS low, c AS close, n FROM (
+                    SELECT date_bin(make_interval(mins => :m), ts, TIMESTAMPTZ '2000-01-01 00:00+00') AS b,
+                           (array_agg(open ORDER BY ts))[1] AS o, max(high) AS h, min(low) AS l,
+                           (array_agg(close ORDER BY ts DESC))[1] AS c, count(*) AS n
+                    FROM candle_1m WHERE ts >= :since AND ts < :end AND {LIVE}
+                    GROUP BY 1
+                ) x
+                WHERE b + make_interval(mins => :m) <= :end
+                ORDER BY b DESC LIMIT :lim
+            """),
+            {"m": minutes, "since": since, "end": end, "lim": limit},
+        )
+    ).mappings()
+    return [dict(r) for r in reversed(list(rows))]
+
+
+async def live_range(session: AsyncSession, since: datetime, end: datetime) -> tuple[float | None, float | None]:
+    """(đáy, đỉnh) của phút sống trong [since, end)."""
+    row = (
+        await session.execute(
+            text(f"SELECT min(low), max(high) FROM candle_1m WHERE ts >= :a AND ts < :b AND {LIVE}"),
+            {"a": since, "b": end},
+        )
+    ).one()
+    return row[0], row[1]
+
+
+async def close_before(session: AsyncSession, before: datetime, not_before: datetime) -> dict | None:
+    """Nến phút cuối có ts < `before` và ts ≥ `not_before` — giá chấm dự đoán / phản ứng FED."""
+    row = (
+        (
+            await session.execute(
+                text("""
+                    SELECT ts, close, source FROM candle_1m WHERE ts < :b AND ts >= :nb
+                    ORDER BY ts DESC LIMIT 1
+                """),
+                {"b": before, "nb": not_before},
+            )
+        )
+        .mappings()
+        .first()
+    )
+    return dict(row) if row else None

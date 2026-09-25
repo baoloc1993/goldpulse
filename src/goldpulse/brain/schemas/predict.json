@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "direction": {"type": "string", "enum": ["up", "down"]},
+    "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+    "reason": {"type": "string"}
+  },
+  "required": ["direction", "confidence", "reason"],
+  "additionalProperties": false
+}

@@ -108,3 +108,57 @@ p.muted { margin: var(--space-sm) 0; }
   .tabbar { position: static; margin-top: var(--space-lg); }
   .wrap { padding-bottom: var(--space-md); }
 }
+
+/* ---------------- (v2) S5 Chat · S6 Dự đoán · S7 FED ---------------- */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.titlebar { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
+.titlebar h1 { margin: 0; }
+/* Nút phụ: nền trang + viền — không tranh với nút Gửi */
+.btn.line { background: var(--color-bg); color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-border); }
+.btn.small { font-size: var(--text-sm); padding: var(--space-sm); }
+a.back { color: var(--color-text); font-size: var(--text-sm); }
+
+/* C3 gọn — đầu màn S5 */
+.head3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-sm); margin-bottom: var(--space-sm); }
+.head3 .card { margin: 0; padding: var(--space-sm); min-width: 0; }
+.head3 .value { font-size: var(--text-base); overflow-wrap: anywhere; }
+.head3 .muted { overflow-wrap: anywhere; }
+.skel.head { height: 92px; margin: 0; }
+.brainrow { margin-bottom: var(--space-md); }
+
+/* C9 bong bóng chat */
+.chat { display: flex; flex-direction: column; gap: var(--space-sm); padding-bottom: var(--space-lg); }
+.msg { max-width: 85%; padding: var(--space-sm) var(--space-md); border-radius: var(--radius); box-shadow: var(--shadow); white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.user { align-self: flex-end; background: var(--color-primary); color: var(--color-on-primary); }
+.msg.bot { align-self: flex-start; background: var(--color-surface); color: var(--color-text); }
+.msg.bot strong { font-variant-numeric: tabular-nums; }
+.msg.bot.skel { width: 85%; height: 72px; padding: var(--space-sm) var(--space-md); margin: 0; color: var(--color-text-muted); }
+.msg .note { margin-top: var(--space-sm); font-size: var(--text-sm); white-space: normal; }
+.msg .note a { display: inline-flex; align-items: center; min-height: 44px; }
+.chat .waiting { align-self: flex-start; }
+/* C10 dòng miễn trừ */
+.disclaimer { margin-top: var(--space-sm); padding-top: var(--space-sm); border-top: 1px solid var(--color-border); font-size: var(--text-sm); color: var(--color-text-muted); white-space: normal; }
+/* C7 ngay dưới câu hỏi */
+.chat .error { align-self: flex-start; width: 85%; margin: 0; text-align: left; }
+/* C6 rỗng với 3 câu gợi ý */
+.suggest { display: flex; flex-direction: column; gap: var(--space-sm); margin-top: var(--space-md); }
+.suggest button { font: inherit; text-align: left; background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-sm) var(--space-md); min-height: 44px; cursor: pointer; }
+.suggest button:hover { border-color: var(--color-text); }
+
+/* C13 thanh gửi dính đáy, ngay trên C8 */
+.sendbar { position: fixed; left: 0; right: 0; bottom: calc(49px + env(safe-area-inset-bottom)); background: var(--color-bg); padding: var(--space-sm) var(--space-md); box-shadow: var(--shadow); }
+.sendbar .inner { max-width: 720px; margin: 0 auto; display: flex; gap: var(--space-sm); align-items: flex-end; }
+.sendbar textarea { flex: 1; font: inherit; font-size: 16px; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-sm); min-height: 44px; max-height: 108px; resize: none; }
+.sendbar textarea:focus { outline: 2px solid var(--color-primary); }
+.sendbar .field-err { margin: var(--space-sm) 0 0; }
+body[data-screen="s5"] .wrap { padding-bottom: 180px; }
+
+/* C11 hàng dự đoán · C12 hàng FED */
+.prow { display: block; width: 100%; font: inherit; color: inherit; text-align: left; border: 0; background: var(--color-surface); border-radius: var(--radius); padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm); cursor: pointer; min-height: 44px; }
+.prow .top { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+.prow .more { display: none; margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-text-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.prow.open .more { display: block; }
+.prow.next { cursor: default; color: var(--color-text-muted); }
+.react { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-sm); margin-top: var(--space-sm); }
+.react div { background: var(--color-bg); border-radius: var(--radius); padding: var(--space-sm); text-align: center; }
+.badge.muted { color: var(--color-text-muted); }

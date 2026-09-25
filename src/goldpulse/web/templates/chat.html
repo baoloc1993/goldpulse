@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="titlebar"><h1>Chat</h1><button class="btn line small" type="button" id="newChat">Chat mới</button></div>
+<div class="head3" id="head" aria-live="polite">
+  <div class="skel head"></div><div class="skel head"></div><div class="skel head"></div>
+</div>
+<div id="brainDown" hidden></div>
+<div class="brainrow"><span class="badge" id="brainBadge">Não bot: đang kiểm…</span></div>
+<div id="chatlog" class="chat" aria-live="polite"><div class="msg bot skel"></div></div>
+<form class="sendbar" id="sendForm" novalidate>
+  <div class="inner">
+    <label class="sr" for="ask">Câu hỏi cho bot</label>
+    <textarea id="ask" name="content" rows="1" maxlength="2000" placeholder="Hỏi về vàng…" autocomplete="off"></textarea>
+    <button class="btn" type="submit" id="send">Gửi</button>
+  </div>
+  <div class="inner"><div class="field-err" id="sendErr" role="alert" hidden></div></div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="/static/chat.js" defer></script>{% endblock %}

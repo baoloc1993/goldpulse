@@ -19,8 +19,11 @@
   <a href="/overview" class="{{ 'on' if screen == 's1' }}" {% if screen == 's1' %}aria-current="page"{% endif %}>Tổng quan</a>
   <a href="/coverage" class="{{ 'on' if screen == 's2' }}" {% if screen == 's2' %}aria-current="page"{% endif %}>Độ phủ</a>
   <a href="/query" class="{{ 'on' if screen == 's3' }}" {% if screen == 's3' %}aria-current="page"{% endif %}>Tra thử</a>
+  <a href="/chat" class="{{ 'on' if screen in ('s5', 's7') }}" {% if screen == 's5' %}aria-current="page"{% endif %}>Chat</a>
+  <a href="/predictions" class="{{ 'on' if screen == 's6' }}" {% if screen == 's6' %}aria-current="page"{% endif %}>Dự đoán</a>
 </nav>
 <script src="/static/app.js" defer></script>
+{% block scripts %}{% endblock %}
 {% endif %}
 </body>
 </html>

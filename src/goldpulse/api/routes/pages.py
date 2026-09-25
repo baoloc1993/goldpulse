@@ -17,6 +17,9 @@ from ..limiter import limiter
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[2] / "web" / "templates")
 router = APIRouter()
 
+# (v2) màn S5–S7 dựng ở routes/chat.py — ở đây chỉ để `next` sau đăng nhập được quay về đúng màn
+V2_PATHS = ("chat", "predictions", "fed")
+
 SCREENS = {
     "overview": ("s1", "Tổng quan"),
     "coverage": ("s2", "Độ phủ dữ liệu"),
@@ -34,11 +37,11 @@ async def root(request: Request) -> RedirectResponse:
 
 
 def safe_next(value: str | None) -> str:
-    """Chỉ nhận ba màn nội bộ (giữ query string, vd bộ lọc S3) — chặn open redirect (//evil.com, http://…)."""
+    """Chỉ nhận các màn nội bộ (giữ query string, vd bộ lọc S3) — chặn open redirect (//evil.com, http://…)."""
     if not value:
         return "/overview"
     parts = urlsplit(value)
-    if parts.scheme or parts.netloc or parts.path not in {f"/{name}" for name in SCREENS}:
+    if parts.scheme or parts.netloc or parts.path not in {f"/{name}" for name in (*SCREENS, *V2_PATHS)}:
         return "/overview"
     return parts.path + (f"?{urlencode(parse_qsl(parts.query))}" if parts.query else "")
 

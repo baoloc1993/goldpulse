@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "properties": {
+    "answer": {"type": "string", "description": "Câu trả lời tiếng Việt, markdown nhẹ"},
+    "prediction": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "direction": {"type": "string", "enum": ["up", "down"]},
+            "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+            "reason": {"type": "string"}
+          },
+          "required": ["direction", "confidence", "reason"],
+          "additionalProperties": false
+        },
+        {"type": "null"}
+      ]
+    },
+    "suggests_trade": {"type": "boolean"},
+    "refusal_kind": {"anyOf": [{"type": "string", "enum": ["not_gold", "trade_request"]}, {"type": "null"}]}
+  },
+  "required": ["answer", "prediction", "suggests_trade", "refusal_kind"],
+  "additionalProperties": false
+}

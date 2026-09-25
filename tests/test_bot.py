@@ -304,3 +304,20 @@ async def test_fed_screen_and_reactions(client, db):
             )
     rows = (await client.get("/api/fed")).json()["rows"]
     assert rows[0]["d15m"] == 10.0 and rows[0]["d1h"] == -10.0 and rows[0]["d1d"] is None
+
+
+@needs_db
+async def test_bad_ids_and_invisible_text_are_rejected_not_500(client):
+    await _login(client)
+    big = 2**31
+    assert (await client.get(f"/api/chat/messages/{big}")).status_code == 422
+    assert (await client.post(f"/api/chat/messages/{big}/resend")).status_code == 422
+    assert (await client.get(f"/api/chat/thread?thread_id={big}")).status_code == 422
+    assert (await client.get(f"/api/predictions/rows?before={big}")).status_code == 422
+    assert (await client.post("/api/chat/messages", json={"content": "x", "thread_id": 10**30})).status_code == 422
+    r = await client.post("/api/chat/messages", json={"content": " 　​﻿"})
+    assert r.status_code == 422 and r.json()["detail"] == "Gõ câu hỏi trước khi gửi."
+    r = await client.post("/api/chat/messages", json={"content": "x" * 5000})
+    assert r.status_code == 422 and "2000" in r.json()["detail"]
+    r = await client.post("/api/chat/messages", content=b"{bad json", headers={"content-type": "application/json"})
+    assert r.status_code == 422 and r.json()["detail"] == "Dữ liệu gửi lên không đúng định dạng."

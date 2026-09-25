@@ -68,6 +68,18 @@
     var waiting = 0;      // số câu đang chờ bot — nút Gửi khoá khi > 0
     var brainState = null;
     var headData = null, headAt = 0;
+    var sending = false;  // POST đang bay — chặn chạm đúp / Ctrl+Enter ngay sau Gửi (dogfood rushed)
+    var prevThread = null;
+    var wrap = document.querySelector(".wrap");
+    var tabbar = document.querySelector(".tabbar");
+    var DRAFT = "gp_chat_draft";
+    function saveDraft() { try { sessionStorage.setItem(DRAFT, ask.value); } catch (e) { /* riêng tư */ } }
+    function loadDraft() { try { return sessionStorage.getItem(DRAFT) || ""; } catch (e) { return ""; } }
+    // Đệm dưới = đúng chiều cao thanh gửi + thanh tab — câu trả lời mới luôn nằm ngay trên ô nhập
+    function fitPad() {
+      var tb = tabbar && getComputedStyle(tabbar).display !== "none" ? tabbar.offsetHeight : 0;
+      wrap.style.paddingBottom = form.offsetHeight + tb + 16 + "px";
+    }
 
     function lagNow() {
       var p = headData && headData.price;
@@ -96,14 +108,14 @@
       var closes = h.sessions.length ? h.sessions[h.sessions.length - 1].label + " đóng " + h.sessions[h.sessions.length - 1].closes_vn : (p.next_open_vn ? "Mở lại " + p.next_open_vn : "");
       var fed = h.fed
         ? '<div class="value num">' + fmt(h.fed.rate_upper, 2) + "%</div><div class=\"muted num\">" + vnDate(h.fed.meeting_date).slice(0, 5) + " · " +
-          (h.fed.change_bp < 0 ? "▼ −" + Math.abs(h.fed.change_bp) : h.fed.change_bp > 0 ? "▲ +" + h.fed.change_bp : "— 0") + " bp</div>"
+          '<span class="nowrap">' + (h.fed.change_bp < 0 ? "▼ −" + Math.abs(h.fed.change_bp) : h.fed.change_bp > 0 ? "▲ +" + h.fed.change_bp : "— 0") + " bp</span></div>"
         : h.next_meeting
           ? '<div class="value num">Kỳ tới ' + vnDate(h.next_meeting.date).slice(0, 5) + '</div><div class="muted">còn ' + h.next_meeting.days + " ngày · chưa có kết quả kỳ trước</div>"
           : '<div class="value">Chưa có</div><div class="muted">' + (h.worker_alive ? "Đang nạp lịch FED" : "Máy nạp dữ liệu đang dừng") + "</div>";
       head.innerHTML =
         '<div class="card"><div class="label">XAUUSD <span class="nowrap">· gold-api</span></div><div class="value num">' + (p.price == null ? "—" : fmt(p.price, 2)) + '</div><div id="lagBadge">' + priceBadge() + "</div></div>" +
         '<div class="card"><div class="label">Phiên</div><div class="value">' + esc(sess) + '</div><div class="muted">' + esc(closes) + "</div></div>" +
-        '<a class="card" href="/fed"><div class="label">FED gần nhất ›</div>' + fed + "</a>";
+        '<a class="card" href="/fed"><div class="label">FED <span class="wide">gần nhất </span>›</div>' + fed + "</a>";
       var b = h.brain;
       var name = b.backend === "fake" ? "chế độ thử (câu mẫu, không phải Claude)" : (b.backend || "").toUpperCase() + (b.model ? " · " + b.model : "");
       var brainErr = document.getElementById("brainErr");
@@ -186,7 +198,7 @@
       send.disabled = waiting > 0;
       send.textContent = waiting > 0 ? "Đang chờ…" : "Gửi";
     }
-    function scrollEnd() { window.scrollTo(0, document.body.scrollHeight); }
+    function scrollEnd() { fitPad(); window.scrollTo(0, document.body.scrollHeight); }
 
     function poll(id) {
       if (polling[id]) return;
@@ -219,13 +231,15 @@
 
     function renderEmpty() {
       log.innerHTML = '<div class="empty"><p>Hỏi mình về vàng — mình trả lời bằng 20 năm nến phút, lịch FED và giá hiện tại.</p><div class="suggest">' +
-        SUGGESTIONS.map(function (s, i) { return '<button type="button" data-i="' + i + '">' + esc(s) + "</button>"; }).join("") + "</div></div>";
+        SUGGESTIONS.map(function (s, i) { return '<button type="button" data-i="' + i + '">' + esc(s) + "</button>"; }).join("") + "</div>" +
+        (prevThread ? '<p class="muted mt">Đã mở đoạn chat mới · <a href="/chat?thread_id=' + prevThread + '">Quay lại đoạn trước</a></p>' : "") + "</div>";
       Array.prototype.forEach.call(log.querySelectorAll(".suggest button"), function (b) {
         b.addEventListener("click", function () { submit(SUGGESTIONS[+b.dataset.i]); });
       });
     }
     function loadThread() {
-      return api("/api/chat/thread").then(function (t) {
+      var want = new URLSearchParams(location.search).get("thread_id");
+      return api("/api/chat/thread" + (want ? "?thread_id=" + encodeURIComponent(want) : "")).then(function (t) {
         threadId = t.thread_id;
         log.innerHTML = "";
         if (!t.messages.length) return renderEmpty();
@@ -243,13 +257,15 @@
       text = (text || "").trim();
       sendErr.hidden = true;
       if (!text) { sendErr.textContent = "Gõ câu hỏi trước khi gửi."; sendErr.hidden = false; ask.focus(); return; }
-      if (waiting > 0) return;
+      if (waiting > 0 || sending) return;
+      sending = true;
       send.disabled = true; send.textContent = "Đang gửi…";
+      Array.prototype.forEach.call(log.querySelectorAll(".suggest button"), function (b) { b.disabled = true; });
       api("/api/chat/messages", { method: "POST", body: { content: text, thread_id: threadId } })
         .then(function (r) {
           threadId = r.thread_id;
           var empty = log.querySelector(".empty"); if (empty) log.innerHTML = "";
-          if (ask.value.trim() === text) { ask.value = ""; grow(); }
+          if (ask.value.trim() === text) { ask.value = ""; grow(); saveDraft(); }
           put(r.question); put(r.answer); scrollEnd();
         })
         .catch(function (e) {
@@ -257,8 +273,9 @@
           // Không gửi được: giữ nguyên câu đã gõ trong ô
           if (!ask.value.trim()) { ask.value = text; grow(); }
           sendErr.textContent = "Chưa gửi được — " + errText(e); sendErr.hidden = false;
+          Array.prototype.forEach.call(log.querySelectorAll(".suggest button"), function (b) { b.disabled = false; });
         })
-        .then(function () { if (!waiting) { send.disabled = false; send.textContent = "Gửi"; } });
+        .then(function () { sending = false; if (!waiting) { send.disabled = false; send.textContent = "Gửi"; } });
     }
     function resend(id, btn) {
       btn.disabled = true; btn.textContent = "Đang gửi…";
@@ -268,12 +285,12 @@
         sendErr.textContent = "Chưa gửi lại được — " + errText(e); sendErr.hidden = false;
       });
     }
-    function grow() { ask.style.height = "auto"; ask.style.height = Math.min(ask.scrollHeight + 2, 108) + "px"; }
+    function grow() { ask.style.height = "auto"; ask.style.height = Math.min(ask.scrollHeight + 2, 108) + "px"; fitPad(); }
 
     form.addEventListener("submit", function (ev) { ev.preventDefault(); submit(ask.value); });
     var askCount = document.getElementById("askCount");
     ask.addEventListener("input", function () {
-      grow(); sendErr.hidden = true;
+      grow(); sendErr.hidden = true; saveDraft();
       var n = ask.value.length;
       askCount.hidden = n < 1800;
       askCount.textContent = n + "/2000 ký tự" + (n >= 2000 ? " — không gõ thêm được" : "");
@@ -282,10 +299,17 @@
     ask.addEventListener("keydown", function (ev) {
       if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); submit(ask.value); }
     });
+    // Màn thấp + đang gõ (bàn phím ảo mở): giấu thanh tab, thanh gửi xuống sát đáy — chừa chỗ cho hội thoại
+    ask.addEventListener("focus", function () { if (innerHeight < 560) { document.body.classList.add("typing"); fitPad(); } });
+    ask.addEventListener("blur", function () { document.body.classList.remove("typing"); fitPad(); });
+    window.addEventListener("resize", fitPad);
     document.getElementById("newChat").addEventListener("click", function (ev) {
       var b = ev.target; b.disabled = true;
+      var old = threadId;
       api("/api/chat/threads", { method: "POST" }).then(function (r) {
+        if (old && old !== r.thread_id) prevThread = old;
         threadId = r.thread_id; renderEmpty(); ask.focus();
+        if (location.search) history.replaceState(null, "", "/chat");
         // Câu đang chờ của đoạn cũ vẫn được trả lời trên máy chủ; không khoá nút Gửi của đoạn mới
         polling = {}; waiting = 0; setWaiting(0);
       })
@@ -293,6 +317,8 @@
         .then(function () { b.disabled = false; });
     });
 
+    ask.value = loadDraft(); if (ask.value) grow();
+    fitPad();
     loadHead().then(loadThread);
     setInterval(function () { if (!document.hidden) loadHead(); }, 5000);
     setInterval(function () {
@@ -308,6 +334,7 @@
       correct: ["ok", "Đúng"], wrong: ["err", "Sai"], flat: ["muted", "Đứng giá"], unscored: ["muted", "Không chấm được"]
     };
     var lastId = null;
+    var CONF = { low: "thấp", medium: "vừa", high: "cao" };
 
     function rateText(a) { return a.scored ? fmt(a.rate, 1) + "%" : "—"; }
     function rowHtml(r) {
@@ -321,7 +348,7 @@
         '<span class="badge ' + out[0] + '">' + esc(out[1]) + "</span></div>" +
         '<div class="more">' + esc(r.reasoning || "(không có lý do)") + "\nTín hiệu bật: " + esc(fired) +
         " · %b " + esc(sig.pct_b) + " · chuỗi " + esc(sig.streak) + " · RSI 9 " + esc(sig.rsi9) +
-        "\nĐộ tin cậy: " + esc(r.confidence) + " · não: " + esc((r.backend || "") + (r.model ? " · " + r.model : "")) + "</div></button>";
+        "\nĐộ tin cậy: " + esc(CONF[r.confidence] || r.confidence) + " · não: " + esc((r.backend || "") + (r.model ? " · " + r.model : "")) + "</div></button>";
     }
     function bindRows(root) {
       Array.prototype.forEach.call(root.querySelectorAll(".prow:not([data-b])"), function (el) {
@@ -357,7 +384,7 @@
         '<div class="card"><div class="label">Từ chat</div><div class="value num">' + bs.chat.scored + " · " + rateText(bs.chat) + "</div></div>" +
         '<div class="card"><div class="label">Đứng giá / không chấm</div><div class="value num">' + s.flat + " / " + s.unscored + "</div>" +
         (d.skipped_errors ? '<div class="muted">' + d.skipped_errors + " lần bỏ qua vì lỗi não</div>" : "") + "</div>" +
-        '<div class="card"><div class="label">Tín hiệu gần nhất</div><div class="value num">' + esc(sigText(d.signal)) + "</div></div>" +
+        '<div class="card"><div class="label">Tín hiệu gần nhất</div><div class="value small num">' + esc(sigText(d.signal)) + "</div></div>" +
         "</div>" +
         '<div class="muted mt">Theo hướng: ▲ tăng ' + s.by_direction.up.scored + " lần · " + rateText(s.by_direction.up) +
         " — ▼ giảm " + s.by_direction.down.scored + " lần · " + rateText(s.by_direction.down) + "</div>" +

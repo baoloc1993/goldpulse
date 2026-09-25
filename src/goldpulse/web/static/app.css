@@ -126,7 +126,14 @@ a.back { color: var(--color-text); font-size: var(--text-sm); padding-right: var
 .head3 .muted { overflow-wrap: anywhere; }
 .skel.head { height: 101px; margin: 0; }
 /* Đầu màn dính trên cùng khi cuộn: đọc câu trả lời vẫn thấy giá + độ trễ (dogfood 2026-09-26) */
-.head3 { position: sticky; top: 0; z-index: 1; background: var(--color-bg); padding: var(--space-sm) 0; margin-top: calc(-1 * var(--space-sm)); }
+.head3 { position: sticky; top: 0; z-index: 1; background: var(--color-bg); padding: var(--space-sm) 0; }
+/* Màn thấp (xoay ngang, bàn phím mở): đầu màn thôi dính — không thì nó che câu trả lời mới (dogfood mobile) */
+@media (max-height: 560px) { .head3 { position: static; } }
+body.typing .tabbar { display: none; }
+body.typing .sendbar { bottom: 0; }
+@media (max-width: 399px) { .head3 .wide { display: none; } .head3 .label .nowrap { display: none; } }
+.value.small { font-size: var(--text-base); }
+.react .muted { white-space: nowrap; }
 .nowrap { white-space: nowrap; }
 .brainrow { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
 .brainerr { margin: calc(-1 * var(--space-sm)) 0 var(--space-md); overflow-wrap: anywhere; }
@@ -160,6 +167,7 @@ a.back { color: var(--color-text); font-size: var(--text-sm); padding-right: var
 /* Nút Gửi giữ một bề rộng qua "Gửi" / "Đang gửi…" / "Đang chờ…" — ô nhập không nhảy */
 .sendbar .btn { min-width: 104px; }
 .sendbar .count { margin-top: var(--space-sm); }
+@media (max-width: 359px) { .sendbar .btn { min-width: 72px; } }
 .sendbar .field-err { margin: var(--space-sm) 0 0; }
 body[data-screen="s5"] .wrap { padding-bottom: 180px; }
 

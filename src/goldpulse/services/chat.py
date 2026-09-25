@@ -17,6 +17,7 @@ from .context_pack import live_state
 BRAIN_STALE_S = 120  # nhịp tim não 30s — cũ hơn 2 phút là não chưa chạy (PRD §7)
 BRAIN_ERROR_WINDOW_S = 600  # lỗi trong 10 phút gần nhất → huy hiệu đỏ "lỗi lần cuối"
 MAX_LEN = 2000
+ZERO_WIDTH = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u2060\ufeff"))
 THREAD_LIMIT = 200
 
 
@@ -116,7 +117,8 @@ async def thread_view(session: AsyncSession, thread_id: int | None) -> dict[str,
 
 async def post(session: AsyncSession, thread_id: int | None, content: str) -> dict[str, Any]:
     """Một lần bấm Gửi = một câu hỏi + một câu trả lời pending + một job (không dedupe — chat là hội thoại)."""
-    text_ = content.strip()
+    # str.strip() không bỏ ký tự rộng 0 (U+200B…U+200D, U+2060, U+FEFF) — câu chỉ có chúng là câu rỗng
+    text_ = content.translate(ZERO_WIDTH).strip()
     if not text_:
         raise ChatError(422, "Gõ câu hỏi trước khi gửi.")
     if len(text_) > MAX_LEN:

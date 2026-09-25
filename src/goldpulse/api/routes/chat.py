@@ -5,7 +5,7 @@ Không có route nào gọi Claude hay gửi lệnh giao dịch: câu hỏi ch�
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +21,8 @@ from .pages import templates
 pages = APIRouter(dependencies=[Depends(require_operator_page)])
 api = APIRouter(prefix="/api", dependencies=[Depends(require_operator_api)])
 DB = Annotated[AsyncSession, Depends(get_session)]
+INT4 = 2**31 - 1  # id là integer Postgres — vượt quá thì 422 thay vì 500 (dogfood breaker 2026-09-26)
+MsgId = Annotated[int, Path(ge=1, le=INT4)]
 
 V2_SCREENS = {"chat": ("s5", "Chat"), "predictions": ("s6", "Dự đoán 15 phút"), "fed": ("s7", "Lịch quyết định FED")}
 
@@ -46,8 +48,9 @@ def _raise(e: chat_svc.ChatError) -> None:
 
 
 class ChatIn(BaseModel):
-    content: str = Field(max_length=chat_svc.MAX_LEN * 2)
-    thread_id: int | None = Field(default=None, ge=1)
+    # Trần thô chống body khổng lồ; quá 2000 ký tự thì service trả câu "tối đa 2000 ký tự"
+    content: str = Field(max_length=chat_svc.MAX_LEN * 50)
+    thread_id: int | None = Field(default=None, ge=1, le=INT4)
 
 
 @api.get("/chat/header")
@@ -56,7 +59,7 @@ async def chat_header(session: DB) -> Json:
 
 
 @api.get("/chat/thread")
-async def chat_thread(session: DB, thread_id: Annotated[int | None, Query(ge=1)] = None) -> Json:
+async def chat_thread(session: DB, thread_id: Annotated[int | None, Query(ge=1, le=INT4)] = None) -> Json:
     try:
         return await chat_svc.thread_view(session, thread_id)
     except chat_svc.ChatError as e:
@@ -68,14 +71,18 @@ async def chat_thread(session: DB, thread_id: Annotated[int | None, Query(ge=1)]
 @limiter.limit("20/minute")
 async def chat_post(request: Request, body: ChatIn, session: DB) -> Json:
     try:
-        return await chat_svc.post(session, body.thread_id, body.content)
+        out = await chat_svc.post(session, body.thread_id, body.content)
+        # Commit TRƯỚC khi trả phản hồi: dependency có yield commit sau khi phản hồi đã gửi → client dùng ngay
+        # thread_id / message_id có thể gặp 404 (dogfood breaker 2026-09-26)
+        await session.commit()
+        return out
     except chat_svc.ChatError as e:
         _raise(e)
         raise
 
 
 @api.get("/chat/messages/{message_id}")
-async def chat_message(message_id: int, session: DB) -> Json:
+async def chat_message(message_id: MsgId, session: DB) -> Json:
     try:
         return await chat_svc.get(session, message_id)
     except chat_svc.ChatError as e:
@@ -85,9 +92,11 @@ async def chat_message(message_id: int, session: DB) -> Json:
 
 @api.post("/chat/messages/{message_id}/resend", status_code=202)
 @limiter.limit("20/minute")
-async def chat_resend(request: Request, message_id: int, session: DB) -> Json:
+async def chat_resend(request: Request, message_id: MsgId, session: DB) -> Json:
     try:
-        return await chat_svc.resend(session, message_id)
+        out = await chat_svc.resend(session, message_id)
+        await session.commit()
+        return out
     except chat_svc.ChatError as e:
         _raise(e)
         raise
@@ -96,7 +105,9 @@ async def chat_resend(request: Request, message_id: int, session: DB) -> Json:
 @api.post("/chat/threads", status_code=201)
 @limiter.limit("20/minute")
 async def chat_new(request: Request, session: DB) -> Json:
-    return await chat_svc.new_thread(session)
+    out = await chat_svc.new_thread(session)
+    await session.commit()
+    return out
 
 
 @api.get("/predictions")
@@ -105,7 +116,7 @@ async def predictions(session: DB) -> Json:
 
 
 @api.get("/predictions/rows")
-async def prediction_rows(session: DB, before: Annotated[int, Query(ge=1)]) -> Json:
+async def prediction_rows(session: DB, before: Annotated[int, Query(ge=1, le=INT4)]) -> Json:
     return {"rows": await pred_svc.page(session, before)}
 
 

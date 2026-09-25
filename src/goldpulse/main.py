@@ -41,7 +41,10 @@ async def _too_many(request: Request, exc: RateLimitExceeded) -> Response:
 
 @app.exception_handler(RequestValidationError)
 async def _bad_input(request: Request, exc: RequestValidationError) -> JSONResponse:
-    fields = ", ".join(str(e["loc"][-1]) for e in exc.errors())
+    errors = exc.errors()
+    if any(e.get("type") in ("json_invalid", "model_attributes_type") or e["loc"] == ("body",) for e in errors):
+        return JSONResponse({"detail": "Dữ liệu gửi lên không đúng định dạng."}, status_code=422)
+    fields = ", ".join(str(e["loc"][-1]) for e in errors)
     return JSONResponse({"detail": f"Tham số không hợp lệ: {fields}."}, status_code=422)
 
 

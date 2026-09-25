@@ -104,6 +104,11 @@
       h += '<div class="error" role="alert"><p>Máy nạp dữ liệu (worker) không chạy — giá và kho lịch sử đang đứng. Trên máy chạy GoldPulse, chạy lại <span class="num">make dev</span>.</p></div>';
     }
 
+    if (d.last_error) {
+      h += '<div class="error" role="alert"><p>Lỗi hệ thống lúc ' + esc(d.last_error.at_vn) + " ở " + esc(d.last_error.where) +
+        ": " + esc(d.last_error.error) + '</p><p class="muted">Máy tự chạy tiếp. Lặp lại nhiều lần thì xem log: <span class="num">docker compose logs</span></p></div>';
+    }
+
     var s = d.sessions;
     h += '<div class="card"><div class="label">Phiên đang chạy</div>';
     if (s.length) {
@@ -164,7 +169,9 @@
     else if (hist.source === "throttled") h += '<span class="badge warn">Nguồn đang giới hạn tốc độ</span>';
     else h += '<span class="badge warn">Chưa kết nối nguồn lần nào</span>';
     if (hist.error_days) h += ' <a class="badge err" href="/coverage">' + fmt(hist.error_days) + " ngày lỗi</a>";
-    h += "</div>" + (hist.old_pending ? '<div class="muted mt">Còn ' + fmt(hist.old_pending) +
+    h += "</div>" + (hist.awaiting_days ? '<div class="muted mt">' + fmt(hist.awaiting_days) +
+      " ngày gần nhất chờ HistData phát hành (trễ ~1 tuần) — tạm dùng nến từ giá realtime.</div>" : "") +
+      (hist.old_pending ? '<div class="muted mt">Còn ' + fmt(hist.old_pending) +
       " ngày 2004 → 03/2009 chưa nạp — đoạn này chỉ Dukascopy có (cần WARP một lần).</div>" : "") +
       (hist.last_backfill_vn ? '<div class="muted mt">Lấy bù lần cuối ' + esc(hist.last_backfill_vn) + "</div>" : "") + "</div>";
 
@@ -265,13 +272,15 @@
         : y.done_days ? "Đang nạp " + fmt(y.done_days) + "/" + fmt(y.days) + " ngày" : "Chờ nạp · " + fmt(y.days) + " ngày";
       h += '<div class="year"><div class="top"><strong class="num">' + y.year + "</strong>" +
         '<span class="num">' + pct(y.covered_pct) + " có nến</span></div>" +
-        '<div class="bar' + (hasGap || loading ? " part" : "") + '"><i style="width:' + (y.covered_pct || 0) + '%"></i></div>' +
+        '<div class="bar' + (hasGap || loading ? " part" : "") + '"><i data-w="' + (y.covered_pct || 0) + '"></i></div>' +
         '<div class="top mt"><span class="muted num">' + status + "</span>" +
         (hasGap ? '<button class="toggle" type="button" aria-expanded="false">' + y.gaps.length + " đoạn thiếu ›</button>" : '<span class="muted">Không thiếu</span>') +
         "</div>" + (hasGap ? '<div class="gaps">' + y.gaps.map(gapLine).join("<br>") + "</div>" : "") + "</div>";
     });
     flushWaiting();
     content.innerHTML = h;
+    // CSP chặn thuộc tính style viết trong HTML → gán độ rộng thanh qua CSSOM
+    content.querySelectorAll(".bar > i[data-w]").forEach(function (el) { el.style.width = el.dataset.w + "%"; });
   }
 
   function loadCoverage() {

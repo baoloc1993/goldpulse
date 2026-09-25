@@ -34,7 +34,7 @@ def key_matches(candidate: str) -> bool:
 
 
 def is_operator(request: Request) -> bool:
-    return hmac.compare_digest(request.cookies.get(COOKIE, ""), session_token())
+    return hmac.compare_digest(request.cookies.get(COOKIE, "").encode(), session_token().encode())
 
 
 class LoginRequired(Exception):

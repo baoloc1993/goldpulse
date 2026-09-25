@@ -8,6 +8,7 @@
 - Chỉ liệt kê phút có tick → mỗi dòng là một phút có giao dịch thật; volume luôn 0 nên đặt 1.0 làm dấu.
 """
 
+import asyncio
 import io
 import re
 import ssl
@@ -44,18 +45,18 @@ def parse_csv(text: str) -> list[RawCandle]:
         try:
             stamp, o, h, lo, c, _ = line.split(";")
             local = datetime.strptime(stamp, "%Y%m%d %H%M%S").replace(tzinfo=NY)
+            out.append(
+                RawCandle(
+                    ts=local.astimezone(UTC),
+                    open=round(float(o), 3),
+                    high=round(float(h), 3),
+                    low=round(float(lo), 3),
+                    close=round(float(c), 3),
+                    volume=1.0,  # HistData chỉ ghi phút có tick
+                )
+            )
         except ValueError as e:
             raise BadFile(f"Dòng CSV HistData không đọc được: {line[:60]!r}") from e
-        out.append(
-            RawCandle(
-                ts=local.astimezone(UTC),
-                open=round(float(o), 3),
-                high=round(float(h), 3),
-                low=round(float(lo), 3),
-                close=round(float(c), 3),
-                volume=1.0,  # HistData chỉ ghi phút có tick
-            )
-        )
     return out
 
 
@@ -89,8 +90,11 @@ class HistDataClient:
         page = f"{BASE}/download-free-forex-historical-data/?/ascii/1-minute-bar-quotes/xauusd/{key}"
         try:
             html = await self._client.get(page)
-            if html.status_code in (429, 502, 503, 504):
+            if html.status_code in (429, 500, 502, 503, 504):
                 raise Throttled(f"HTTP {html.status_code}")
+            if html.status_code != 200:
+                # 403 (chặn/challenge), 404… KHÔNG phải "không có dữ liệu" — đừng đánh lỗi ngày vì nó
+                raise BadFile(f"HistData trả HTTP {html.status_code} ở trang tải")
             form = dict(_INPUT.findall(html.text))
             if not form.get("tk"):
                 raise FileNotAvailable(f"HistData không có file XAUUSD {key}")
@@ -103,4 +107,6 @@ class HistDataClient:
             raise Throttled(f"HTTP {resp.status_code}")
         if resp.status_code != 200 or resp.content[:2] != b"PK":
             raise BadFile(f"HistData trả HTTP {resp.status_code}, không phải file zip")
-        return sorted(parse_csv(unzip_csv(resp.content)), key=lambda c: c.ts)
+        payload = resp.content
+        # Giải nén + parse ~350 nghìn dòng mất ~5 giây — chạy ngoài event loop kẻo đứng poll realtime
+        return await asyncio.to_thread(lambda: sorted(parse_csv(unzip_csv(payload)), key=lambda c: c.ts))

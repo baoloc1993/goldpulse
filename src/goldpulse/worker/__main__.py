@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
 import structlog
+from sqlalchemy import text
 
 from ..config import settings
 from ..db import engine, session_scope
@@ -27,6 +28,7 @@ from ..repositories import crawl as crawl_repo
 from ..repositories import feed as feed_repo
 from ..services import ingest
 from ..services.calendar import MINUTE, NY, last_complete_day, open_minutes_of_day
+from ..services.errors import record_error
 from ..services.monitor import LAG_LIMIT_S
 
 log = structlog.get_logger("worker")
@@ -149,7 +151,8 @@ class Worker:
         """File HistData theo khoá, nhớ tạm vài file gần nhất (một file năm ~350 nghìn nến).
         None = HistData không có file này; Exception = tải lỗi."""
         hit = self.hd_cache.get(key)
-        if hit is not None and ("/" not in key or time.monotonic() - hit[0] < 1800):
+        # File năm đã tải được thì không đổi nữa → nhớ luôn; "không có file" và file tháng → nhớ 30 phút
+        if hit is not None and (("/" not in key and hit[1] is not None) or time.monotonic() - hit[0] < 1800):
             return hit[1]
         try:
             candles: list[RawCandle] | None = await self.hd.fetch_file(key)
@@ -157,6 +160,7 @@ class Worker:
             candles = None
         except (Unreachable, Throttled, BadFile) as e:
             return e
+        await self.set_source("ok", provider="histdata")  # tải được (kể cả "chưa có file") = nguồn sống
         self.hd_cache[key] = (time.monotonic(), candles)
         while len(self.hd_cache) > 3:
             self.hd_cache.pop(next(iter(self.hd_cache)))
@@ -184,7 +188,8 @@ class Worker:
                     out.throttled += 1
                     out.msg = str(errors[0])
                     await crawl_repo.mark_soft_fail(s, day, f"HistData chập chờn ({out.msg})")
-                    continue
+                    # Cả lô dùng chung vài file — tải lại cho từng ngày chỉ làm HistData chặn nặng hơn
+                    break
                 if errors:
                     out.failed += 1
                     await crawl_repo.mark_error(s, day, str(errors[0]))
@@ -196,9 +201,15 @@ class Worker:
                         await crawl_repo.mark_error(s, day, "HistData không có dữ liệu cho ngày này")
                     continue  # tháng mới chưa phát hành — để pending, lượt sau thử lại
                 data = sorted((c for f in files if f for c in f), key=lambda c: c.ts)
-                if not ingest.day_complete(day, data[-1].ts if data else None):
+                # Đủ hay chưa: file của CHÍNH ngày đó phủ tới cuối ngày; hoặc file đó là kỳ đã đóng (năm cũ /
+                # tháng đã qua — ngày lễ đóng sớm như 31/12 thì dữ liệu tiếp theo nằm ở file kỳ sau). File tháng
+                # đang chạy (có thể là bản nhớ tạm cũ) không được mượn mép của file khác.
+                own_key = hd_file_key(day, today)
+                closed = "/" not in own_key or (day.year, day.month) < (today.year, today.month)
+                edge = max((f[-1].ts for f in files if f), default=None)
+                if not (ingest.day_complete(day, own[-1].ts) or (closed and ingest.day_complete(day, edge))):
                     continue  # HistData chưa phát hành tới hết ngày này (trễ ~1 tuần)
-                summary = await ingest.store_histdata_day(s, day, ingest.slice_and_fill(day, data))
+                summary = await ingest.store_histdata_day(s, day, ingest.slice_and_fill(day, data, until=edge))
                 out.stored += 1
             await self.set_source("ok", provider="histdata")
             log.info("crawl_day_ok", day=str(day), source="histdata", status=summary.status, candles=summary.candles)
@@ -243,7 +254,8 @@ class Worker:
             now = datetime.now(UTC)
             try:
                 q = await self.gold.fetch()
-                lag = (now - q.updated_at).total_seconds()
+                # Trễ tính tới lúc NHẬN giá, không phải lúc gửi — request chậm 3s là trễ thêm 3s
+                lag = (datetime.now(UTC) - q.updated_at).total_seconds()
                 async with session_scope() as s:
                     await feed_repo.insert_sample(s, now, q.updated_at, q.price, lag, lag < LAG_LIMIT_S)
             except GoldApiError as e:
@@ -317,6 +329,15 @@ class Worker:
             await self.sleep(86400)
 
     async def run(self) -> None:
+        # Hai worker (vd chạy tay thêm một lần, hoặc make dev cùng lúc production) cùng tải một file, cộng đôi
+        # attempts → giữ advisory lock suốt đời worker; không lấy được thì thoát ngay
+        self.lock_conn = await engine.connect()
+        got = (await self.lock_conn.execute(text("SELECT pg_try_advisory_lock(20260924)"))).scalar()
+        if not got:
+            log.error("worker_already_running")
+            await self.lock_conn.close()
+            await engine.dispose()
+            raise SystemExit("Đã có một worker GoldPulse khác đang chạy trên kho này — dừng.")
         async with session_scope() as s:
             await feed_repo.set_status_if_absent(s, "first_run", {"at": datetime.now(UTC).isoformat()})
         log.info("worker_start", history_start=str(settings.history_start_date))
@@ -332,6 +353,7 @@ class Worker:
         await asyncio.gather(*tasks, return_exceptions=True)
         await self.duka.close()
         await self.hd.close()
+        await self.lock_conn.close()
         await self.gold.close()
         await engine.dispose()
         log.info("worker_stop")
@@ -343,8 +365,9 @@ class Worker:
                 await loop_fn()
             except asyncio.CancelledError:
                 raise
-            except Exception:
+            except Exception as e:
                 log.exception("loop_crashed", loop=loop_fn.__name__)
+                await record_error(f"worker/{loop_fn.__name__}", e)
                 await self.sleep(10)
 
 

@@ -75,7 +75,7 @@ async def login(
         max_age=COOKIE_MAX_AGE,
         httponly=True,
         samesite="strict",
-        secure=settings.is_production,
+        secure=settings.secure_cookie,
     )
     return resp  # type: ignore[return-value]
 

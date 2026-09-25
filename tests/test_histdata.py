@@ -80,3 +80,39 @@ async def test_histdata_never_overwrites_dukascopy_but_overwrites_temp():
         rows = (await s.execute(text("SELECT ts, close, source, is_final FROM candle_1m ORDER BY ts"))).all()
     await engine.dispose()
     assert [(r[1], r[2], r[3]) for r in rows] == [(1200.0, "dukascopy", True), (1201.0, "histdata", True)]
+
+
+def test_bad_csv_value_is_badfile_not_crash():
+    import pytest
+
+    from goldpulse.integrations.dukascopy import BadFile
+
+    with pytest.raises(BadFile):
+        parse_csv("20120102 180300;abc;1;1;1;0\n")
+
+
+def test_ops_key_too_short_refuses_to_start():
+    import pytest
+    from pydantic import ValidationError
+
+    from goldpulse.config import Settings
+
+    with pytest.raises(ValidationError):
+        Settings(database_url="postgresql+asyncpg://x", ops_access_key="ngan")
+
+
+@needs_db
+async def test_histdata_flat_fill_never_replaces_real_temp_candle():
+    """HistData thiếu tick (vd 3–7/2023) → nến đứng giá tự điền KHÔNG được đè nến tạm gold-api có giá thật."""
+    from goldpulse.db import engine, session_scope
+    from goldpulse.repositories import candles as candle_repo
+
+    t_flat, t_tick = utc(2026, 9, 21, 10, 0), utc(2026, 9, 21, 10, 1)
+    async with session_scope() as s:
+        await s.execute(text("TRUNCATE candle_1m"))
+        await candle_repo.upsert_temp(s, t_flat, 10.0, 12.0, 9.0, 11.0)
+        await candle_repo.upsert_temp(s, t_tick, 10.0, 12.0, 9.0, 11.0)
+        await candle_repo.upsert_final(s, [_c(t_flat, 5.0, vol=0.0), _c(t_tick, 20.0)], source="histdata")
+        rows = (await s.execute(text("SELECT ts, high, source FROM candle_1m ORDER BY ts"))).all()
+    await engine.dispose()
+    assert [(r[1], r[2]) for r in rows] == [(12.0, "goldapi"), (20.0, "histdata")]

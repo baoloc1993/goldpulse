@@ -3,13 +3,14 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import settings
 from ...schemas import Json, RetryResult, SessionName, SessionQuery, SessionQueryResult
 from ...services import monitor
 from ..deps import get_session, require_operator_api
+from ..limiter import limiter
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_operator_api)])
 DB = Annotated[AsyncSession, Depends(get_session)]
@@ -41,7 +42,8 @@ async def query(
 
 
 @router.post("/crawl-days/{day}/retry", response_model=RetryResult)
-async def retry_day(day: date, session: DB) -> RetryResult:
+@limiter.limit("30/minute")
+async def retry_day(request: Request, day: date, session: DB) -> RetryResult:
     if day < settings.history_start_date:
         raise HTTPException(404, "Ngày nằm ngoài kho")
     queued = await monitor.retry_day(session, day)
@@ -51,6 +53,7 @@ async def retry_day(day: date, session: DB) -> RetryResult:
 
 
 @router.post("/history/wake")
-async def wake(session: DB) -> Json:
+@limiter.limit("10/minute")
+async def wake(request: Request, session: DB) -> Json:
     await monitor.wake_history(session)
     return {"ok": True}

@@ -1,0 +1,66 @@
+# Production = máy Windows của chủ dự án (PRD §7). `make deploy` gọi file này.
+# Cùng project `goldpulse` với deployment/local → dùng CHUNG volume `pgdata` đã nạp đủ 2004 → nay,
+# không phải nạp lại 10 triệu nến. KHÔNG chạy `make dev` cùng lúc (hai worker cùng ghi, hai web cùng cổng DB).
+name: goldpulse
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: goldpulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?đặt POSTGRES_PASSWORD trong deployment/production/.env}
+      POSTGRES_DB: goldpulse
+    ports: ["127.0.0.1:5432:5432"]   # chỉ máy này; make migrate / make doctor dùng
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goldpulse -d goldpulse"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  migrate:
+    build: ../..
+    env_file: .env
+    command: ["alembic", "upgrade", "head"]
+    depends_on: { db: { condition: service_healthy } }
+    restart: "no"
+
+  web:
+    build: ../..
+    env_file: .env
+    ports: ["127.0.0.1:8080:8000"]   # cloudflared trên cùng máy trỏ vào đây; không mở ra mạng LAN
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  worker:
+    build: ../..
+    env_file: .env
+    command: ["python", "-m", "goldpulse.worker"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    restart: unless-stopped
+
+  backup:
+    # pg_dump mỗi ngày vào deployment/production/backups, giữ 14 bản. Khôi phục: pg_restore từ file dump
+    image: postgres:16-alpine
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["./backups:/backups"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          f=/backups/goldpulse-$$(date -u +%Y%m%d-%H%M).dump
+          pg_dump -h db -U goldpulse -d goldpulse -Fc -f "$$f.tmp" && mv "$$f.tmp" "$$f" && echo "backup ok $$f"
+          ls -1t /backups/*.dump 2>/dev/null | tail -n +15 | xargs -r rm -f
+          sleep 86400
+        done
+    depends_on: { db: { condition: service_healthy } }
+    restart: unless-stopped
+
+volumes:
+  pgdata:

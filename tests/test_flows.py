@@ -246,3 +246,38 @@ async def test_html_404_page(client):
 async def test_login_rate_limited(client):
     codes = [(await client.post("/login", data={"key": "sai"})).status_code for _ in range(12)]
     assert codes[:10] == [401] * 10 and codes[-1] == 429
+
+
+def test_client_ip_trusts_cloudflare_header_only_from_internal_peer():
+    """Sau Tunnel peer là 127.0.0.1 hoặc IP bridge Docker → dùng CF-Connecting-IP; peer ngoài thì không tin."""
+    from starlette.requests import Request
+
+    from goldpulse.api.limiter import client_ip
+
+    def req(peer, cf=None):
+        headers = [(b"cf-connecting-ip", cf.encode())] if cf else []
+        return Request({"type": "http", "client": (peer, 1234), "headers": headers})
+
+    assert client_ip(req("127.0.0.1", "203.0.113.7")) == "203.0.113.7"
+    assert client_ip(req("172.18.0.1", "203.0.113.7")) == "203.0.113.7"  # Docker bridge
+    assert client_ip(req("8.8.8.8", "203.0.113.7")) == "8.8.8.8"  # người ngoài tự đặt header
+    assert client_ip(req("127.0.0.1")) == "127.0.0.1"
+
+
+async def test_non_ascii_cookie_is_rejected_not_500(client):
+    r = await client.get("/overview", headers=[(b"cookie", "gp_ops=khóa".encode())])
+    assert r.status_code == 303
+
+
+async def test_login_rate_limit_message_is_vietnamese(client):
+    for _ in range(10):
+        await client.post("/login", data={"key": "sai"})
+    r = await client.post("/login", data={"key": "sai"})
+    assert r.status_code == 429 and "đợi 1 phút" in r.text
+
+
+async def test_security_headers(client):
+    r = await client.get("/login")
+    assert "default-src 'self'" in r.headers["content-security-policy"]
+    assert r.headers["x-frame-options"] == "DENY" and r.headers["cache-control"] == "no-store"
+    assert "<script>" not in r.text  # CSP chặn script inline — mọi script ở /static

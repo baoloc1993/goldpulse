@@ -15,12 +15,5 @@
   </div>
   <button class="btn block" type="submit" id="enter">Vào</button>
 </form>
-<script>
-document.getElementById("showKey").addEventListener("change", function (e) {
-  document.getElementById("key").type = e.target.checked ? "text" : "password";
-});
-document.getElementById("loginForm").addEventListener("submit", function () {
-  var b = document.getElementById("enter"); b.disabled = true; b.textContent = "Đang vào…";
-});
-</script>
+<script src="/static/login.js" defer></script>
 {% endblock %}

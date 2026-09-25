@@ -59,7 +59,21 @@ _UPSERT_SESSION = text("""
 async def upsert_final(session: AsyncSession, candles: Sequence[RawCandle], source: str = "dukascopy") -> int:
     if not candles:
         return 0
-    sql = _UPSERT_FINAL + (_KEEP_DUKASCOPY if source != "dukascopy" else "")
+    if source == "dukascopy":
+        await _upsert(session, _UPSERT_FINAL, source, candles)
+        return len(candles)
+    # HistData: phút có tick đè mọi thứ trừ Dukascopy; nến đứng giá tự điền (volume 0) chỉ lấp chỗ trống
+    # hoặc thay nến HistData cũ — KHÔNG đè nến tạm gold-api có giá thật (HistData hay thiếu tick, vd 3–7/2023)
+    ticks = [c for c in candles if c.volume > 0]
+    flats = [c for c in candles if c.volume <= 0]
+    await _upsert(session, _UPSERT_FINAL + _KEEP_DUKASCOPY, source, ticks)
+    await _upsert(session, _UPSERT_FINAL + " WHERE candle_1m.source = 'histdata'", source, flats)
+    return len(candles)
+
+
+async def _upsert(session: AsyncSession, sql: str, source: str, candles: Sequence[RawCandle]) -> None:
+    if not candles:
+        return
     await session.execute(
         text(sql),
         {
@@ -72,7 +86,6 @@ async def upsert_final(session: AsyncSession, candles: Sequence[RawCandle], sour
             "v": [c.volume for c in candles],
         },
     )
-    return len(candles)
 
 
 async def upsert_temp(session: AsyncSession, ts: datetime, o: float, h: float, lo: float, c: float) -> None:

@@ -116,15 +116,27 @@ async def retry(session: AsyncSession, day: date) -> bool:
     return res.rowcount > 0  # type: ignore[attr-defined]
 
 
+# Ngày "chờ phát hành": pending, chưa thử lần nào, nằm SAU ngày có phút mở cuối cùng đã xử lý (ok / empty /
+# error) — nguồn (HistData trễ ~1 tuần) chưa có chứ không phải thiếu. Pending nằm giữa các ngày đã xử lý là
+# thiếu thật. Không tính vào mẫu số độ phủ, không làm S1/S2 kẹt "đang nạp" mãi.
+_AWAITING = """
+    (status = 'pending' AND attempts = 0
+     AND day > (SELECT coalesce(max(day), DATE '1900-01-01') FROM crawl_day
+                WHERE status <> 'pending' AND calendar_minutes > 0))
+"""
+
+
 async def progress(session: AsyncSession) -> dict[str, int]:
-    """Đếm theo trạng thái. Ngày không có phút mở (thứ Bảy — không tải) tách riêng thành `skipped`."""
+    """Đếm theo trạng thái. Thứ Bảy (không tải) → `skipped`; ngày mép nguồn chưa phát hành → `awaiting`."""
     res = await session.execute(
-        text("""
-            SELECT CASE WHEN calendar_minutes = 0 THEN 'skipped' ELSE status END, count(*)
+        text(f"""
+            SELECT CASE WHEN calendar_minutes = 0 THEN 'skipped'
+                        WHEN {_AWAITING} THEN 'awaiting'
+                        ELSE status END, count(*)
             FROM crawl_day GROUP BY 1
         """)
     )
-    counts = {"pending": 0, "ok": 0, "empty": 0, "error": 0, "skipped": 0}
+    counts = {"pending": 0, "ok": 0, "empty": 0, "error": 0, "skipped": 0, "awaiting": 0}
     counts.update({r[0]: r[1] for r in res})
     return counts
 
@@ -132,14 +144,14 @@ async def progress(session: AsyncSession) -> dict[str, int]:
 async def coverage_by_year(session: AsyncSession) -> list[dict[str, Any]]:
     """Độ phủ theo năm. Ngày `empty` (lễ) bị loại khỏi mẫu số; pending/error tính là thiếu."""
     res = await session.execute(
-        text("""
+        text(f"""
             SELECT extract(year FROM day)::int AS year,
-                   sum(calendar_minutes) FILTER (WHERE status <> 'empty') AS calendar,
+                   sum(calendar_minutes) FILTER (WHERE status <> 'empty' AND NOT {_AWAITING}) AS calendar,
                    sum(covered_minutes) FILTER (WHERE status = 'ok') AS covered,
                    sum(traded_minutes) FILTER (WHERE status = 'ok') AS traded,
-                   count(*) FILTER (WHERE calendar_minutes > 0) AS days,
+                   count(*) FILTER (WHERE calendar_minutes > 0 AND NOT {_AWAITING}) AS days,
                    count(*) FILTER (WHERE calendar_minutes > 0 AND status IN ('ok', 'empty')) AS done_days,
-                   count(*) FILTER (WHERE status = 'pending') AS pending_days,
+                   count(*) FILTER (WHERE status = 'pending' AND NOT {_AWAITING}) AS pending_days,
                    count(*) FILTER (WHERE status = 'error') AS error_days
             FROM crawl_day GROUP BY 1 ORDER BY 1 DESC
         """)

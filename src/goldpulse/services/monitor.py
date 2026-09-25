@@ -4,6 +4,7 @@ import time
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..integrations.histdata import FIRST_DAY as HD_FIRST
@@ -56,7 +57,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
     sessions = [{"key": k, "label": SESSIONS[k].label, "closes_vn": _vn(c)} for k, _, c in active_sessions(now)]
 
     prog = await crawl_repo.progress(session)
-    total = sum(prog.values()) - prog["skipped"]  # chỉ ngày phải tải thật
+    total = sum(prog.values()) - prog["skipped"] - prog["awaiting"]  # ngày phải tải thật, nguồn đã có
     done = prog["ok"] + prog["empty"]
     history_source = await feed_repo.get_status(session, "history_source") or {}
     backfill = await feed_repo.get_status(session, "backfill") or {}
@@ -77,6 +78,16 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
     p95, n_queries = await feed_repo.query_speed_p95(session, SPEED_SPAN_YEARS)
 
     worker_seen = worker.get("updated_at")
+    last_error = await feed_repo.get_status(session, "last_error")
+    recent_error = (
+        {
+            "where": last_error["where"],
+            "error": last_error["error"],
+            "at_vn": last_error["updated_at"].astimezone(VN).strftime("%H:%M %d/%m"),
+        }
+        if last_error and (now - last_error["updated_at"]).total_seconds() < 24 * 3600
+        else None
+    )
     return {
         "now": now.isoformat(),
         "price": price,
@@ -85,6 +96,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
             "total_days": total,
             "done_days": done,
             "ok_days": prog["ok"],  # ngày có dữ liệu thật — thứ Bảy `empty` không tính
+            "awaiting_days": prog["awaiting"],  # ngày mới nhất nguồn lịch sử chưa phát hành (nến tạm giữ chỗ)
             "error_days": prog["error"],
             "source": history_source.get("state", "unknown"),  # ok | unreachable | throttled | unknown
             "source_message": history_source.get("message"),
@@ -103,6 +115,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
             else None,
         },
         "worker_alive": bool(worker_seen and (now - worker_seen).total_seconds() < 120),
+        "last_error": recent_error,  # lỗi hệ thống trong 24 giờ qua — thay Sentry khi chưa bật
         "metrics": {
             "coverage": {"value": cov["total"]["covered_pct"], "target": COVERAGE_TARGET},
             "latency": {**latency, "target": LATENCY_TARGET},
@@ -228,6 +241,7 @@ async def db_alive(session: AsyncSession) -> bool:
         await feed_repo.db_ping(session)
         return True
     except Exception:
+        structlog.get_logger("health").warning("db_ping_failed", exc_info=True)
         return False
 
 

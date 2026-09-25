@@ -1,0 +1,11 @@
+.venv
+.git
+**/__pycache__
+**/.env
+**/.env.*
+deployment
+tests
+prototype
+intake
+context
+srcroot

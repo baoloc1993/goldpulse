@@ -2,7 +2,9 @@
 
 from datetime import date
 from pathlib import Path
+from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_FILE = Path(__file__).resolve().parents[2] / "deployment" / "local" / ".env"
@@ -12,8 +14,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
     database_url: str
-    ops_access_key: str
-    app_env: str = "development"
+    ops_access_key: str = Field(min_length=16)  # khoá ngắn + 10 lần thử/phút là dò được
+    app_env: Literal["development", "test", "production"] = "development"
     sentry_dsn: str | None = None
 
     history_start_date: date = date(2004, 1, 1)
@@ -29,6 +31,11 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def secure_cookie(self) -> bool:
+        """Cookie chỉ gửi qua HTTPS — mặc định BẬT, chỉ tắt khi chạy local (http://127.0.0.1)."""
+        return self.app_env not in ("development", "test")
 
     @property
     def sync_database_url(self) -> str:

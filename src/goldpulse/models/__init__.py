@@ -20,7 +20,7 @@ class Candle1m(SQLModel, table=True):
     low: float
     close: float
     volume: float = 0.0
-    source: str = Field(sa_column=Column(Text, nullable=False))  # dukascopy | goldapi
+    source: str = Field(sa_column=Column(Text, nullable=False))  # dukascopy | histdata | goldapi
     is_final: bool = False
     updated_at: datetime = _ts(nullable=False)
 

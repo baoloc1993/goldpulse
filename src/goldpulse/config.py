@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # Chỉ bật khi web đứng sau Cloudflare Tunnel: tin header CF-Connecting-IP để giới hạn theo IP thật.
     # Không có Tunnel mà bật → người gọi tự đặt header để né giới hạn đăng nhập (DECISIONS 2026-09-25)
     trust_cloudflare_ip: bool = False
+    # Cookie chỉ gửi qua HTTPS. None = tự theo APP_ENV (production → bật). Đặt false khi xem qua http trong
+    # mạng LAN nhà (điện thoại vứt cookie Secure trên http → vòng lặp về trang khoá) — DECISIONS 2026-09-25
+    cookie_secure: bool | None = None
     # Số file Dukascopy tải song song — Dukascopy chậm 15–50s/file, hay trả 503 (DECISIONS 2026-09-24)
     dukascopy_concurrency: int = 3
     dukascopy_delay_seconds: float = 0.5
@@ -38,6 +41,8 @@ class Settings(BaseSettings):
     @property
     def secure_cookie(self) -> bool:
         """Cookie chỉ gửi qua HTTPS — mặc định BẬT, chỉ tắt khi chạy local (http://127.0.0.1)."""
+        if self.cookie_secure is not None:
+            return self.cookie_secure
         return self.app_env not in ("development", "test")
 
     @property

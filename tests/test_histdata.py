@@ -116,3 +116,11 @@ async def test_histdata_flat_fill_never_replaces_real_temp_candle():
         rows = (await s.execute(text("SELECT ts, high, source FROM candle_1m ORDER BY ts"))).all()
     await engine.dispose()
     assert [(r[1], r[2]) for r in rows] == [(12.0, "goldapi"), (20.0, "histdata")]
+
+
+def test_cookie_secure_override_for_lan_http():
+    from goldpulse.config import Settings
+
+    base = {"database_url": "postgresql+asyncpg://x", "ops_access_key": "k" * 16, "app_env": "production"}
+    assert Settings(**base).secure_cookie is True
+    assert Settings(**base, cookie_secure=False).secure_cookie is False  # xem qua http trong LAN

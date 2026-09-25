@@ -374,6 +374,9 @@ class Worker:
                     s, "chat", CHAT_EXPIRE_S, "Quá lâu — não bot không trả lời trong 10 phút"
                 )
                 await chat_repo.fail_by_jobs(s, expired, "Quá lâu — não bot không trả lời trong 10 phút. Gửi lại nhé.")
+                await chat_repo.fail_orphans(
+                    s, "Bot dừng giữa chừng nhiều lần — bấm Gửi lại, hoặc kiểm tra `make brain` trên máy chủ."
+                )
                 await job_repo.expire_pending(s, "signal_prediction", 300, "Quá hạn — não không xử kịp nến này")
             if scored or expired:
                 log.info("scored", predictions=scored, chat_expired=len(expired))

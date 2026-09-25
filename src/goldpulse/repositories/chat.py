@@ -89,6 +89,23 @@ async def messages(session: AsyncSession, thread_id: int, limit: int) -> list[di
     return [dict(r) for r in rows]
 
 
+async def messages_before(session: AsyncSession, thread_id: int, before_id: int, limit: int) -> list[dict[str, Any]]:
+    """`limit` tin nhắn `ok` gần nhất TRƯỚC `before_id` (cũ → mới) — lịch sử cho não, kể cả khi "Gửi lại" câu cũ."""
+    rows = (
+        await session.execute(
+            text(f"""
+                SELECT * FROM (
+                    SELECT {_MSG_COLS} FROM chat_message
+                    WHERE thread_id = :t AND id < :b AND status = 'ok'
+                    ORDER BY id DESC LIMIT :n
+                ) x ORDER BY id
+            """),
+            {"t": thread_id, "b": before_id, "n": limit},
+        )
+    ).mappings()
+    return [dict(r) for r in rows]
+
+
 async def question_for(session: AsyncSession, answer_id: int) -> dict[str, Any] | None:
     """Câu hỏi của người dùng ngay trước câu trả lời `answer_id` trong cùng thread."""
     row = (
@@ -145,6 +162,19 @@ async def fail_by_jobs(session: AsyncSession, job_ids: list[int], content: str) 
         """),
         {"ids": job_ids, "c": content},
     )
+
+
+async def fail_orphans(session: AsyncSession, content: str) -> int:
+    """Câu trả lời còn `pending` mà job đã `error` (requeue hết lượt, não chết) → lỗi, để hiện nút "Gửi lại"."""
+    res = await session.execute(
+        text("""
+            UPDATE chat_message m SET status = 'error', content = :c
+            FROM bot_job j
+            WHERE m.job_id = j.id AND m.role = 'assistant' AND m.status = 'pending' AND j.status = 'error'
+        """),
+        {"c": content},
+    )
+    return res.rowcount  # type: ignore[attr-defined]
 
 
 async def count_today(session: AsyncSession) -> int:

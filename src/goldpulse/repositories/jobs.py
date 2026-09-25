@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-STUCK_S = 180  # running quá lâu (não chết giữa chừng) → về pending
+STUCK_S = 420  # running quá lâu (não chết giữa chừng) → về pending; > 120s × 3 lượt SDK thử lại (review 2026-09-26)
 MAX_ATTEMPTS = 3
 
 
@@ -51,7 +51,7 @@ async def claim(session: AsyncSession) -> dict[str, Any] | None:
 
 
 async def requeue_stuck(session: AsyncSession) -> int:
-    """running > 180s → pending (còn lượt) hoặc error (hết 3 lượt)."""
+    """running > STUCK_S → pending (còn lượt) hoặc error (hết 3 lượt)."""
     res = await session.execute(
         text("""
             UPDATE bot_job SET

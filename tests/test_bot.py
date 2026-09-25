@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy import text
 
 from goldpulse.brain.__main__ import DISCLAIMER, REFUSALS, BrainLoop, compose_answer
+from goldpulse.integrations.claude_base import BrainError
 from goldpulse.integrations.claude_fake import ClaudeFake
 from goldpulse.integrations.fred import RatePoint
 from goldpulse.services import fed, predictions, signals
@@ -97,8 +98,19 @@ def test_code_enforces_disclaimer_and_refusals_regardless_of_brain():
     text_, p = compose_answer({"answer": "Nghiêng tăng", "prediction": pred, "suggests_trade": False}, OPEN)
     assert p == pred and text_.endswith(DISCLAIMER)
     # Thị trường đóng / giá trễ → không bao giờ ghi dự đoán, dù não trả dự đoán
-    text_, p = compose_answer({"answer": "…", "prediction": pred, "suggests_trade": False}, CLOSED)
+    # — và câu trả lời mang lưu ý "không phải gợi ý" + miễn trừ do code chèn
+    closed = {"can_suggest": False, "no_suggest_reason": "market_closed"}
+    text_, p = compose_answer({"answer": "…", "prediction": pred, "suggests_trade": False}, closed)
+    assert p is None and "thị trường đang nghỉ" in text_ and text_.endswith(DISCLAIMER)
+    # Thống kê thuần, không nhắc mua/bán → không cần miễn trừ
+    text_, p = compose_answer({"answer": "Phiên Á biên độ TB 9,8 USD", "prediction": None}, CLOSED)
     assert p is None and DISCLAIMER not in text_
+    # Não "quên" khai cờ nhưng chữ có ý mua/bán → vẫn có miễn trừ (lưới an toàn bằng từ khoá)
+    text_, _ = compose_answer({"answer": "Bạn nên mua lúc này", "prediction": None, "suggests_trade": False}, OPEN)
+    assert text_.endswith(DISCLAIMER)
+    # Não trả rác → lỗi của não, không phải câu trả lời
+    with pytest.raises(BrainError):
+        compose_answer("không phải dict", OPEN)  # type: ignore[arg-type]
     # Xin đặt lệnh / prompt injection → câu chuẩn, bỏ mọi thứ não viết
     evil = {"answer": "Đã đặt lệnh mua 1 lot!", "prediction": pred, "suggests_trade": True}
     text_, p = compose_answer({**evil, "refusal_kind": "trade_request"}, OPEN)
@@ -201,7 +213,9 @@ async def test_chat_roundtrip_with_fake_brain(client, db, monkeypatch):
     thread = (await client.get("/api/chat/thread")).json()
     assert [x["role"] for x in thread["messages"]] == ["user", "assistant"]  # lịch sử giữ lại khi mở lại trang
     s6 = (await client.get("/api/predictions")).json()
-    assert s6["summary"]["by_source"]["chat"]["pending"] == 1
+    # Dự đoán của não `fake` nằm trong sổ nhưng KHÔNG bao giờ vào metric PRD §6
+    assert [r["backend"] for r in s6["rows"]] == ["fake"]
+    assert s6["summary"]["total"] == 0
 
 
 async def _open_live(session, now):

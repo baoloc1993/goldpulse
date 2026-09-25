@@ -87,6 +87,19 @@ async def main() -> int:
     finally:
         await duka.close()
 
+    # --- (v2) FRED + não bot ---
+    from .integrations.fred import FredClient
+
+    fred = FredClient()
+    try:
+        pts = await fred.target_rates((now - timedelta(days=30)).date())
+        line(True, f"FRED: lãi suất mục tiêu {pts[-1].lower:.2f}–{pts[-1].upper:.2f}% (ngày {pts[-1].day:%d/%m/%Y})")
+    except Exception as e:  # noqa: BLE001
+        good &= line(False, f"FRED: {e} — S7 dùng bảng đã nạp")
+    finally:
+        await fred.close()
+    good &= await check_brain(settings)
+
     print("\nỔn." if good else "\nCó mục ✗ ở trên.")
     return 0 if good else 1
 

@@ -3,27 +3,36 @@
 Vòng lặp: lấy bot_job (SKIP LOCKED) → soạn gói dữ liệu → hỏi Claude (cli | api | fake) → ghi kết quả.
 Nhịp tim 30s vào worker_status.brain — S5 báo "Não bot chưa chạy" khi nhịp tim cũ > 2 phút.
 Web không bao giờ gọi Claude: não chết thì web + worker vẫn sống (AC-11).
+
+`--production` (dùng bởi `make brain`): ép APP_ENV=production trước khi đọc cấu hình — backend `fake` bị chặn dù
+`deployment/local/.env` (dùng chung với `make dev`) đang để APP_ENV=development.
 """
 
-import asyncio
-import json
 import os
-import signal
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from typing import Any
+import sys
 
-import structlog
+if "--production" in sys.argv:
+    os.environ["APP_ENV"] = "production"
 
-from ..config import settings
-from ..db import engine, session_scope
-from ..integrations.claude_base import Brain, BrainError, JobSkipped
-from ..logs import setup_logging
-from ..repositories import chat as chat_repo
-from ..repositories import feed as feed_repo
-from ..repositories import jobs as job_repo
-from ..services import context_pack, predictions, signals
-from ..services.errors import record_error
+import asyncio  # noqa: E402
+import json  # noqa: E402
+import re  # noqa: E402
+import signal  # noqa: E402
+from datetime import UTC, datetime, timedelta  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Any  # noqa: E402
+
+import structlog  # noqa: E402
+
+from ..config import settings  # noqa: E402
+from ..db import engine, session_scope  # noqa: E402
+from ..integrations.claude_base import Brain, BrainError, JobSkipped  # noqa: E402
+from ..logs import setup_logging  # noqa: E402
+from ..repositories import chat as chat_repo  # noqa: E402
+from ..repositories import feed as feed_repo  # noqa: E402
+from ..repositories import jobs as job_repo  # noqa: E402
+from ..services import context_pack, predictions, signals  # noqa: E402
+from ..services.errors import record_error  # noqa: E402
 
 log = structlog.get_logger("brain")
 
@@ -36,6 +45,8 @@ REFUSALS = {
     "not_gold": "Hiện mình chỉ có dữ liệu vàng (XAUUSD) — mình chưa trả lời được về tài sản khác.",
     "trade_request": "GoldPulse không đặt lệnh trên bất kỳ tài khoản nào — mình chỉ phân tích dữ liệu vàng.",
 }
+# Chữ có ý gợi ý mua/bán — lưới an toàn cho dòng miễn trừ khi não quên khai `suggests_trade`
+TRADE_WORDS = re.compile(r"\b(nên|có thể|hãy)\s+(mua|bán|vào lệnh|chốt)|\b(buy|sell|long|short)\b", re.IGNORECASE)
 AUTO_MAX_AGE_S = 300  # job dự đoán tự động chờ quá 5 phút → giá đã trôi, bỏ nến đó
 RETRY_PAUSE_S = 20
 HEARTBEAT_S = 30
@@ -66,14 +77,26 @@ def make_backend() -> Brain:
 def compose_answer(data: dict[str, Any], live: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
     """Nội dung cuối + dự đoán được phép ghi. Luật do CODE giữ, không phụ thuộc não (AC-9):
     từ chối → câu chuẩn; không được gợi ý → bỏ dự đoán; có gợi ý → chèn dòng miễn trừ."""
+    if not isinstance(data, dict):
+        raise BrainError("Não trả dữ liệu không đúng dạng.")
     refusal = data.get("refusal_kind")
     if refusal in REFUSALS:
         return REFUSALS[refusal], None
     answer = str(data.get("answer") or "").strip()
-    pred = data.get("prediction") if live.get("can_suggest") else None
-    if pred and pred.get("direction") not in ("up", "down"):
+    raw = data.get("prediction")
+    pred = raw if isinstance(raw, dict) and raw.get("direction") in ("up", "down") else None
+    if pred and pred.get("confidence") not in ("low", "medium", "high"):
+        pred = {**pred, "confidence": "low"}
+    # Dòng miễn trừ KHÔNG chỉ dựa vào cờ của não: có dự đoán, não tự khai, HOẶC chữ có ý mua/bán
+    trade_talk = bool(pred) or bool(data.get("suggests_trade")) or bool(TRADE_WORDS.search(answer))
+    if not live.get("can_suggest"):
+        if trade_talk:
+            why = (
+                "thị trường đang nghỉ" if live.get("no_suggest_reason") == "market_closed" else "giá realtime đang trễ"
+            )
+            answer = f"{answer}\n\nLưu ý: {why} — câu trả lời này không phải gợi ý mua/bán và không được ghi dự đoán."
         pred = None
-    if pred or data.get("suggests_trade"):
+    if trade_talk:
         answer = f"{answer}\n\n---\n{DISCLAIMER}"
     return answer, pred
 
@@ -168,7 +191,11 @@ class BrainLoop:
             self.done += 1
             self.last_ok_at = datetime.now(UTC).isoformat()
             return True
-        except BrainError as e:
+        except Exception as e:  # noqa: BLE001 — mọi lỗi của MỘT job đều phải kết thúc job, không để chat kẹt
+            if not isinstance(e, BrainError):
+                log.exception("job_crashed", id=job["id"])
+                await record_error("brain/job", e)
+                e = BrainError(f"Lỗi xử lý nội bộ ({type(e).__name__}).")
             if not isinstance(e, JobSkipped):
                 self.note_error(e.message)
             log.warning("job_failed", id=job["id"], error=e.message, retryable=e.retryable)

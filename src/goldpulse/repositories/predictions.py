@@ -48,7 +48,13 @@ async def score(session: AsyncSession, pid: int, price_due: float | None, outcom
 
 
 async def stats(session: AsyncSession) -> dict[str, Any]:
-    rows = await session.execute(text("SELECT source, direction, outcome, count(*) FROM prediction GROUP BY 1, 2, 3"))
+    # Dự đoán của backend `fake` (test/dogfood) không bao giờ tính vào metric PRD §6
+    rows = await session.execute(
+        text(
+            "SELECT source, direction, outcome, count(*) FROM prediction"
+            " WHERE backend IS DISTINCT FROM 'fake' GROUP BY 1, 2, 3"
+        )
+    )
     return {"rows": [{"source": s, "direction": d, "outcome": o, "n": int(n)} for s, d, o, n in rows]}
 
 

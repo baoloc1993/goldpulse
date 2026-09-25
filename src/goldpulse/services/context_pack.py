@@ -143,9 +143,8 @@ async def build_chat(session: AsyncSession, thread_id: int, answer_id: int, now:
     pack = await market_pack(session, now)
     history = [
         {"role": m["role"], "content": m["content"]}
-        for m in await chat_repo.messages(session, thread_id, HISTORY_MESSAGES + 1)
-        if m["id"] < answer_id and m["status"] == "ok"
-    ][-HISTORY_MESSAGES:]
+        for m in await chat_repo.messages_before(session, thread_id, answer_id, HISTORY_MESSAGES)
+    ]
     pack["conversation"] = history
     return pack
 

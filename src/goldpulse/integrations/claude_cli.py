@@ -20,6 +20,10 @@ def child_env() -> dict[str, str]:
     biến CLAUDE_CODE_* / ANTHROPIC_BASE_URL của phiên cha khiến tiến trình con bỏ qua đăng nhập của chủ dự án và
     báo "OAuth session expired" — bỏ chúng đi (thử thật 2026-09-26)."""
     env = dict(os.environ)
+    # ANTHROPIC_API_KEY/AUTH_TOKEN có trong env thì Claude Code dùng khoá API (tính tiền theo token) thay cho gói
+    # Max; khoá vận hành + URL DB không có lý do gì để lọt sang tiến trình con (review 2026-09-26)
+    for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPS_ACCESS_KEY", "DATABASE_URL"):
+        env.pop(k, None)
     if env.get("CLAUDECODE") == "1":
         for k in list(env):
             if k.startswith(("CLAUDE_CODE_", "CLAUDE_AGENT_SDK_")) or k in ("CLAUDECODE", "ANTHROPIC_BASE_URL"):

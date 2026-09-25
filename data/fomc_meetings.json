@@ -1,0 +1,1309 @@
+{
+ "source_url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm (+ fomchistorical<year>.htm 2004–2020)",
+ "compiled_at": "2026-09-25",
+ "announce_time_local": "14:00 America/New_York (trước 2011 một số kỳ 14:15 — ROADMAP §3)",
+ "meetings": [
+  {
+   "date": "2004-01-28",
+   "kind": "scheduled",
+   "label": "January 27-28 Meeting - 2004",
+   "note": "Meeting"
+  },
+  {
+   "date": "2004-03-16",
+   "kind": "scheduled",
+   "label": "March 16 Meeting - 2004",
+   "note": "Meeting"
+  },
+  {
+   "date": "2004-05-04",
+   "kind": "scheduled",
+   "label": "May 4 Meeting - 2004",
+   "note": "Meeting"
+  },
+  {
+   "date": "2004-06-30",
+   "kind": "scheduled",
+   "label": "June 29-30 Meeting - 2004",
+   "note": "Meeting"
+  },
+  {
+   "date": "2004-08-10",
+   "kind": "scheduled",
+   "label": "August 10 Meeting - 2004",
+   "note": "Meeting"
+  },
+  {
+   "date": "2004-09-21",
+   "kind": "scheduled",
+   "label": "September 21 Meeting - 2004",
+   "note": "Meeting"
+  },
+  {
+   "date": "2004-11-10",
+   "kind": "scheduled",
+   "label": "November 10 Meeting - 2004",
+   "note": "Meeting"
+  },
+  {
+   "date": "2004-12-14",
+   "kind": "scheduled",
+   "label": "December 14 Meeting - 2004",
+   "note": "Meeting"
+  },
+  {
+   "date": "2005-02-02",
+   "kind": "scheduled",
+   "label": "February 1-2 Meeting - 2005",
+   "note": "Meeting"
+  },
+  {
+   "date": "2005-03-22",
+   "kind": "scheduled",
+   "label": "March 22 Meeting - 2005",
+   "note": "Meeting"
+  },
+  {
+   "date": "2005-05-03",
+   "kind": "scheduled",
+   "label": "May 3 Meeting - 2005",
+   "note": "Meeting"
+  },
+  {
+   "date": "2005-06-30",
+   "kind": "scheduled",
+   "label": "June 29-30 Meeting - 2005",
+   "note": "Meeting"
+  },
+  {
+   "date": "2005-08-09",
+   "kind": "scheduled",
+   "label": "August 9 Meeting - 2005",
+   "note": "Meeting"
+  },
+  {
+   "date": "2005-09-20",
+   "kind": "scheduled",
+   "label": "September 20 Meeting - 2005",
+   "note": "Meeting"
+  },
+  {
+   "date": "2005-11-01",
+   "kind": "scheduled",
+   "label": "November 1 Meeting - 2005",
+   "note": "Meeting"
+  },
+  {
+   "date": "2005-12-13",
+   "kind": "scheduled",
+   "label": "December 13 Meeting - 2005",
+   "note": "Meeting"
+  },
+  {
+   "date": "2006-01-31",
+   "kind": "scheduled",
+   "label": "January 31 Meeting - 2006",
+   "note": "Meeting"
+  },
+  {
+   "date": "2006-03-28",
+   "kind": "scheduled",
+   "label": "March 27-28 Meeting - 2006",
+   "note": "Meeting"
+  },
+  {
+   "date": "2006-05-10",
+   "kind": "scheduled",
+   "label": "May 10 Meeting - 2006",
+   "note": "Meeting"
+  },
+  {
+   "date": "2006-06-29",
+   "kind": "scheduled",
+   "label": "June 28-29 Meeting - 2006",
+   "note": "Meeting"
+  },
+  {
+   "date": "2006-08-08",
+   "kind": "scheduled",
+   "label": "August 8 Meeting - 2006",
+   "note": "Meeting"
+  },
+  {
+   "date": "2006-09-20",
+   "kind": "scheduled",
+   "label": "September 20 Meeting - 2006",
+   "note": "Meeting"
+  },
+  {
+   "date": "2006-10-25",
+   "kind": "scheduled",
+   "label": "October 24-25 Meeting - 2006",
+   "note": "Meeting"
+  },
+  {
+   "date": "2006-12-12",
+   "kind": "scheduled",
+   "label": "December 12 Meeting - 2006",
+   "note": "Meeting"
+  },
+  {
+   "date": "2007-01-31",
+   "kind": "scheduled",
+   "label": "January 30-31 Meeting - 2007",
+   "note": "Meeting"
+  },
+  {
+   "date": "2007-03-21",
+   "kind": "scheduled",
+   "label": "March 20-21 Meeting - 2007",
+   "note": "Meeting"
+  },
+  {
+   "date": "2007-05-09",
+   "kind": "scheduled",
+   "label": "May 9 Meeting - 2007",
+   "note": "Meeting"
+  },
+  {
+   "date": "2007-06-28",
+   "kind": "scheduled",
+   "label": "June 27-28 Meeting - 2007",
+   "note": "Meeting"
+  },
+  {
+   "date": "2007-08-07",
+   "kind": "scheduled",
+   "label": "August 7 Meeting - 2007",
+   "note": "Meeting"
+  },
+  {
+   "date": "2007-08-10",
+   "kind": "unscheduled",
+   "label": "August 10 Conference Call - 2007",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2007-08-16",
+   "kind": "unscheduled",
+   "label": "August 16 Conference Call - 2007",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2007-09-18",
+   "kind": "scheduled",
+   "label": "September 18 Meeting - 2007",
+   "note": "Meeting"
+  },
+  {
+   "date": "2007-10-31",
+   "kind": "scheduled",
+   "label": "October 30-31 Meeting - 2007",
+   "note": "Meeting"
+  },
+  {
+   "date": "2007-12-06",
+   "kind": "unscheduled",
+   "label": "December 6 Conference Call - 2007",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2007-12-11",
+   "kind": "scheduled",
+   "label": "December 11 Meeting - 2007",
+   "note": "Meeting"
+  },
+  {
+   "date": "2008-01-09",
+   "kind": "unscheduled",
+   "label": "January 9 Conference Call - 2008",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2008-01-21",
+   "kind": "unscheduled",
+   "label": "January 21 Conference Call - 2008",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2008-01-30",
+   "kind": "scheduled",
+   "label": "January 29-30 Meeting - 2008",
+   "note": "Meeting"
+  },
+  {
+   "date": "2008-03-10",
+   "kind": "unscheduled",
+   "label": "March 10 Conference Call - 2008",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2008-03-18",
+   "kind": "scheduled",
+   "label": "March 18 Meeting - 2008",
+   "note": "Meeting"
+  },
+  {
+   "date": "2008-04-30",
+   "kind": "scheduled",
+   "label": "April 29-30 Meeting - 2008",
+   "note": "Meeting"
+  },
+  {
+   "date": "2008-06-25",
+   "kind": "scheduled",
+   "label": "June 24-25 Meeting - 2008",
+   "note": "Meeting"
+  },
+  {
+   "date": "2008-07-24",
+   "kind": "unscheduled",
+   "label": "July 24 Conference Call - 2008",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2008-08-05",
+   "kind": "scheduled",
+   "label": "August 5 Meeting - 2008",
+   "note": "Meeting"
+  },
+  {
+   "date": "2008-09-16",
+   "kind": "scheduled",
+   "label": "September 16 Meeting - 2008",
+   "note": "Meeting"
+  },
+  {
+   "date": "2008-09-29",
+   "kind": "unscheduled",
+   "label": "September 29 Conference Call - 2008",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2008-10-07",
+   "kind": "unscheduled",
+   "label": "October 7 Conference Call - 2008",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2008-10-29",
+   "kind": "scheduled",
+   "label": "October 28-29 Meeting - 2008",
+   "note": "Meeting"
+  },
+  {
+   "date": "2008-12-16",
+   "kind": "scheduled",
+   "label": "December 15-16 Meeting - 2008",
+   "note": "Meeting"
+  },
+  {
+   "date": "2009-01-16",
+   "kind": "unscheduled",
+   "label": "January 16 Conference Call - 2009",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2009-01-28",
+   "kind": "scheduled",
+   "label": "January 27-28 Meeting - 2009",
+   "note": "Meeting"
+  },
+  {
+   "date": "2009-02-07",
+   "kind": "unscheduled",
+   "label": "February 7 Conference Call - 2009",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2009-03-18",
+   "kind": "scheduled",
+   "label": "March 17-18 Meeting - 2009",
+   "note": "Meeting"
+  },
+  {
+   "date": "2009-04-29",
+   "kind": "scheduled",
+   "label": "April 28-29 Meeting - 2009",
+   "note": "Meeting"
+  },
+  {
+   "date": "2009-06-03",
+   "kind": "unscheduled",
+   "label": "June 3 Conference Call - 2009",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2009-06-24",
+   "kind": "scheduled",
+   "label": "June 23-24 Meeting - 2009",
+   "note": "Meeting"
+  },
+  {
+   "date": "2009-08-12",
+   "kind": "scheduled",
+   "label": "August 11-12 Meeting - 2009",
+   "note": "Meeting"
+  },
+  {
+   "date": "2009-09-23",
+   "kind": "scheduled",
+   "label": "September 22-23 Meeting - 2009",
+   "note": "Meeting"
+  },
+  {
+   "date": "2009-11-04",
+   "kind": "scheduled",
+   "label": "November 3-4 Meeting - 2009",
+   "note": "Meeting"
+  },
+  {
+   "date": "2009-12-16",
+   "kind": "scheduled",
+   "label": "December 15-16 Meeting - 2009",
+   "note": "Meeting"
+  },
+  {
+   "date": "2010-01-27",
+   "kind": "scheduled",
+   "label": "January 26-27 Meeting - 2010",
+   "note": "Meeting"
+  },
+  {
+   "date": "2010-03-16",
+   "kind": "scheduled",
+   "label": "March 16 Meeting - 2010",
+   "note": "Meeting"
+  },
+  {
+   "date": "2010-04-28",
+   "kind": "scheduled",
+   "label": "April 27-28 Meeting - 2010",
+   "note": "Meeting"
+  },
+  {
+   "date": "2010-05-09",
+   "kind": "unscheduled",
+   "label": "May 9 Conference Call - 2010",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2010-06-23",
+   "kind": "scheduled",
+   "label": "June 22-23 Meeting - 2010",
+   "note": "Meeting"
+  },
+  {
+   "date": "2010-08-10",
+   "kind": "scheduled",
+   "label": "August 10 Meeting - 2010",
+   "note": "Meeting"
+  },
+  {
+   "date": "2010-09-21",
+   "kind": "scheduled",
+   "label": "September 21 Meeting - 2010",
+   "note": "Meeting"
+  },
+  {
+   "date": "2010-10-15",
+   "kind": "unscheduled",
+   "label": "October 15 Conference Call - 2010",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2010-11-03",
+   "kind": "scheduled",
+   "label": "November 2-3 Meeting - 2010",
+   "note": "Meeting"
+  },
+  {
+   "date": "2010-12-14",
+   "kind": "scheduled",
+   "label": "December 14 Meeting - 2010",
+   "note": "Meeting"
+  },
+  {
+   "date": "2011-01-26",
+   "kind": "scheduled",
+   "label": "January 25-26 Meeting - 2011",
+   "note": "Meeting"
+  },
+  {
+   "date": "2011-03-15",
+   "kind": "scheduled",
+   "label": "March 15 Meeting - 2011",
+   "note": "Meeting"
+  },
+  {
+   "date": "2011-04-27",
+   "kind": "scheduled",
+   "label": "April 26-27 Meeting - 2011",
+   "note": "Meeting"
+  },
+  {
+   "date": "2011-06-22",
+   "kind": "scheduled",
+   "label": "June 21-22 Meeting - 2011",
+   "note": "Meeting"
+  },
+  {
+   "date": "2011-08-01",
+   "kind": "unscheduled",
+   "label": "August 1 Conference Call - 2011",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2011-08-09",
+   "kind": "scheduled",
+   "label": "August 9 Meeting - 2011",
+   "note": "Meeting"
+  },
+  {
+   "date": "2011-09-21",
+   "kind": "scheduled",
+   "label": "September 20-21 Meeting - 2011",
+   "note": "Meeting"
+  },
+  {
+   "date": "2011-11-02",
+   "kind": "scheduled",
+   "label": "November 1-2 Meeting - 2011",
+   "note": "Meeting"
+  },
+  {
+   "date": "2011-11-28",
+   "kind": "unscheduled",
+   "label": "November 28 Conference Call - 2011",
+   "note": "Conference Call"
+  },
+  {
+   "date": "2011-12-13",
+   "kind": "scheduled",
+   "label": "December 13 Meeting - 2011",
+   "note": "Meeting"
+  },
+  {
+   "date": "2012-01-25",
+   "kind": "scheduled",
+   "label": "January 24-25 Meeting - 2012",
+   "note": "Meeting"
+  },
+  {
+   "date": "2012-03-13",
+   "kind": "scheduled",
+   "label": "March 13 Meeting - 2012",
+   "note": "Meeting"
+  },
+  {
+   "date": "2012-04-25",
+   "kind": "scheduled",
+   "label": "April 24-25 Meeting - 2012",
+   "note": "Meeting"
+  },
+  {
+   "date": "2012-06-20",
+   "kind": "scheduled",
+   "label": "June 19-20 Meeting - 2012",
+   "note": "Meeting"
+  },
+  {
+   "date": "2012-09-13",
+   "kind": "scheduled",
+   "label": "September 12-13 Meeting - 2012",
+   "note": "Meeting"
+  },
+  {
+   "date": "2012-10-24",
+   "kind": "scheduled",
+   "label": "October 23-24 Meeting - 2012",
+   "note": "Meeting"
+  },
+  {
+   "date": "2012-12-12",
+   "kind": "scheduled",
+   "label": "December 11-12 Meeting - 2012",
+   "note": "Meeting"
+  },
+  {
+   "date": "2013-01-30",
+   "kind": "scheduled",
+   "label": "January 29-30 Meeting - 2013",
+   "note": "Meeting"
+  },
+  {
+   "date": "2013-03-20",
+   "kind": "scheduled",
+   "label": "March 19-20 Meeting - 2013",
+   "note": "Meeting"
+  },
+  {
+   "date": "2013-05-01",
+   "kind": "scheduled",
+   "label": "April/May 30-1 Meeting - 2013",
+   "note": "Meeting"
+  },
+  {
+   "date": "2013-06-19",
+   "kind": "scheduled",
+   "label": "June 18-19 Meeting - 2013",
+   "note": "Meeting"
+  },
+  {
+   "date": "2013-07-31",
+   "kind": "scheduled",
+   "label": "July 30-31 Meeting - 2013",
+   "note": "Meeting"
+  },
+  {
+   "date": "2013-09-18",
+   "kind": "scheduled",
+   "label": "September 17-18 Meeting - 2013",
+   "note": "Meeting"
+  },
+  {
+   "date": "2013-10-16",
+   "kind": "unscheduled",
+   "label": "October 16 (unscheduled) - 2013",
+   "note": "(unscheduled)"
+  },
+  {
+   "date": "2013-10-30",
+   "kind": "scheduled",
+   "label": "October 29-30 Meeting - 2013",
+   "note": "Meeting"
+  },
+  {
+   "date": "2013-12-18",
+   "kind": "scheduled",
+   "label": "December 17-18 Meeting - 2013",
+   "note": "Meeting"
+  },
+  {
+   "date": "2014-01-29",
+   "kind": "scheduled",
+   "label": "January 28-29 Meeting - 2014",
+   "note": "Meeting"
+  },
+  {
+   "date": "2014-03-04",
+   "kind": "unscheduled",
+   "label": "March  4 (unscheduled) - 2014",
+   "note": "(unscheduled)"
+  },
+  {
+   "date": "2014-03-19",
+   "kind": "scheduled",
+   "label": "March 18-19 Meeting - 2014",
+   "note": "Meeting"
+  },
+  {
+   "date": "2014-04-30",
+   "kind": "scheduled",
+   "label": "April 29-30 Meeting - 2014",
+   "note": "Meeting"
+  },
+  {
+   "date": "2014-06-18",
+   "kind": "scheduled",
+   "label": "June 17-18 Meeting - 2014",
+   "note": "Meeting"
+  },
+  {
+   "date": "2014-07-30",
+   "kind": "scheduled",
+   "label": "July 29-30 Meeting - 2014",
+   "note": "Meeting"
+  },
+  {
+   "date": "2014-09-17",
+   "kind": "scheduled",
+   "label": "September 16-17 Meeting - 2014",
+   "note": "Meeting"
+  },
+  {
+   "date": "2014-10-29",
+   "kind": "scheduled",
+   "label": "October 28-29 Meeting - 2014",
+   "note": "Meeting"
+  },
+  {
+   "date": "2014-12-17",
+   "kind": "scheduled",
+   "label": "December 16-17 Meeting - 2014",
+   "note": "Meeting"
+  },
+  {
+   "date": "2015-01-28",
+   "kind": "scheduled",
+   "label": "January 27-28 Meeting - 2015",
+   "note": "Meeting"
+  },
+  {
+   "date": "2015-03-18",
+   "kind": "scheduled",
+   "label": "March 17-18 Meeting - 2015",
+   "note": "Meeting"
+  },
+  {
+   "date": "2015-04-29",
+   "kind": "scheduled",
+   "label": "April 28-29 Meeting - 2015",
+   "note": "Meeting"
+  },
+  {
+   "date": "2015-06-17",
+   "kind": "scheduled",
+   "label": "June 16-17 Meeting - 2015",
+   "note": "Meeting"
+  },
+  {
+   "date": "2015-07-29",
+   "kind": "scheduled",
+   "label": "July 28-29 Meeting - 2015",
+   "note": "Meeting"
+  },
+  {
+   "date": "2015-09-17",
+   "kind": "scheduled",
+   "label": "September 16-17 Meeting - 2015",
+   "note": "Meeting"
+  },
+  {
+   "date": "2015-10-28",
+   "kind": "scheduled",
+   "label": "October 27-28 Meeting - 2015",
+   "note": "Meeting"
+  },
+  {
+   "date": "2015-12-16",
+   "kind": "scheduled",
+   "label": "December 15-16 Meeting - 2015",
+   "note": "Meeting"
+  },
+  {
+   "date": "2016-01-27",
+   "kind": "scheduled",
+   "label": "January 26-27 Meeting - 2016",
+   "note": "Meeting"
+  },
+  {
+   "date": "2016-03-16",
+   "kind": "scheduled",
+   "label": "March 15-16 Meeting - 2016",
+   "note": "Meeting"
+  },
+  {
+   "date": "2016-04-27",
+   "kind": "scheduled",
+   "label": "April 26-27 Meeting - 2016",
+   "note": "Meeting"
+  },
+  {
+   "date": "2016-06-15",
+   "kind": "scheduled",
+   "label": "June 14-15 Meeting - 2016",
+   "note": "Meeting"
+  },
+  {
+   "date": "2016-07-27",
+   "kind": "scheduled",
+   "label": "July 26-27 Meeting - 2016",
+   "note": "Meeting"
+  },
+  {
+   "date": "2016-09-21",
+   "kind": "scheduled",
+   "label": "September 20-21 Meeting - 2016",
+   "note": "Meeting"
+  },
+  {
+   "date": "2016-11-02",
+   "kind": "scheduled",
+   "label": "November 1-2 Meeting - 2016",
+   "note": "Meeting"
+  },
+  {
+   "date": "2016-12-14",
+   "kind": "scheduled",
+   "label": "December 13-14 Meeting - 2016",
+   "note": "Meeting"
+  },
+  {
+   "date": "2017-02-01",
+   "kind": "scheduled",
+   "label": "Jan/Feb 31-1 Meeting - 2017",
+   "note": "Meeting"
+  },
+  {
+   "date": "2017-03-15",
+   "kind": "scheduled",
+   "label": "March 14-15 Meeting - 2017",
+   "note": "Meeting"
+  },
+  {
+   "date": "2017-05-03",
+   "kind": "scheduled",
+   "label": "May 2-3 Meeting - 2017",
+   "note": "Meeting"
+  },
+  {
+   "date": "2017-06-14",
+   "kind": "scheduled",
+   "label": "June 13-14 Meeting - 2017",
+   "note": "Meeting"
+  },
+  {
+   "date": "2017-07-26",
+   "kind": "scheduled",
+   "label": "July 25-26 Meeting - 2017",
+   "note": "Meeting"
+  },
+  {
+   "date": "2017-09-20",
+   "kind": "scheduled",
+   "label": "September 19-20 Meeting - 2017",
+   "note": "Meeting"
+  },
+  {
+   "date": "2017-11-01",
+   "kind": "scheduled",
+   "label": "Oct/Nov 31-1 Meeting - 2017",
+   "note": "Meeting"
+  },
+  {
+   "date": "2017-12-13",
+   "kind": "scheduled",
+   "label": "December 12-13 Meeting - 2017",
+   "note": "Meeting"
+  },
+  {
+   "date": "2018-01-31",
+   "kind": "scheduled",
+   "label": "January 30-31 Meeting - 2018",
+   "note": "Meeting"
+  },
+  {
+   "date": "2018-03-21",
+   "kind": "scheduled",
+   "label": "March 20-21 Meeting - 2018",
+   "note": "Meeting"
+  },
+  {
+   "date": "2018-05-02",
+   "kind": "scheduled",
+   "label": "May 1-2 Meeting - 2018",
+   "note": "Meeting"
+  },
+  {
+   "date": "2018-06-13",
+   "kind": "scheduled",
+   "label": "June 12-13 Meeting - 2018",
+   "note": "Meeting"
+  },
+  {
+   "date": "2018-08-01",
+   "kind": "scheduled",
+   "label": "Jul/Aug 31-1 Meeting - 2018",
+   "note": "Meeting"
+  },
+  {
+   "date": "2018-09-26",
+   "kind": "scheduled",
+   "label": "September 25-26 Meeting - 2018",
+   "note": "Meeting"
+  },
+  {
+   "date": "2018-11-08",
+   "kind": "scheduled",
+   "label": "November 7-8 Meeting - 2018",
+   "note": "Meeting"
+  },
+  {
+   "date": "2018-12-19",
+   "kind": "scheduled",
+   "label": "December 18-19 Meeting - 2018",
+   "note": "Meeting"
+  },
+  {
+   "date": "2019-01-30",
+   "kind": "scheduled",
+   "label": "January 29-30 Meeting - 2019",
+   "note": "Meeting"
+  },
+  {
+   "date": "2019-03-20",
+   "kind": "scheduled",
+   "label": "March 19-20 Meeting - 2019",
+   "note": "Meeting"
+  },
+  {
+   "date": "2019-05-01",
+   "kind": "scheduled",
+   "label": "April/May 30-1 Meeting - 2019",
+   "note": "Meeting"
+  },
+  {
+   "date": "2019-06-19",
+   "kind": "scheduled",
+   "label": "June 18-19 Meeting - 2019",
+   "note": "Meeting"
+  },
+  {
+   "date": "2019-07-31",
+   "kind": "scheduled",
+   "label": "July 30-31 Meeting - 2019",
+   "note": "Meeting"
+  },
+  {
+   "date": "2019-09-18",
+   "kind": "scheduled",
+   "label": "September 17-18 Meeting - 2019",
+   "note": "Meeting"
+  },
+  {
+   "date": "2019-10-04",
+   "kind": "unscheduled",
+   "label": "October 4 (unscheduled) - 2019",
+   "note": "(unscheduled)"
+  },
+  {
+   "date": "2019-10-30",
+   "kind": "scheduled",
+   "label": "October 29-30 Meeting - 2019",
+   "note": "Meeting"
+  },
+  {
+   "date": "2019-12-11",
+   "kind": "scheduled",
+   "label": "December 10-11 Meeting - 2019",
+   "note": "Meeting"
+  },
+  {
+   "date": "2020-01-29",
+   "kind": "scheduled",
+   "label": "January 28-29 Meeting - 2020",
+   "note": "Meeting"
+  },
+  {
+   "date": "2020-03-02",
+   "kind": "scheduled",
+   "label": "March 2 (unscheduled) Meeting - 2020",
+   "note": "unscheduled"
+  },
+  {
+   "date": "2020-03-15",
+   "kind": "scheduled",
+   "label": "March 15 (unscheduled) Meeting - 2020",
+   "note": "unscheduled"
+  },
+  {
+   "date": "2020-03-18",
+   "kind": "scheduled",
+   "label": "March 17-18 (cancelled) Meeting - 2020",
+   "note": "cancelled"
+  },
+  {
+   "date": "2020-03-19",
+   "kind": "unscheduled",
+   "label": "March 19 (notation vote) - 2020",
+   "note": "(notation vote)"
+  },
+  {
+   "date": "2020-03-23",
+   "kind": "unscheduled",
+   "label": "March 23 (notation vote) - 2020",
+   "note": "(notation vote)"
+  },
+  {
+   "date": "2020-03-31",
+   "kind": "unscheduled",
+   "label": "March 31 (notation vote) - 2020",
+   "note": "(notation vote)"
+  },
+  {
+   "date": "2020-04-29",
+   "kind": "scheduled",
+   "label": "April 28-29 Meeting - 2020",
+   "note": "Meeting"
+  },
+  {
+   "date": "2020-06-10",
+   "kind": "scheduled",
+   "label": "June 9-10 Meeting - 2020",
+   "note": "Meeting"
+  },
+  {
+   "date": "2020-07-29",
+   "kind": "scheduled",
+   "label": "July 28-29 Meeting - 2020",
+   "note": "Meeting"
+  },
+  {
+   "date": "2020-08-27",
+   "kind": "unscheduled",
+   "label": "August 27 (notation vote) - 2020",
+   "note": "(notation vote)"
+  },
+  {
+   "date": "2020-09-16",
+   "kind": "scheduled",
+   "label": "September 15-16 Meeting - 2020",
+   "note": "Meeting"
+  },
+  {
+   "date": "2020-11-05",
+   "kind": "scheduled",
+   "label": "November 4-5 Meeting - 2020",
+   "note": "Meeting"
+  },
+  {
+   "date": "2020-12-16",
+   "kind": "scheduled",
+   "label": "December 15-16 Meeting - 2020",
+   "note": "Meeting"
+  },
+  {
+   "date": "2021-01-27",
+   "kind": "scheduled",
+   "label": "January 26-27 - 2021",
+   "note": ""
+  },
+  {
+   "date": "2021-03-17",
+   "kind": "scheduled",
+   "label": "March 16-17* - 2021",
+   "note": ""
+  },
+  {
+   "date": "2021-04-28",
+   "kind": "scheduled",
+   "label": "April 27-28 - 2021",
+   "note": ""
+  },
+  {
+   "date": "2021-06-16",
+   "kind": "scheduled",
+   "label": "June 15-16* - 2021",
+   "note": ""
+  },
+  {
+   "date": "2021-07-28",
+   "kind": "scheduled",
+   "label": "July 27-28 - 2021",
+   "note": ""
+  },
+  {
+   "date": "2021-09-22",
+   "kind": "scheduled",
+   "label": "September 21-22* - 2021",
+   "note": ""
+  },
+  {
+   "date": "2021-11-03",
+   "kind": "scheduled",
+   "label": "November 2-3 - 2021",
+   "note": ""
+  },
+  {
+   "date": "2021-12-15",
+   "kind": "scheduled",
+   "label": "December 14-15* - 2021",
+   "note": ""
+  },
+  {
+   "date": "2022-01-26",
+   "kind": "scheduled",
+   "label": "January 25-26 - 2022",
+   "note": ""
+  },
+  {
+   "date": "2022-03-16",
+   "kind": "scheduled",
+   "label": "March 15-16* - 2022",
+   "note": ""
+  },
+  {
+   "date": "2022-05-04",
+   "kind": "scheduled",
+   "label": "May 3-4 - 2022",
+   "note": ""
+  },
+  {
+   "date": "2022-06-15",
+   "kind": "scheduled",
+   "label": "June 14-15* - 2022",
+   "note": ""
+  },
+  {
+   "date": "2022-07-27",
+   "kind": "scheduled",
+   "label": "July 26-27 - 2022",
+   "note": ""
+  },
+  {
+   "date": "2022-09-21",
+   "kind": "scheduled",
+   "label": "September 20-21* - 2022",
+   "note": ""
+  },
+  {
+   "date": "2022-11-02",
+   "kind": "scheduled",
+   "label": "November 1-2 - 2022",
+   "note": ""
+  },
+  {
+   "date": "2022-12-14",
+   "kind": "scheduled",
+   "label": "December 13-14* - 2022",
+   "note": ""
+  },
+  {
+   "date": "2023-02-01",
+   "kind": "scheduled",
+   "label": "Jan/Feb 31-1 - 2023",
+   "note": ""
+  },
+  {
+   "date": "2023-03-22",
+   "kind": "scheduled",
+   "label": "March 21-22* - 2023",
+   "note": ""
+  },
+  {
+   "date": "2023-05-03",
+   "kind": "scheduled",
+   "label": "May 2-3 - 2023",
+   "note": ""
+  },
+  {
+   "date": "2023-06-14",
+   "kind": "scheduled",
+   "label": "June 13-14* - 2023",
+   "note": ""
+  },
+  {
+   "date": "2023-07-26",
+   "kind": "scheduled",
+   "label": "July 25-26 - 2023",
+   "note": ""
+  },
+  {
+   "date": "2023-09-20",
+   "kind": "scheduled",
+   "label": "September 19-20* - 2023",
+   "note": ""
+  },
+  {
+   "date": "2023-11-01",
+   "kind": "scheduled",
+   "label": "Oct/Nov 31-1 - 2023",
+   "note": ""
+  },
+  {
+   "date": "2023-12-13",
+   "kind": "scheduled",
+   "label": "December 12-13* - 2023",
+   "note": ""
+  },
+  {
+   "date": "2024-01-31",
+   "kind": "scheduled",
+   "label": "January 30-31 - 2024",
+   "note": ""
+  },
+  {
+   "date": "2024-03-20",
+   "kind": "scheduled",
+   "label": "March 19-20* - 2024",
+   "note": ""
+  },
+  {
+   "date": "2024-05-01",
+   "kind": "scheduled",
+   "label": "Apr/May 30-1 - 2024",
+   "note": ""
+  },
+  {
+   "date": "2024-06-12",
+   "kind": "scheduled",
+   "label": "June 11-12* - 2024",
+   "note": ""
+  },
+  {
+   "date": "2024-07-31",
+   "kind": "scheduled",
+   "label": "July 30-31 - 2024",
+   "note": ""
+  },
+  {
+   "date": "2024-09-18",
+   "kind": "scheduled",
+   "label": "September 17-18* - 2024",
+   "note": ""
+  },
+  {
+   "date": "2024-11-07",
+   "kind": "scheduled",
+   "label": "November 6-7 - 2024",
+   "note": ""
+  },
+  {
+   "date": "2024-12-18",
+   "kind": "scheduled",
+   "label": "December 17-18* - 2024",
+   "note": ""
+  },
+  {
+   "date": "2025-01-29",
+   "kind": "scheduled",
+   "label": "January 28-29 - 2025",
+   "note": ""
+  },
+  {
+   "date": "2025-03-19",
+   "kind": "scheduled",
+   "label": "March 18-19* - 2025",
+   "note": ""
+  },
+  {
+   "date": "2025-05-07",
+   "kind": "scheduled",
+   "label": "May 6-7 - 2025",
+   "note": ""
+  },
+  {
+   "date": "2025-06-18",
+   "kind": "scheduled",
+   "label": "June 17-18* - 2025",
+   "note": ""
+  },
+  {
+   "date": "2025-07-30",
+   "kind": "scheduled",
+   "label": "July 29-30 - 2025",
+   "note": ""
+  },
+  {
+   "date": "2025-08-22",
+   "kind": "unscheduled",
+   "label": "August 22 (notation vote) - 2025",
+   "note": "notation vote"
+  },
+  {
+   "date": "2025-09-17",
+   "kind": "scheduled",
+   "label": "September 16-17* - 2025",
+   "note": ""
+  },
+  {
+   "date": "2025-10-29",
+   "kind": "scheduled",
+   "label": "October 28-29 - 2025",
+   "note": ""
+  },
+  {
+   "date": "2025-12-10",
+   "kind": "scheduled",
+   "label": "December 9-10* - 2025",
+   "note": ""
+  },
+  {
+   "date": "2026-01-28",
+   "kind": "scheduled",
+   "label": "January 27-28 - 2026",
+   "note": ""
+  },
+  {
+   "date": "2026-03-18",
+   "kind": "scheduled",
+   "label": "March 17-18* - 2026",
+   "note": ""
+  },
+  {
+   "date": "2026-04-29",
+   "kind": "scheduled",
+   "label": "April 28-29 - 2026",
+   "note": ""
+  },
+  {
+   "date": "2026-06-17",
+   "kind": "scheduled",
+   "label": "June 16-17* - 2026",
+   "note": ""
+  },
+  {
+   "date": "2026-07-29",
+   "kind": "scheduled",
+   "label": "July 28-29 - 2026",
+   "note": ""
+  },
+  {
+   "date": "2026-09-16",
+   "kind": "scheduled",
+   "label": "September 15-16* - 2026",
+   "note": ""
+  },
+  {
+   "date": "2026-10-28",
+   "kind": "scheduled",
+   "label": "October 27-28 - 2026",
+   "note": ""
+  },
+  {
+   "date": "2026-12-09",
+   "kind": "scheduled",
+   "label": "December 8-9* - 2026",
+   "note": ""
+  },
+  {
+   "date": "2027-01-27",
+   "kind": "scheduled",
+   "label": "January 26-27 - 2027",
+   "note": ""
+  },
+  {
+   "date": "2027-03-17",
+   "kind": "scheduled",
+   "label": "March 16-17* - 2027",
+   "note": ""
+  },
+  {
+   "date": "2027-04-28",
+   "kind": "scheduled",
+   "label": "April 27-28 - 2027",
+   "note": ""
+  },
+  {
+   "date": "2027-06-09",
+   "kind": "scheduled",
+   "label": "June 8-9* - 2027",
+   "note": ""
+  },
+  {
+   "date": "2027-07-28",
+   "kind": "scheduled",
+   "label": "July 27-28 - 2027",
+   "note": ""
+  },
+  {
+   "date": "2027-09-15",
+   "kind": "scheduled",
+   "label": "September 14-15* - 2027",
+   "note": ""
+  },
+  {
+   "date": "2027-10-27",
+   "kind": "scheduled",
+   "label": "October 26-27 - 2027",
+   "note": ""
+  },
+  {
+   "date": "2027-12-08",
+   "kind": "scheduled",
+   "label": "December 7-8* - 2027",
+   "note": ""
+  }
+ ]
+}

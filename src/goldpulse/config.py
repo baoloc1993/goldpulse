@@ -34,6 +34,17 @@ class Settings(BaseSettings):
     # Proxy tuỳ chọn chỉ cho worker khi tới Dukascopy (vd. WARP chế độ proxy: socks5://127.0.0.1:40000)
     dukascopy_proxy: str | None = None
 
+    # --- vòng 2: não bot (DECISIONS 2026-09-25) ---
+    # cli = `claude -p` bằng gói thuê bao của chủ dự án (mặc định trên máy chủ dự án) · api = SDK anthropic
+    # fake = câu mẫu theo schema, chỉ cho test / dogfood đợt 1 (bị chặn ở production)
+    brain_backend: Literal["cli", "api", "fake"] = "cli"
+    claude_cli_model: str = "opus"
+    claude_cli_bin: str = "claude"
+    anthropic_api_key: str | None = None
+    claude_api_model: str = "claude-opus-5"
+    brain_timeout_seconds: float = 120.0
+    prediction_horizon_minutes: int = 15
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

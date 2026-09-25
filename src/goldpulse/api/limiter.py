@@ -4,6 +4,8 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.requests import Request
 
+from ..config import settings
+
 
 def _internal(peer: str) -> bool:
     try:
@@ -14,12 +16,11 @@ def _internal(peer: str) -> bool:
 
 
 def client_ip(request: Request) -> str:
-    """IP thật của người gọi. Sau Cloudflare Tunnel mọi request đến từ cloudflared trên cùng máy — peer là
-    127.0.0.1 (make dev) hoặc IP bridge Docker 172.x / 192.168.65.x (production) → giới hạn theo peer sẽ khoá
-    chung tất cả. Khi peer là nội bộ thì dùng CF-Connecting-IP. Cổng web chỉ bind 127.0.0.1 nên người ngoài
-    không tới thẳng được để giả header này."""
+    """IP để giới hạn số lần thử. Mặc định (chạy local, không Tunnel) dùng peer — một người vận hành chung một
+    bucket là đúng. TRUST_CLOUDFLARE_IP=true (đứng sau Cloudflare Tunnel): peer là cloudflared trên cùng máy
+    (127.0.0.1 / IP bridge Docker) → dùng CF-Connecting-IP; chỉ tin khi peer là nội bộ."""
     peer = get_remote_address(request)
-    if _internal(peer):
+    if settings.trust_cloudflare_ip and _internal(peer):
         return request.headers.get("cf-connecting-ip", peer)
     return peer
 

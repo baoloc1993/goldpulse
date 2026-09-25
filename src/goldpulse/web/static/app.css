@@ -32,7 +32,8 @@ a.card { display: block; color: inherit; text-decoration: none; }
 
 /* C1 nút chính */
 .btn { font: inherit; font-weight: 600; background: var(--color-primary); color: var(--color-on-primary); border: 0; border-radius: var(--radius); padding: var(--space-sm) var(--space-md); min-height: 44px; cursor: pointer; }
-.btn:hover:not([disabled]) { filter: brightness(1.12); }
+/* Hover: viền trong màu chữ trên nút — không đổi nền (filter sáng hơn làm chữ trắng tụt còn 4.38:1) */
+.btn:hover:not([disabled]) { box-shadow: inset 0 0 0 2px var(--color-on-primary); }
 /* Đang gửi / vô hiệu: không dùng opacity (chỉ đạt 2.9:1) — nền thẻ + viền + chữ chính (10.7:1) */
 .btn[disabled] { background: var(--color-surface); color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-border); cursor: progress; }
 .btn.block { width: 100%; }
@@ -50,7 +51,8 @@ a.card { display: block; color: inherit; text-decoration: none; }
 .field .check { display: flex; align-items: center; gap: var(--space-sm); min-height: 44px; font-size: var(--text-sm); color: var(--color-text-muted); }
 .check input { width: 20px; height: 20px; }
 .notice { color: var(--color-warning); font-size: var(--text-sm); }
-#content.stale .grid { opacity: 0.45; }  /* kết quả cũ khi bộ lọc đã đổi — chữ nhắc ở trên vẫn đủ tương phản */
+/* Kết quả cũ khi bộ lọc đã đổi: viền cảnh báo, KHÔNG làm mờ (opacity kéo tương phản xuống 1.9–3.3:1) */
+#content.stale .grid .card { box-shadow: inset 0 0 0 1px var(--color-warning); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
 
 /* C5 hàng năm */
@@ -76,13 +78,15 @@ a.tap { display: inline-flex; align-items: center; min-height: 44px; }
 .empty, .error { background: var(--color-surface); border-radius: var(--radius); padding: var(--space-lg) var(--space-md); text-align: center; margin: var(--space-md) 0; }
 .error { color: var(--color-danger); }
 .error.warn { color: var(--color-warning); }
-.empty p, .error p { margin: 0 0 var(--space-md); }
+.empty p, .error p { margin: 0 0 var(--space-md); overflow-wrap: anywhere; }
 /* Khung đang tải cao đúng bằng khối thật sẽ hiện (đo ở 390px) — không nhảy layout */
 .skel { background: var(--color-surface); border-radius: var(--radius); height: 82px; margin-bottom: var(--space-sm); }
-.skel.price { height: 128px; }
+.skel.price { height: 171px; }
 .skel.session { height: 100px; }
-.skel.total { height: 137px; }
-.skel.yearrow { height: 93px; }
+.skel.metric { height: 100px; }
+.skel.hist { height: 158px; }
+.skel.total { height: 119px; }
+.skel.yearrow { height: 79px; }
 .grid .skel { margin-bottom: 0; }
 p.muted { margin: var(--space-sm) 0; }
 

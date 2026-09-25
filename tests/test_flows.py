@@ -253,15 +253,20 @@ def test_client_ip_trusts_cloudflare_header_only_from_internal_peer():
     from starlette.requests import Request
 
     from goldpulse.api.limiter import client_ip
+    from goldpulse.config import settings
 
     def req(peer, cf=None):
         headers = [(b"cf-connecting-ip", cf.encode())] if cf else []
         return Request({"type": "http", "client": (peer, 1234), "headers": headers})
 
+    settings.trust_cloudflare_ip = False  # mặc định: không Tunnel → header tự đặt không được tin
+    assert client_ip(req("172.18.0.1", "203.0.113.7")) == "172.18.0.1"
+    settings.trust_cloudflare_ip = True
     assert client_ip(req("127.0.0.1", "203.0.113.7")) == "203.0.113.7"
     assert client_ip(req("172.18.0.1", "203.0.113.7")) == "203.0.113.7"  # Docker bridge
     assert client_ip(req("8.8.8.8", "203.0.113.7")) == "8.8.8.8"  # người ngoài tự đặt header
     assert client_ip(req("127.0.0.1")) == "127.0.0.1"
+    settings.trust_cloudflare_ip = False
 
 
 async def test_non_ascii_cookie_is_rejected_not_500(client):

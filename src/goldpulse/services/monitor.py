@@ -73,6 +73,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
         latency = {
             "value": _pct(good, open_min),
             "minutes": open_min,
+            "good": good,
             "since_vn": since.astimezone(VN).strftime("%d/%m"),
         }
     p95, n_queries = await feed_repo.query_speed_p95(session, SPEED_SPAN_YEARS)

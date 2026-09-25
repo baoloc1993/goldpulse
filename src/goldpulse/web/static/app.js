@@ -70,7 +70,9 @@
     var lag = p.lag_seconds == null ? null : p.lag_seconds + Math.round((Date.now() - receivedAt) / 1000);
     if (!p.market_open) return { cls: "warn", text: "Thị trường đang nghỉ — giá cuối phiên", fail: false };
     if (lag == null || lag >= 30) {
-      return { cls: "err", text: "Giá trễ " + (lag == null ? "?" : fmt(lag)) + " giây — đang chờ nguồn", fail: true };
+      // Mất kết nối điện thoại–máy chủ thì lỗi không nằm ở nguồn giá — nói đúng chỗ hỏng
+      var why = offline ? "mất kết nối tới máy chủ" : "đang chờ nguồn";
+      return { cls: "err", text: "Giá trễ " + (lag == null ? "?" : fmt(lag)) + " giây — " + why, fail: true };
     }
     return { cls: "ok", text: "Trễ " + fmt(lag) + " giây", fail: false };
   }
@@ -101,12 +103,14 @@
         '<div class="mt"><span class="badge err">Chưa nhận được mẫu giá nào — đang chờ nguồn</span></div></div>';
     }
     if (!d.worker_alive) {
-      h += '<div class="error" role="alert"><p>Máy nạp dữ liệu (worker) không chạy — giá và kho lịch sử đang đứng. Trên máy chạy GoldPulse, chạy lại <span class="num">make dev</span>.</p></div>';
+      h += '<div class="error" role="alert"><p>Máy nạp dữ liệu (worker) không chạy — giá và kho lịch sử đang đứng. Trên máy chạy GoldPulse, chạy lại <span class="num">make deploy</span> (hoặc <span class="num">make dev</span>).</p>' +
+        '<button class="btn" type="button" data-reload>Tải lại số liệu</button></div>';
     }
 
     if (d.last_error) {
       h += '<div class="error" role="alert"><p>Lỗi hệ thống lúc ' + esc(d.last_error.at_vn) + " ở " + esc(d.last_error.where) +
-        ": " + esc(d.last_error.error) + '</p><p class="muted">Máy tự chạy tiếp. Lặp lại nhiều lần thì xem log: <span class="num">docker compose logs</span></p></div>';
+        ": " + esc(d.last_error.error) + '</p><p class="muted">Máy tự chạy tiếp. Lặp lại nhiều lần thì xem log: <span class="num">docker compose logs</span></p>' +
+        '<button class="btn" type="button" data-reload>Tải lại số liệu</button></div>';
     }
 
     var s = d.sessions;
@@ -129,7 +133,7 @@
         : "Kho lịch sử chưa có ngày nào — máy đang bắt đầu tải từ 01/01/2004, ngày đầu tiên sẽ hiện sau vài phút.") +
         '</p><a href="/coverage">Xem tiến độ theo năm</a></div>';
     } else {
-      h += "<h2>Ba ngưỡng của vòng 1</h2><div class=\"grid\">";
+      h += "<h2>Ba ngưỡng đánh giá kho dữ liệu</h2><div class=\"grid\">";
       var c = m.coverage;
       var loading = hist.done_days < hist.total_days;  // đang nạp → chưa phán đạt/trượt
       h += metricCard("Độ phủ từ 2004 · cần ≥ 99%", pct(c.value), c.value == null || loading ? null : c.value >= c.target,
@@ -137,9 +141,10 @@
           : c.value == null ? "Chưa đo" : c.value >= c.target ? "Đạt" : "Chưa đạt") + " · xem chi tiết ›", "/coverage");
       var l = m.latency;
       h += metricCard("Phút giá trễ &lt; 30s · cần ≥ 95%", l.value == null ? "—" : fmt(l.value, 1) + "%", l.value == null ? null : l.value >= l.target,
-        l.value == null ? "Chưa có phút thị trường mở nào để đo" : (l.value >= l.target ? "Đạt" : "Chưa đạt") + " · đo từ " + esc(l.since_vn) + " · " + fmt(l.minutes) + " phút");
+        l.value == null ? "Chưa có phút thị trường mở nào để đo" : (l.value >= l.target ? "Đạt" : "Chưa đạt") + " · " + fmt(l.good) + "/" + fmt(l.minutes) +
+          " phút thị trường mở có giá tươi, đo từ " + esc(l.since_vn) + ". Nguồn gold-api đổi giá ~30 giây/lần nên hay chạm ngưỡng — bạn không cần làm gì");
       var sp = m.speed;
-      h += metricCard("Tra 20 năm (p95) · cần &lt; 1 giây", sp.value == null ? "—" : fmt(sp.value) + " ms", sp.value == null ? null : sp.value < sp.target,
+      h += metricCard("Tra 20 năm (95% số lần tra) · cần &lt; 1 giây", sp.value == null ? "—" : fmt(sp.value) + " ms", sp.value == null ? null : sp.value < sp.target,
         sp.value == null ? 'Chưa tra lần nào — <a href="/query">tra thử</a>' : (sp.value < sp.target ? "Đạt" : "Chưa đạt") + " · " + fmt(sp.count) + " lần tra");
       h += "</div>";
     }
@@ -173,17 +178,22 @@
       " ngày gần nhất chờ HistData phát hành (trễ ~1 tuần) — tạm dùng nến từ giá realtime.</div>" : "") +
       (hist.old_pending ? '<div class="muted mt">Còn ' + fmt(hist.old_pending) +
       " ngày 2004 → 03/2009 chưa nạp — đoạn này chỉ Dukascopy có (cần WARP một lần).</div>" : "") +
-      (hist.last_backfill_vn ? '<div class="muted mt">Lấy bù lần cuối ' + esc(hist.last_backfill_vn) + "</div>" : "") + "</div>";
+      (hist.last_backfill_vn ? '<div class="muted mt">Nến chính thức (HistData) cập nhật lần cuối ' + esc(hist.last_backfill_vn) + "</div>" : "") + "</div>";
 
     content.innerHTML = h;
     var r = document.getElementById("retry");
     if (r) r.addEventListener("click", function () { r.disabled = true; r.textContent = "Đang tải…"; loadOverview(); });
+    content.querySelectorAll("[data-reload]").forEach(function (b) {
+      b.addEventListener("click", function () { b.disabled = true; b.textContent = "Đang tải…"; loadOverview(); });
+    });
     var w = document.getElementById("wake");
     if (w && !w.disabled) w.addEventListener("click", function () {
       w.disabled = true; w.textContent = "Đang thử kết nối…";
       wakeClickedAt = new Date().toISOString();
-      api("/api/history/wake", { method: "POST" }).catch(function () {
+      api("/api/history/wake", { method: "POST" }).catch(function (e) {
+        if (e.message === "auth") return;
         wakeClickedAt = null; w.disabled = false; w.textContent = "Thử nạp lại ngay";
+        w.insertAdjacentHTML("afterend", '<p class="err" role="alert">Không gửi được — ' + esc(errText(e)) + "</p>");
       });
     });
   }
@@ -198,7 +208,11 @@
       if (e.message === "auth") return;
       offline = e;
       if (lastOverview) renderOverview(lastOverview);
-      else { content.innerHTML = errorBlock(errText(e), "retry"); document.getElementById("retry").addEventListener("click", loadOverview); }
+      else {
+        content.innerHTML = errorBlock(errText(e), "retry");
+        var b = document.getElementById("retry");
+        b.addEventListener("click", function () { b.disabled = true; b.textContent = "Đang tải…"; loadOverview(); });
+      }
     });
   }
 
@@ -241,7 +255,8 @@
     h += '<div class="card ' + cls + '"><div class="label">Tổng phút có nến · 2004 → nay · cần ≥ 99%</div>' +
       '<div class="value num">' + pct(t.covered_pct) + "</div>" +
       (pending ? '<div class="muted">Đang nạp — còn ' + fmt(pending) + " ngày chờ tải, số này tăng dần</div>" : "") +
-      '<div class="muted">Phút có giao dịch thật: ' + pct(t.traded_pct) + " — năm cũ dữ liệu thưa hơn</div></div>";
+      '<div class="muted">Phút có giao dịch thật: ' + pct(t.traded_pct) + " — năm cũ dữ liệu thưa hơn</div>" +
+      '<div class="muted mt">Phút không có lệnh khớp được giữ bằng giá của phút trước (nến đứng giá): giá vẫn đúng, chỉ là không có giao dịch — nên \"có nến\" 100% mà \"giao dịch thật\" thấp hơn.</div></div>';
 
     h += "<h2>Ngày lỗi (" + d.errors.length + ")</h2>";
     if (!d.errors.length) h += '<p class="muted">Không có ngày nào lỗi.</p>';
@@ -361,10 +376,10 @@
     }
     content.innerHTML = '<div class="grid g2">' +
       '<div class="card"><div class="label">Số phiên</div><div class="value num">' + fmt(r.count) + "</div></div>" +
-      '<div class="card"><div class="label">Biên độ TB</div><div class="value num">' + fmt(r.avg_range, 2) + " USD</div></div>" +
+      '<div class="card"><div class="label">Biên độ TB (cao − thấp)</div><div class="value num">' + fmt(r.avg_range, 2) + " USD</div></div>" +
       '<div class="card ' + (r.duration_ms < 1000 ? "pass" : "fail") + '"><div class="label">Thời gian tra</div><div class="value num">' + fmt(r.duration_ms, 0) + " ms</div></div>" +
-      '<div class="card"><div class="label">Phiên tăng</div><div class="value num up">' + pct(r.up_pct) + "</div></div>" +
-      '<div class="card"><div class="label">Phiên giảm</div><div class="value num down">' + pct(r.down_pct) + "</div></div>" +
+      '<div class="card"><div class="label">Phiên tăng (đóng &gt; mở)</div><div class="value num up">' + pct(r.up_pct) + "</div></div>" +
+      '<div class="card"><div class="label">Phiên giảm (đóng &lt; mở)</div><div class="value num down">' + pct(r.down_pct) + "</div></div>" +
       '<div class="card"><div class="label">Đứng giá</div><div class="value num">' + pct(r.flat_pct) + "</div></div></div>" +
       '<p class="muted num">' + esc(querySummary(q)) + " · dữ liệu " + vnDate(r.first_day) + " → " + vnDate(r.last_day) + "</p>" +
       (r.missing_years.length ? '<div class="error warn" role="status"><p>Kết quả chỉ gồm năm đã có trong kho — <strong>thiếu ' +
@@ -390,10 +405,21 @@
     });
     var params = new URLSearchParams(location.search);
     if (params.get("session")) {
-      ["session", "year_from", "year_to", "dow"].forEach(function (k) { if (params.has(k)) form[k].value = params.get(k); });
+      ["session", "year_from", "year_to", "dow"].forEach(function (k) {
+        // Chỉ nhận giá trị có trong danh sách chọn — link hỏng không được làm ô trống
+        var v = params.get(k), sel = form[k];
+        if (v !== null && Array.prototype.some.call(sel.options, function (o) { return o.value === v; })) sel.value = v;
+      });
       setTimeout(function () { form.requestSubmit(); }, 0);
     }
-    function markYears(bad) { yearFields.forEach(function (f) { f.classList.toggle("bad", bad); }); }
+    function markYears(bad) {
+      yearFields.forEach(function (f) {
+        f.classList.toggle("bad", bad);
+        var sel = f.querySelector("select");
+        if (bad) { sel.setAttribute("aria-invalid", "true"); sel.setAttribute("aria-describedby", "formErr"); }
+        else { sel.removeAttribute("aria-invalid"); sel.removeAttribute("aria-describedby"); }
+      });
+    }
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
       if (busy) return;

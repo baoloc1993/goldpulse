@@ -4,7 +4,7 @@
 <h1>GoldPulse</h1>
 <p class="muted">Kho giá vàng XAUUSD từng phút từ 2004 — trang theo dõi cho người vận hành.</p>
 {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
-<form method="post" action="/login" id="loginForm">
+<form method="post" action="/login" id="loginForm" novalidate>
   <input type="hidden" name="next" value="{{ next }}">
   <div class="field{{ ' bad' if error }}">
     <label for="key">Khoá truy cập</label>

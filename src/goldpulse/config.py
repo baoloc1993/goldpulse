@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     realtime_poll_seconds: float = 5.0
     # Lấy bù HistData: HistData chỉ phát hành ~1 lần/tuần nên một lần/ngày là đủ (DECISIONS 2026-09-25)
     backfill_hours: float = 24.0
+    # Chỉ bật khi web đứng sau Cloudflare Tunnel: tin header CF-Connecting-IP để giới hạn theo IP thật.
+    # Không có Tunnel mà bật → người gọi tự đặt header để né giới hạn đăng nhập (DECISIONS 2026-09-25)
+    trust_cloudflare_ip: bool = False
     # Số file Dukascopy tải song song — Dukascopy chậm 15–50s/file, hay trả 503 (DECISIONS 2026-09-24)
     dukascopy_concurrency: int = 3
     dukascopy_delay_seconds: float = 0.5

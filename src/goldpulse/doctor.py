@@ -43,6 +43,7 @@ async def main() -> int:
     from .db import engine, session_scope
     from .integrations.dukascopy import DukascopyClient
     from .integrations.goldapi import GoldApiClient
+    from .integrations.histdata import FileNotAvailable, HistDataClient
     from .services import monitor
 
     try:
@@ -64,13 +65,25 @@ async def main() -> int:
     finally:
         await gold.close()
 
-    duka = DukascopyClient(proxy=settings.dukascopy_proxy)
-    day = (datetime.now(UTC) - timedelta(days=7)).date()
+    hd = HistDataClient()
+    now = datetime.now(UTC)
     try:
-        candles = await duka.fetch_day(day)
-        line(True, f"Dukascopy: {day} có {len(candles)} nến")
+        candles = await hd.fetch_file(f"{now.year}/{now.month}")
+        line(True, f"HistData.com: tháng này {len(candles):,} nến, tới {candles[-1].ts:%d/%m %H:%M} UTC")
+    except FileNotAvailable:
+        line(True, "HistData.com tới được (tháng này chưa phát hành file — bình thường đầu tháng)")
     except Exception as e:  # noqa: BLE001
-        good &= line(False, f"Dukascopy ({type(e).__name__}): {e} — WARP đã bật chưa?")
+        good &= line(False, f"HistData.com ({type(e).__name__}): {e} — kiểm tra mạng")
+    finally:
+        await hd.close()
+
+    # Dukascopy chỉ cần khi nạp lại 2004 → 03/2009 (DECISIONS 2026-09-25) — không làm doctor đỏ
+    duka = DukascopyClient(proxy=settings.dukascopy_proxy)
+    try:
+        await duka.fetch_day((now - timedelta(days=7)).date())
+        print("  · Dukascopy tới được (chỉ cần khi nạp lại 2004 → 03/2009)")
+    except Exception:  # noqa: BLE001
+        print("  · Dukascopy không tới được — bình thường khi WARP tắt; chỉ cần khi nạp lại 2004 → 03/2009")
     finally:
         await duka.close()
 

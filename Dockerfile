@@ -8,6 +8,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY src ./src
 COPY migrations ./migrations
 COPY alembic.ini ./
+# (v2) Lịch FOMC tĩnh — worker nạp fed_decision từ đây (services/fed.py: /app/data)
+COPY data ./data
 RUN uv sync --frozen --no-dev
 ENV PATH="/app/.venv/bin:$PATH"
 RUN useradd --create-home app && chown -R app /app

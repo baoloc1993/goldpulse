@@ -93,6 +93,8 @@ async def main() -> int:
 
 async def check_brain(settings) -> bool:
     """Chỉ kiểm cấu hình + đăng nhập, KHÔNG hỏi Claude thật (không tốn credit)."""
+    from .integrations.claude_cli import child_env
+
     backend = settings.brain_backend
     if backend == "fake":
         return line(not settings.is_production, "BRAIN_BACKEND=fake (chỉ cho test/dogfood — cấm ở production)")
@@ -103,7 +105,7 @@ async def check_brain(settings) -> bool:
         )
     try:
         proc = await asyncio.create_subprocess_exec(
-            settings.claude_cli_bin, "auth", "status",
+            settings.claude_cli_bin, "auth", "status", env=child_env(),
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
         )  # fmt: skip
         out, _ = await asyncio.wait_for(proc.communicate(), 30)

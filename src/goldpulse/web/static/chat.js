@@ -74,12 +74,18 @@
       if (!p || p.lag_seconds == null) return null;
       return Math.max(0, Math.round(p.lag_seconds + (Date.now() - headAt) / 1000));
     }
+    function dur(sec) {
+      if (sec < 120) return sec + "s";
+      if (sec < 7200) return Math.round(sec / 60) + " phút";
+      if (sec < 172800) return Math.round(sec / 3600) + " giờ";
+      return Math.round(sec / 86400) + " ngày";
+    }
     function priceBadge() {
       var p = headData && headData.price;
       if (!p || p.price == null) return '<span class="badge err">Chưa có giá</span>';
       if (!p.market_open) return '<span class="badge warn">Thị trường nghỉ</span>';
       var lag = lagNow();
-      if (lag == null || lag >= p.lag_limit) return '<span class="badge err">Trễ ' + (lag == null ? "?" : lag) + "s — chờ nguồn</span>";
+      if (lag == null || lag >= p.lag_limit) return '<span class="badge err">Trễ ' + (lag == null ? "?" : dur(lag)) + " — chờ nguồn</span>";
       return '<span class="badge ok">Trễ ' + lag + "s</span>";
     }
     function renderHead() {

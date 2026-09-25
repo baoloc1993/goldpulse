@@ -6,12 +6,25 @@ giới hạn ~32k ký tự); chạy trong thư mục trống để không nạp 
 
 import asyncio
 import json
+import os
 import tempfile
 import time
 from pathlib import Path
 from typing import Any
 
 from .claude_base import BrainError, BrainReply
+
+
+def child_env() -> dict[str, str]:
+    """Env cho `claude -p`. Khi não được chạy từ bên trong một phiên Claude Code (vd agent chạy `make dev`), các
+    biến CLAUDE_CODE_* / ANTHROPIC_BASE_URL của phiên cha khiến tiến trình con bỏ qua đăng nhập của chủ dự án và
+    báo "OAuth session expired" — bỏ chúng đi (thử thật 2026-09-26)."""
+    env = dict(os.environ)
+    if env.get("CLAUDECODE") == "1":
+        for k in list(env):
+            if k.startswith(("CLAUDE_CODE_", "CLAUDE_AGENT_SDK_")) or k in ("CLAUDECODE", "ANTHROPIC_BASE_URL"):
+                env.pop(k)
+    return env
 
 
 class ClaudeCli:
@@ -38,6 +51,7 @@ class ClaudeCli:
             proc = await asyncio.create_subprocess_exec(
                 *args,
                 cwd=self.cwd,
+                env=child_env(),
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,

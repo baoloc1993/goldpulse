@@ -41,6 +41,17 @@ def test_streak_and_signals():
     assert signals.streak([1, 2, 3, 3, 4]) == 1  # đứng giá cắt chuỗi
 
 
+def test_auto_prediction_needs_two_agreeing_signals():
+    one = {"fired": [{"name": "bollinger", "hint": "up"}], "hint": "up"}
+    two = {"fired": [{"name": "bollinger", "hint": "up"}, {"name": "rsi9", "hint": "up"}], "hint": "up"}
+    split = {"fired": [{"name": "bollinger", "hint": "up"}, {"name": "streak", "hint": "down"}], "hint": "mixed"}
+    assert not signals.auto_trigger(one)
+    assert signals.auto_trigger(two)
+    assert not signals.auto_trigger(split)  # hai tín hiệu trái chiều — không có hướng để đoán
+    # Chuỗi 29 nến giảm bật streak + rsi9 → đủ điều kiện
+    assert signals.auto_trigger(signals.evaluate([100 - i for i in range(30)]))
+
+
 def test_bollinger_breaks_lower_band():
     closes = [100 + (i % 2) * 0.5 for i in range(40)] + [95.0]
     ev = signals.evaluate(closes)

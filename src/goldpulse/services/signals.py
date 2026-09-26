@@ -20,6 +20,9 @@ from .calendar import VN, is_market_open
 BAR_MINUTES = 15
 N_BARS = 60
 STREAK_MIN = 6
+# Dự đoán TỰ ĐỘNG chỉ khi ≥ 2 tín hiệu cùng bật (chủ dự án chốt 2026-09-26, phương án 2): kiểm toàn kho 2012–2026 —
+# ≥ 2 tín hiệu 56–57% (2012–21), ~54% (2022–26) và ổn định nhất; mọi tín hiệu chỉ còn 52,2% (2025–26). Chat không đổi.
+AUTO_MIN_FIRED = 2
 LOOKBACK = timedelta(days=10)  # 60 nến 15m sống nằm gọn trong vài ngày giao dịch, kể cả qua cuối tuần/lễ
 
 
@@ -91,6 +94,11 @@ def evaluate(closes: list[float]) -> dict[str, Any]:
         "hint": "up" if ups > downs else "down" if downs > ups else ("mixed" if fired else None),
         "enough_bars": len(closes) >= 21,
     }
+
+
+def auto_trigger(ev: dict[str, Any]) -> bool:
+    """Tín hiệu đủ mạnh để tạo dự đoán tự động: ≥ AUTO_MIN_FIRED tín hiệu bật và cùng một hướng."""
+    return len(ev["fired"]) >= AUTO_MIN_FIRED and ev["hint"] in ("up", "down")
 
 
 def bar_boundary(now: datetime) -> datetime:

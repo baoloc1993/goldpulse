@@ -367,7 +367,7 @@
         var lv = d.live, why = lv.can_suggest ? "" : lv.no_suggest_reason === "market_closed"
           ? " Hiện thị trường đang nghỉ nên bot tạm không dự đoán."
           : " Hiện giá realtime đang trễ nên bot tạm không dự đoán.";
-        content.innerHTML = '<div class="empty"><p>Chưa có dự đoán nào — bot chỉ dự đoán khi thị trường mở, giá realtime tươi, và có tín hiệu 15 phút hoặc bạn hỏi "tăng hay giảm".' +
+        content.innerHTML = '<div class="empty"><p>Chưa có dự đoán nào — bot tự dự đoán khi thị trường mở, giá realtime tươi và có ≥ 2 tín hiệu 15 phút cùng hướng — hoặc khi bạn hỏi "tăng hay giảm".' +
           esc(why) + " Nến 15 phút gần nhất: " + esc(sigText(d.signal)) + '.</p><a href="/chat">Sang Chat hỏi thử</a></div>';
         return;
       }

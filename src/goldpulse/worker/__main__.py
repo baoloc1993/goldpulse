@@ -361,7 +361,7 @@ class Worker:
             # Nến mới nhất phải là nến vừa đóng ngay trước mốc — 18:00 NY mở cửa thì nến cuối là 16:45 (trước giờ
             # nghỉ / cuối tuần), không phải "nến vừa đóng" (AC-10)
             fresh_bar = sig["last_bar_ts"] == (bar_end - timedelta(minutes=signals.BAR_MINUTES)).isoformat()
-            if allowed and fresh_bar and sig["has_signal"]:
+            if allowed and fresh_bar and signals.auto_trigger(sig):
                 job_id = await job_repo.enqueue(s, "signal_prediction", {"bar_ts": bar_end.isoformat(), "signals": sig})
             await feed_repo.set_status(s, "signal", {**sig, "market_ok": allowed, "job_id": job_id})
         log.info("signal", bar_end=bar_end.isoformat(), fired=[f["name"] for f in sig["fired"]], job=job_id)

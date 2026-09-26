@@ -66,6 +66,15 @@
     return '<button class="sw" type="button" role="switch" aria-checked="' + (a.enabled ? "true" : "false") + '" data-code="' + esc(a.code) +
       '" aria-label="Tài khoản ' + esc(a.code) + '"><span class="track"></span><span class="lbl">' + (a.enabled ? "Bật" : "Tắt") + "</span></button>";
   }
+  function settleToggleErr(accounts) {
+    // Máy chủ chậm (> 15 s) nhưng thực ra đã đổi xong → lần tải sau thấy khớp ý người bấm thì bỏ lời báo lỗi (dogfood rushed)
+    if (!toggleErr) return;
+    accounts.forEach(function (a) { if (toggleErr && a.code === toggleErr.code && a.enabled === toggleErr.want) toggleErr = null; });
+  }
+  // Rời trang lúc công tắc còn đang gửi → lần bấm có thể chưa tới máy chủ (dogfood rushed)
+  window.addEventListener("beforeunload", function (ev) {
+    if (document.querySelector(".sw[disabled]")) { ev.preventDefault(); ev.returnValue = ""; }
+  });
   function toggleErrBlock() {
     if (!toggleErr) return "";
     return '<div class="error" role="alert" id="swErr"><p>Chưa ' + (toggleErr.want ? "bật" : "tắt") + " được tài khoản " + esc(toggleErr.code) + ": " + esc(toggleErr.msg) +
@@ -129,7 +138,8 @@
         '<div class="name">' + esc(a.code) + " · " + esc(a.name) +
         (t.burned ? ' <span class="badge err">Cháy</span>' : "") + (a.enabled ? "" : ' <span class="badge muted">Đã tắt</span>') + '<span class="chev">›</span></div>' +
         '<div class="rule">' + esc(ruleText(a)) + "</div>" +
-        '<div class="eq ' + (a.enabled ? tone(eq - a.start_equity) : "") + '">' + fmt(eq, 2) + ' <span class="muted">USD · lãi/lỗ hôm nay ' + signed(t.pnl) + "</span></div>" +
+        '<div class="eq ' + (a.enabled ? tone(eq - a.start_equity) : "") + '">' + fmt(eq, 2) + ' <span class="muted">USD</span></div>' +
+        '<div class="sub num">Lãi/lỗ hôm nay <span class="' + (a.enabled ? tone(t.pnl) : "") + '">' + signed(t.pnl) + " USD</span></div>" +
         '<div class="sub">' + state + "</div>" +
         '<div class="sub num">Hôm nay ' + t.trades + " lệnh" + winRate + " · cộng dồn " + tot.days + " ngày " + signed(tot.pnl) + " USD (" + tot.trades + " lệnh) · ngày cháy " +
         tot.burned_days + "/" + tot.days + "</div></div>" + sw(a) + "</div></div>";
@@ -156,7 +166,7 @@
           (DASH[a.code] ? ' stroke-dasharray="' + DASH[a.code] + '"' : "") + "/>";
         if (pts.length === 1) out += '<circle cx="' + x(days.indexOf(pts[0].date)) + '" cy="' + y(pts[0].end) + '" r="2.5" fill="var(--color-text)"/>';
       });
-      var ticks = days.length > 3 ? [0, Math.floor((days.length - 1) / 2), days.length - 1] : days.map(function (_, i) { return i; });
+      var ticks = days.length > 7 ? [0, Math.floor((days.length - 1) / 2), days.length - 1] : days.map(function (_, i) { return i; });
       ticks.forEach(function (i) {
         var p = days[i].split("-");
         out += '<text x="' + x(i) + '" y="' + (H - 1) + '" font-size="10" fill="var(--color-text-muted)" text-anchor="' + (i === 0 ? "start" : i === days.length - 1 ? "end" : "middle") + '">' + p[2] + "/" + p[1] + "</text>";
@@ -164,9 +174,14 @@
       out += '<text x="' + (padL - 4) + '" y="' + (y(10) + 3) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">10</text>' +
         '<text x="' + (padL - 4) + '" y="' + (y(max) + 8) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">' + max + '</text>' +
         '<text x="' + (padL - 4) + '" y="' + (y(0) + 3) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">0</text>';
+      // Hai tài khoản cùng số dư mọi ngày → nét sau đè kín nét trước; nói thẳng trong chú giải (dogfood mobile)
+      function key(a) { return a.curve.map(function (p) { return p.date + ":" + p.end; }).join(","); }
+      var dupOf = {};
+      accs.forEach(function (a, i) { for (var j = 0; j < i; j++) if (accs[j].curve.length && key(accs[j]) === key(a)) { dupOf[a.code] = accs[j].code; break; } });
       var legend = accs.map(function (a) {
         return '<span><svg viewBox="0 0 28 10" aria-hidden="true"><line x1="0" y1="5" x2="28" y2="5" stroke="' + (a.enabled ? "var(--color-text)" : "var(--color-text-muted)") +
-          '" stroke-width="2"' + (DASH[a.code] ? ' stroke-dasharray="' + DASH[a.code] + '"' : "") + "/></svg>" + esc(a.code) + " " + esc(a.name) + (a.enabled ? "" : " (tắt)") + "</span>";
+          '" stroke-width="2"' + (DASH[a.code] ? ' stroke-dasharray="' + DASH[a.code] + '"' : "") + "/></svg>" + esc(a.code) + " " + esc(a.name) + (a.enabled ? "" : " (tắt)") +
+          (dupOf[a.code] ? " (trùng " + esc(dupOf[a.code]) + ")" : "") + "</span>";
       }).join("");
       return '<div class="curve"><svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Số dư cuối ngày ' + days.length + ' ngày">' + out +
         '</svg><div class="legend">' + legend + "</div></div>";
@@ -184,6 +199,7 @@
     }
 
     function render(d) {
+      settleToggleErr(d.accounts);
       var h = toggleErrBlock();
       if (offline) h += '<div class="error" role="alert"><p>Không cập nhật được. ' + esc(errText(offline)) + ' Số bên dưới là lần tải cuối.</p><button class="btn" type="button" data-reload>Thử lại</button></div>';
       h += '<div class="head3">' +
@@ -193,7 +209,10 @@
       h += botBadge(d);
       h += '<div class="fake">Tiền giả — sổ ghi trong hệ thống, không nối sàn nào. Mỗi tài khoản bắt đầu lại 10.00 USD mỗi ngày giao dịch (05:00 giờ VN = 18:00 New York).</div>';
       h += d.accounts.map(function (a) { return accRow(a, d.live); }).join("");
-      h += "<h2>Số dư cuối ngày · 20 ngày</h2>" + curve(d.accounts);
+      var nDays = {};
+      d.accounts.forEach(function (a) { a.curve.forEach(function (p) { nDays[p.date] = 1; }); });
+      var nd = Math.min(20, Object.keys(nDays).length);
+      h += "<h2>Số dư cuối ngày" + (nd ? " · " + nd + " ngày gần nhất" : "") + "</h2>" + curve(d.accounts);
       var a0 = d.accounts[0] || { oz: 1, leverage: 1000, spread: 0.3 };
       h += '<h2>Cách tính</h2><div class="muted rules">' +
         "<p>Mỗi lệnh " + fmt(a0.oz, 0) + " oz (0.01 lot) · đòn bẩy 1:" + a0.leverage + " · phí spread " + fmt(a0.spread, 2) + " USD/oz trừ lúc vào lệnh. Mỗi tài khoản tối đa 1 lệnh cùng lúc.</p>" +
@@ -238,8 +257,8 @@
       var arrow = t.direction === "up" ? '<span class="up">▲ mua</span>' : '<span class="down">▼ bán</span>';
       var c = t.context || {};
       if (t.status === "skipped") {
-        return '<div class="prow skip"><div class="top"><span class="num">' + esc(t.opened_vn) + " · " + arrow + '</span><span class="badge muted">Bỏ qua</span></div>' +
-          "<div>Bỏ qua — " + esc(SKIP[t.skip_reason] || t.skip_reason) + "</div></div>";
+        return '<div class="prow skip"><div class="num">' + esc(t.opened_vn) + " · " + arrow + "</div>" +
+          "<div>Không vào lệnh — " + esc(SKIP[t.skip_reason] || t.skip_reason) + "</div></div>";
       }
       var badge = t.status === "open" ? ["warn", "Đóng lúc " + t.due_vn] : EXIT[t.exit_reason] || ["muted", t.exit_reason];
       var money = t.status === "open" ? "đang mở" : '<span class="' + tone(t.pnl) + '">' + signed(t.pnl) + " USD</span>";
@@ -263,6 +282,8 @@
       });
     }
     function render(d) {
+      settleToggleErr([d]);
+      var openIds = Array.prototype.map.call(content.querySelectorAll(".prow.open"), function (el) { return el.dataset.id; });
       document.getElementById("accTitle").textContent = d.code + " · " + d.name;
       var slot = document.getElementById("swSlot");
       slot.innerHTML = sw(d);
@@ -271,8 +292,9 @@
       var h = toggleErrBlock() + '<div class="head3">' +
         '<div class="card"><div class="label">Số dư hiện tại</div><div class="value num ' + tone(d.equity - d.start_equity) + '">' + fmt(d.equity, 2) + "</div></div>" +
         '<div class="card"><div class="label">Lãi/lỗ hôm nay</div><div class="value num ' + tone(t.pnl) + '">' + signed(t.pnl) + '</div><div class="muted">' + t.trades + " lệnh</div></div>" +
-        '<div class="card"><div class="label">Cộng dồn ' + tot.days + ' ngày</div><div class="value num ' + tone(tot.pnl) + '">' + signed(tot.pnl) + '</div><div class="muted num">' +
-        tot.trades + " lệnh" + (tot.trades ? " · thắng " + fmt(100 * tot.wins / tot.trades, 0) + "%" : "") + " · cháy " + tot.burned_days + "/" + tot.days + " ngày</div></div></div>";
+        '<div class="card"><div class="label">Cộng dồn</div><div class="value num ' + tone(tot.pnl) + '">' + signed(tot.pnl) + '</div><div class="muted">' + tot.days + " ngày</div></div></div>";
+      h += '<div class="note num">' + tot.trades + " lệnh" + (tot.trades ? " · thắng " + fmt(100 * tot.wins / tot.trades, 0) + "% sau phí" : "") +
+        " · ngày cháy " + tot.burned_days + "/" + tot.days + "</div>";
       h += '<div class="note">' + esc(ruleText(d)) + " Tiền giả.</div>";
       if (!d.enabled) h += '<div class="note">' + OFF_TEXT + "</div>";
       if (!d.rows.length) {
@@ -283,7 +305,12 @@
           (d.rows.length === 50 ? '<button class="btn line block" type="button" id="more">Tải thêm</button>' : "");
         lastId = d.rows[d.rows.length - 1].id;
       }
+      h += '<div class="note" id="paused" hidden>Tạm dừng tự cập nhật trong lúc bạn xem chi tiết lệnh — đóng chi tiết để cập nhật lại.</div>';
       content.innerHTML = h;
+      openIds.forEach(function (id) {
+        var el = content.querySelector('.prow[data-id="' + id + '"]');
+        if (el) { el.classList.add("open"); el.setAttribute("aria-expanded", "true"); }
+      });
       bindRows(content);
       bindSwitches(content, function () { load(); });
       var more = document.getElementById("more");
@@ -314,7 +341,10 @@
     load();
     // Tự tải lại 5 giây như S8 — trừ khi đang đọc chi tiết một lệnh hoặc đã "Tải thêm" (không để mất chỗ đang xem)
     setInterval(function () {
-      if (!document.hidden && !extra && !content.querySelector(".prow.open") && !document.querySelector(".sw[disabled]")) load();
+      var reading = !!content.querySelector(".prow.open");
+      var p = document.getElementById("paused");
+      if (p) p.hidden = !reading;
+      if (!document.hidden && !extra && !reading && !document.querySelector(".sw[disabled]")) load();
     }, 5000);
   }
 })();

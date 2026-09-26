@@ -143,7 +143,7 @@ async def page_paper(request: Request) -> HTMLResponse:
 
 
 @pages.get("/paper/{code}", response_class=HTMLResponse, include_in_schema=False)
-async def page_paper_account(request: Request, code: Annotated[str, Path(max_length=8)], session: DB) -> HTMLResponse:
+async def page_paper_account(request: Request, code: str, session: DB) -> HTMLResponse:
     # Trang HTML: mã sai kiểu (/paper/a) → 404 tử tế như /paper/Z, không 422 JSON (dogfood edge 2026-09-27)
     if not re.fullmatch(r"[A-Z]", code) or not await paper_svc.account_exists(session, code):
         raise HTTPException(404, "Không có tài khoản này")

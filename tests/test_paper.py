@@ -238,5 +238,6 @@ async def test_login_returns_to_s9_and_bad_code_page_is_html_404(client, db):
     assert safe_next("/paper/AB") == "/overview" and safe_next("//evil.com/paper/A") == "/overview"
     r = await client.post("/login", data={"key": KEY, "next": "/paper/A"})
     assert r.status_code == 303 and r.headers["location"] == "/paper/A"
-    bad = await client.get("/paper/a")
-    assert bad.status_code == 404 and "text/html" in bad.headers["content-type"]
+    for path in ("/paper/a", "/paper/A%3Cimg%20src=x%3E", "/paper/" + "A" * 300):
+        bad = await client.get(path)
+        assert bad.status_code == 404 and "text/html" in bad.headers["content-type"], path

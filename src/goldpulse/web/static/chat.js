@@ -340,7 +340,7 @@
     // (v3) thẻ đầu màn sang S8 — số nạp riêng từ API của S8, lỗi thì chỉ còn liên kết
     var paperSum = null;
     function paperCard() {
-      return '<a class="card link" href="/paper"><div class="label">Tài khoản giấy (v3) · 4 luật · tiền giả</div>' +
+      return '<a class="card link" href="/paper"><div class="label">Tài khoản giấy · 4 luật · tiền giả</div>' +
         '<div class="value small num" id="paperSum">' + (paperSum || "xem dashboard ›") + "</div></a>";
     }
     function loadPaper() {

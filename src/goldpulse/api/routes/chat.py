@@ -5,6 +5,7 @@ Mọi route cần khoá truy cập (PERSONAS §2).
 Không có route nào gọi Claude hay gửi lệnh giao dịch: câu hỏi chỉ được xếp vào bot_job cho tiến trình não.
 """
 
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
@@ -142,8 +143,9 @@ async def page_paper(request: Request) -> HTMLResponse:
 
 
 @pages.get("/paper/{code}", response_class=HTMLResponse, include_in_schema=False)
-async def page_paper_account(request: Request, code: AccCode, session: DB) -> HTMLResponse:
-    if not await paper_svc.account_exists(session, code):
+async def page_paper_account(request: Request, code: Annotated[str, Path(max_length=8)], session: DB) -> HTMLResponse:
+    # Trang HTML: mã sai kiểu (/paper/a) → 404 tử tế như /paper/Z, không 422 JSON (dogfood edge 2026-09-27)
+    if not re.fullmatch(r"[A-Z]", code) or not await paper_svc.account_exists(session, code):
         raise HTTPException(404, "Không có tài khoản này")
     return templates.TemplateResponse(
         request, "paper_trades.html", {"screen": "s9", "title": f"Tài khoản {code}", "code": code}

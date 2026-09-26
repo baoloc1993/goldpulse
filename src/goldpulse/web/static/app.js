@@ -143,6 +143,9 @@
     var hist = d.history;
     var srcBad = hist.source === "unreachable" || hist.source === "throttled";
     var m = d.metrics;
+      // (v3) liên kết sang S8 — đặt trước 3 ngưỡng kho (dogfood newbie), số tóm tắt nạp riêng, lỗi thì chỉ còn liên kết
+      h += '<a class="card link" id="paperLink" href="/paper"><div class="label">Tài khoản giấy · tiền giả</div>' +
+        '<div class="value small num" id="paperSum">4 tài khoản · xem dashboard ›</div></a>';
     if (!hist.ok_days) {
       h += '<div class="empty"><p>' + (srcBad
         ? "Kho lịch sử chưa có ngày nào — đang chờ nguồn dữ liệu (xem khối cảnh báo bên dưới)."
@@ -163,9 +166,6 @@
       h += metricCard("Tra 20 năm (95% số lần tra) · cần &lt; 1 giây", sp.value == null ? "—" : fmt(sp.value) + " ms", sp.value == null ? null : sp.value < sp.target,
         sp.value == null ? 'Chưa tra lần nào — <a href="/query">tra thử</a>' : (sp.value < sp.target ? "Đạt" : "Chưa đạt") + " · " + fmt(sp.count) + " lần tra");
       h += "</div>";
-      // (v3) liên kết sang S8 — số tóm tắt nạp riêng, lỗi thì chỉ còn liên kết
-      h += '<a class="card link" id="paperLink" href="/paper"><div class="label">Tài khoản giấy (v3) · tiền giả</div>' +
-        '<div class="value small num" id="paperSum">4 tài khoản · xem dashboard ›</div></a>';
     }
 
     // Nguồn lịch sử hỏng: một câu cho người xem, một câu cho người giữ máy, kèm giờ thử

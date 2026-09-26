@@ -228,3 +228,15 @@ async def test_every_v3_route_requires_key_and_only_enabled_is_writable(client, 
         await paper.open_for_new(s, T0 + timedelta(seconds=30))
     one = (await client.get("/api/paper/accounts/C")).json()
     assert one["enabled"] is False and one["rows"][0]["skip_reason"] == "disabled"
+
+
+@needs_db
+async def test_login_returns_to_s9_and_bad_code_page_is_html_404(client, db):
+    from goldpulse.api.routes.pages import safe_next
+
+    assert safe_next("/paper/A") == "/paper/A" and safe_next("/paper") == "/paper"
+    assert safe_next("/paper/AB") == "/overview" and safe_next("//evil.com/paper/A") == "/overview"
+    r = await client.post("/login", data={"key": KEY, "next": "/paper/A"})
+    assert r.status_code == 303 and r.headers["location"] == "/paper/A"
+    bad = await client.get("/paper/a")
+    assert bad.status_code == 404 and "text/html" in bad.headers["content-type"]

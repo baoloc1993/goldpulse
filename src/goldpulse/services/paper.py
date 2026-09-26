@@ -21,6 +21,7 @@ GRACE_S = predictions.SCORE_GRACE_S  # nến phút cuối trước hạn đã gh
 MTM_MAX_AGE = timedelta(minutes=2)  # kiểm cháy chỉ bằng nến còn tươi — nguồn chết thì chờ, không cháy ảo
 CURVE_DAYS = 20
 STATUS_KEY = "paper"
+LIVE_KEYS = ("price", "lag_seconds", "fresh", "market_open", "price_time_vn", "lag_limit", "next_open_vn")
 # PRD §6 vòng 3 — ghi trước khi nhìn số
 GO_MIN_TRADES = 40
 GO_MAX_BURN_RATIO = 0.20
@@ -246,7 +247,7 @@ async def screen(session: AsyncSession, now: datetime | None = None) -> dict[str
     return {
         "now_vn": now.astimezone(VN).strftime("%H:%M %d/%m"),
         "trade_date": trade_date_of(now).isoformat(),
-        "live": {k: live[k] for k in ("price", "lag_seconds", "fresh", "market_open", "price_time_vn", "lag_limit")},
+        "live": {k: live[k] for k in LIVE_KEYS},
         "worker_alive": await worker_alive(session, now),
         "today_pnl": round(
             sum(a["today"]["pnl"] + (a["open"]["unrealized"] or 0.0 if a["open"] else 0.0) for a in accounts), 2
@@ -265,7 +266,11 @@ async def account_screen(session: AsyncSession, code: str, now: datetime | None 
     if not acc:
         return None
     c = await repo.latest_close(session, now - timedelta(days=3), now)
+    from .context_pack import live_state
+
     view = await account_view(session, acc, now, float(c["close"]) if c else None)
+    live = await live_state(session, now.astimezone(VN))
+    view["live"] = {k: live[k] for k in ("market_open", "next_open_vn")}
     view["rows"] = await trades_page(session, code, None)
     return view
 

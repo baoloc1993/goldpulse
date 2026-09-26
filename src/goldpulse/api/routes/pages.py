@@ -1,5 +1,6 @@
 """Trang HTML: S4 Nhập khoá · S1 Tổng quan · S2 Độ phủ · S3 Tra thử. Số liệu do JS tải từ /api."""
 
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -41,7 +42,10 @@ def safe_next(value: str | None) -> str:
     if not value:
         return "/overview"
     parts = urlsplit(value)
-    if parts.scheme or parts.netloc or parts.path not in {f"/{name}" for name in (*SCREENS, *V2_PATHS)}:
+    internal = {f"/{name}" for name in (*SCREENS, *V2_PATHS)} | {"/paper"}
+    # (v3) /paper/<mã tài khoản A–Z> — dogfood edge: mở link S9 khi chưa đăng nhập thì vào lại đúng S9
+    is_s9 = re.fullmatch(r"/paper/[A-Z]", parts.path) is not None
+    if parts.scheme or parts.netloc or (parts.path not in internal and not is_s9):
         return "/overview"
     return parts.path + (f"?{urlencode(parse_qsl(parts.query))}" if parts.query else "")
 

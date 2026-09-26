@@ -126,7 +126,7 @@ a.back { color: var(--color-text); font-size: var(--text-sm); padding-right: var
 .head3 .muted { overflow-wrap: anywhere; }
 .skel.head { height: 101px; margin: 0; }
 /* Đầu màn dính trên cùng khi cuộn: đọc câu trả lời vẫn thấy giá + độ trễ (dogfood 2026-09-26) */
-.head3 { position: sticky; top: 0; z-index: 1; background: var(--color-bg); padding: var(--space-sm) 0; }
+body[data-screen="s5"] .head3 { position: sticky; top: 0; z-index: 1; background: var(--color-bg); padding: var(--space-sm) 0; }
 /* Màn thấp (xoay ngang, bàn phím mở): đầu màn thôi dính — không thì nó che câu trả lời mới (dogfood mobile) */
 @media (max-height: 560px) { .head3 { position: static; } }
 body.typing .tabbar { display: none; }
@@ -208,3 +208,11 @@ body[data-screen="s5"] .wrap { padding-bottom: 180px; }
 .rules p { margin: 0 0 var(--space-sm); }
 a.card.link { display: block; color: inherit; text-decoration: none; }
 .skel.chartbox { height: 120px; margin: 0; }
+.skel.accrow { height: 146px; }
+.skel.head8 { height: 119px; margin: 0; }
+.skel.head9 { height: 75px; margin: 0; }
+.skel.strip { height: 72px; }
+.curve .skel.chartbox { background: var(--color-bg); }
+.acc .rule { font-size: var(--text-sm); color: var(--color-text); margin-top: 4px; }
+.acc .chev { color: var(--color-text-muted); margin-left: 4px; }
+.note { font-size: var(--text-sm); color: var(--color-text-muted); margin: var(--space-sm) 0; }

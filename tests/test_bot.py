@@ -351,3 +351,26 @@ async def test_bad_ids_and_invisible_text_are_rejected_not_500(client):
     assert r.status_code == 422 and "2000" in r.json()["detail"]
     r = await client.post("/api/chat/messages", content=b"{bad json", headers={"content-type": "application/json"})
     assert r.status_code == 422 and r.json()["detail"] == "Dữ liệu gửi lên không đúng định dạng."
+
+
+def test_model15m_needs_history_and_uses_threshold():
+    from goldpulse.services import model15m
+
+    t0 = utc(2026, 1, 5, 0, 0)
+    bars = []
+    price = 2000.0
+    for k in range(model15m.MIN_BARS + 50):
+        o = price
+        price += 0.7 if (k * 7919) % 13 < 6 else -0.7  # dao động giả, xác định
+        bars.append(
+            {"ts": t0 + timedelta(minutes=15 * k), "open": o, "high": max(o, price) + 0.3,
+             "low": min(o, price) - 0.3, "close": price}
+        )  # fmt: skip
+    assert model15m.features(bars[: model15m.MIN_BARS - 1]) is None  # chưa đủ ~23 ngày → không dự đoán
+    f = model15m.features(bars)
+    assert f is not None and set(f) == set(model15m.model()["features"])
+    r = model15m.predict(f)
+    assert 0 < r["p_up"] < 1 and r["direction"] in ("up", "down")
+    assert r["trigger"] == (abs(r["p_up"] - 0.5) >= model15m.model()["confidence_threshold"])
+    md = model15m.model()
+    assert md["metrics"]["test_2025_2026"]["accuracy_pct"] > 55  # file mô hình đúng là bản đã kiểm

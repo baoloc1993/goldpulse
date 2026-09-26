@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..repositories import candles as candle_repo
 from ..repositories import chat as chat_repo
 from ..repositories import feed as feed_repo
-from . import fed, predictions, signals
+from . import fed, model15m, predictions, signals
 from .calendar import SESSIONS, VN, active_sessions, is_market_open, session_window, sessions_touching
 from .monitor import LAG_LIMIT_S
 
@@ -107,6 +107,23 @@ async def session_stats(session: AsyncSession, now: datetime) -> list[dict[str, 
     return out
 
 
+async def _model_view(session: AsyncSession, bar_end: datetime) -> dict[str, Any] | None:
+    mdl = await model15m.evaluate(session, bar_end)
+    if not mdl:
+        return None
+    md = model15m.model()
+    return {
+        "p_up": mdl["p_up"],
+        "direction": mdl["direction"],
+        "confident": mdl["trigger"],
+        "note": (
+            "Mô hình logistic trên 23 đặc trưng giá, nến 15m vừa đóng. Chỉ đáng tin khi `confident` = true "
+            f"(2% nến tự tin nhất): kiểm 2025–2026 đúng {md['metrics']['test_2025_2026']['accuracy_pct']}% trên "
+            f"{md['metrics']['test_2025_2026']['n']} lần. Khi `confident` = false thì gần như tung đồng xu (~51%)."
+        ),
+    }
+
+
 async def market_pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
     """Phần dùng chung cho chat + dự đoán tự động."""
     live = await live_state(session, now)
@@ -126,6 +143,7 @@ async def market_pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
             "Không tín hiệu: ~50% (tung đồng xu).",
         },
         "bars_15m_recent": sig["recent"],
+        "model_15m": await _model_view(session, bar_end),
         "context_no_predictive_power": {
             **ctx,
             "note": "Vị trí trong biên 5/20/60 ngày và RSI 14 khung 1h/4h/1D KHÔNG đoán được 15 phút kế tiếp"

@@ -271,8 +271,13 @@ class BrainLoop:
         user = json.dumps({"data": pack}, ensure_ascii=False, default=str)
         reply = await self.backend.ask(self.predict_system, user, self.predict_schema)
         d = reply.data
-        if d.get("direction") not in ("up", "down"):
+        if not isinstance(d, dict) or d.get("direction") not in ("up", "down"):
             raise BrainError("Não trả hướng không hợp lệ.")
+        # Hướng ghi sổ = hướng của mô hình (con số 56,7% đã kiểm là của mô hình); Claude viết lý do,
+        # hướng Claude tự chọn ghi kèm để so về sau
+        mdl = job["payload"].get("model") or {}
+        direction = mdl.get("direction") or d["direction"]
+        conf = d.get("confidence") if d.get("confidence") in ("low", "medium", "high") else "low"
         async with session_scope() as s:
             made = datetime.now(UTC)
             price = await predictions.price_at(s, made)
@@ -282,17 +287,27 @@ class BrainLoop:
                 s,
                 made_at=made,
                 source="auto",
-                direction=d["direction"],
-                confidence=d.get("confidence", "low"),
+                direction=direction,
+                confidence=conf,
                 price=price,
-                signals=job["payload"].get("signals") or {},
+                signals={
+                    **(job["payload"].get("signals") or {}),
+                    "model": {k: v for k, v in mdl.items() if k != "features"},
+                    "claude_direction": d["direction"],
+                },
                 reasoning=str(d.get("reason") or ""),
                 backend=self.backend.name,
                 model=reply.usage.get("model"),
                 job_id=job["id"],
             )
             await job_repo.finish(s, job["id"], {"prediction_id": pid, "usage": reply.usage})
-        log.info("prediction_made", id=pid, direction=d["direction"], due=(made + timedelta(minutes=15)).isoformat())
+        log.info(
+            "prediction_made",
+            id=pid,
+            direction=direction,
+            claude=d["direction"],
+            due=(made + timedelta(minutes=15)).isoformat(),
+        )
 
 
 def main() -> None:

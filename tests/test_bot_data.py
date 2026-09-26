@@ -98,14 +98,37 @@ async def signal_status(scope) -> dict | None:
 # --- 1. Worker: tín hiệu 15 phút → job dự đoán tự động ---------------------------------------------
 
 
+async def _confident_model(session, bar_end):
+    return {"model": "logit15m_v1", "p_up": 0.61, "direction": "up", "confidence": 0.11, "threshold": 0.08,
+            "trigger": True, "features": {}}  # fmt: skip
+
+
+async def _unsure_model(session, bar_end):
+    return {**(await _confident_model(session, bar_end)), "p_up": 0.53, "confidence": 0.03, "trigger": False}
+
+
+@needs_db
+async def test_no_job_when_model_is_not_confident_even_with_signals(db, worker, monkeypatch):
+    await seed_falling_bars(db, BAR_OPEN)
+    freeze_worker_now(monkeypatch, BAR_OPEN + timedelta(seconds=60))
+    monkeypatch.setattr("goldpulse.worker.__main__.model15m.evaluate", _unsure_model)
+    await worker.signal_once(BAR_OPEN)
+    assert await signal_jobs(db) == []  # 2 tín hiệu vẫn bật, nhưng luật mới do mô hình quyết (DECISIONS 2026-09-26)
+    st = await signal_status(db)
+    assert st["has_signal"] is True and st["model"]["trigger"] is False and st["job_id"] is None
+
+
 @needs_db
 async def test_signal_creates_exactly_one_prediction_job_even_if_run_twice_for_same_bar(db, worker, monkeypatch):
     await seed_falling_bars(db, BAR_OPEN)
     freeze_worker_now(monkeypatch, BAR_OPEN + timedelta(seconds=60))
+    # Mô hình cần ~23 ngày lịch sử — ở đây chỉ kiểm hàng chờ: giả mô hình đang tự tin (trigger)
+    monkeypatch.setattr("goldpulse.worker.__main__.model15m.evaluate", _confident_model)
 
     await worker.signal_once(BAR_OPEN)
     jobs = await signal_jobs(db)
     assert len(jobs) == 1
+    assert jobs[0]["payload"]["model"]["trigger"] is True
     assert jobs[0]["payload"]["bar_ts"] == BAR_OPEN.isoformat()
     assert jobs[0]["payload"]["signals"]["has_signal"] is True
     st = await signal_status(db)

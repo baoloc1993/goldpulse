@@ -32,7 +32,7 @@ from ..repositories import fed as fed_repo
 from ..repositories import feed as feed_repo
 from ..repositories import jobs as job_repo
 from ..services import fed as fed_svc
-from ..services import ingest, predictions, signals
+from ..services import ingest, model15m, predictions, signals
 from ..services.calendar import MINUTE, NY, last_complete_day, open_minutes_of_day
 from ..services.errors import record_error
 from ..services.monitor import LAG_LIMIT_S
@@ -361,10 +361,16 @@ class Worker:
             # Nến mới nhất phải là nến vừa đóng ngay trước mốc — 18:00 NY mở cửa thì nến cuối là 16:45 (trước giờ
             # nghỉ / cuối tuần), không phải "nến vừa đóng" (AC-10)
             fresh_bar = sig["last_bar_ts"] == (bar_end - timedelta(minutes=signals.BAR_MINUTES)).isoformat()
-            if allowed and fresh_bar and signals.auto_trigger(sig):
-                job_id = await job_repo.enqueue(s, "signal_prediction", {"bar_ts": bar_end.isoformat(), "signals": sig})
-            await feed_repo.set_status(s, "signal", {**sig, "market_ok": allowed, "job_id": job_id})
-        log.info("signal", bar_end=bar_end.isoformat(), fired=[f["name"] for f in sig["fired"]], job=job_id)
+            # Ai quyết lúc nào dự đoán: mô hình logistic, chỉ 2% nến tự tin nhất (chủ dự án chốt 2026-09-26)
+            mdl = await model15m.evaluate(s, bar_end) if fresh_bar else None
+            if allowed and mdl and mdl["trigger"]:
+                job_id = await job_repo.enqueue(
+                    s, "signal_prediction", {"bar_ts": bar_end.isoformat(), "signals": sig, "model": mdl}
+                )
+            slim = {k: v for k, v in (mdl or {}).items() if k != "features"}
+            await feed_repo.set_status(s, "signal", {**sig, "model": slim, "market_ok": allowed, "job_id": job_id})
+        log.info("signal", bar_end=bar_end.isoformat(), fired=[f["name"] for f in sig["fired"]],
+                 p_up=(mdl or {}).get("p_up"), job=job_id)  # fmt: skip
 
     # --- G. Chấm dự đoán + dọn hàng chờ não (v2) -------------------------------------
     async def score_loop(self) -> None:

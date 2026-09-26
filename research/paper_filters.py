@@ -46,3 +46,13 @@ for y in range(2012, 2027):
     s = T[T.yr == y]
     if len(s):
         print(y, f"{len(s):>4} lệnh · vol TB {s.vol.mean():.2f} · trước phí {(s.net + SPREAD).mean():+.3f} · sau phí {s.net.mean():+.3f}")
+
+# Luật D — giữ 4 nến (1 giờ) thay vì 1 nến, cùng spread
+gap4 = (ts.shift(-4) - ts).dt.total_seconds().values
+ok4 = np.array([gap4[i] == 3600 for i in idx])
+T["net1h"] = np.where(ok4, T["dir"] * (c[[min(i + 4, len(c) - 1) for i in idx]] - c[idx]) - SPREAD, np.nan)
+print("\nluật D — giữ 1 giờ (chỉ lệnh có 4 nến liền kề)")
+for name, S in (("2022–24", T[T.yr.between(2022, 2024)]), ("2025–26", T[T.yr >= 2025])):
+    s = S.dropna(subset=["net1h"])
+    print(f"{name}: {len(s)} lệnh · sau phí {s.net1h.mean():+.3f} · đúng hướng {((s.net1h + SPREAD) > 0).mean():.1%}")
+print("ngưỡng tự tin q0.5 (2022–24):", round(float(B.conf.quantile(0.5)), 4), "· ngưỡng mô hình:", md["confidence_threshold"])

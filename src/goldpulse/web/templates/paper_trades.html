@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block body %}
+<a class="back tap" href="/paper">‹ Tài khoản</a>
+<div class="titlebar"><h1 id="accTitle">Tài khoản {{ code }}</h1><span id="swSlot"></span></div>
+<div id="content" data-code="{{ code }}" aria-live="polite">
+  <div class="head3"><div class="skel head"></div><div class="skel head"></div><div class="skel head"></div></div>
+  <div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/paper.js" defer></script>{% endblock %}

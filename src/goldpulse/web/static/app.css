@@ -180,3 +180,29 @@ body[data-screen="s5"] .wrap { padding-bottom: 180px; }
 .react { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-sm); margin-top: var(--space-sm); }
 .react div { background: var(--color-bg); border-radius: var(--radius); padding: var(--space-sm); text-align: center; }
 .badge.muted { color: var(--color-text-muted); }
+
+/* (v3) S8/S9 tài khoản giấy — C14–C17 (DESIGN-SYSTEM §4), chỉ token §2 */
+.fake { font-size: var(--text-sm); color: var(--color-text-muted); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-sm) var(--space-md); margin: var(--space-sm) 0 var(--space-md); }
+.acc { border-left: 4px solid var(--color-surface); cursor: pointer; }
+.acc.burn { border-left-color: var(--color-danger); }
+.acc.off, .acc.off .up, .acc.off .down { color: var(--color-text-muted); }
+.acc .top { align-items: flex-start; flex-wrap: nowrap; }
+.acc .name { font-weight: 600; }
+.acc .eq { font-size: var(--text-xl); font-weight: 600; font-variant-numeric: tabular-nums; }
+.acc .sub { font-size: var(--text-sm); color: var(--color-text-muted); margin-top: 4px; overflow-wrap: anywhere; }
+.sw { display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; min-width: 44px; cursor: pointer; font: inherit; font-size: var(--text-sm); color: var(--color-text-muted); background: none; border: 0; padding: 0; flex: none; }
+.sw .track { width: 40px; height: 22px; border-radius: 11px; background: var(--color-border); position: relative; }
+.sw .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--color-on-primary); }
+.sw[aria-checked="true"] .track { background: var(--color-primary); }
+.sw[aria-checked="true"] .track::after { left: 21px; }
+.sw[disabled] { opacity: 0.5; cursor: progress; }
+.sw:focus-visible { outline: 2px solid var(--color-primary); border-radius: var(--radius); }
+.curve { background: var(--color-surface); border-radius: var(--radius); padding: var(--space-sm); margin-bottom: var(--space-sm); }
+.curve svg.chart { width: 100%; height: 120px; display: block; }
+.curve .legend { display: flex; flex-wrap: wrap; gap: var(--space-sm) var(--space-md); font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-sm); }
+.curve .legend svg { width: 28px; height: 10px; display: inline-block; vertical-align: middle; margin-right: 4px; }
+.skel.curve { height: 160px; }
+.prow.skip { cursor: default; color: var(--color-text-muted); }
+.titlebar { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
+.titlebar h1 { margin: 0; }
+.rules p { margin: 0 0 var(--space-sm); }

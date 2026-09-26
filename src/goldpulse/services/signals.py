@@ -139,6 +139,16 @@ async def compute(session: AsyncSession, end: datetime) -> dict[str, Any]:
     return out
 
 
+async def vol96(session: AsyncSession, end: datetime) -> float | None:
+    """(v3) TB |Δ close| của 96 nến 15m sống gần nhất trước `end` — biến động 1 ngày, luật B tài khoản giấy
+    (cùng định nghĩa research/paper_filters.py)."""
+    bars = await candle_repo.live_bars(session, BAR_MINUTES, end, end - timedelta(days=7), 97)
+    c = [b["close"] for b in bars]
+    if len(c) < 97:
+        return None
+    return round(sum(abs(c[i] - c[i - 1]) for i in range(1, len(c))) / 96, 4)
+
+
 async def context(session: AsyncSession, end: datetime, price: float | None) -> dict[str, Any]:
     """Ngữ cảnh không dùng để đoán: vị trí trong biên 5/20/60 ngày, RSI 14 khung 1h/4h/1D (nến đã đóng)."""
     ref = price

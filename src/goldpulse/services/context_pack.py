@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..repositories import candles as candle_repo
 from ..repositories import chat as chat_repo
 from ..repositories import feed as feed_repo
-from . import fed, model15m, predictions, signals
+from . import fed, model15m, paper, predictions, signals
 from .calendar import SESSIONS, VN, active_sessions, is_market_open, session_window, sessions_touching
 from .monitor import LAG_LIMIT_S
 
@@ -154,6 +154,7 @@ async def market_pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
         "bot_accuracy": {
             k: acc[k] for k in ("rate", "scored", "correct", "wrong", "flat", "unscored", "pending", "verdict")
         },
+        "paper_accounts": await paper.pack(session, now),  # (v3) tiền giả — AC-15
     }
 
 

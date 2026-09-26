@@ -87,6 +87,22 @@
     card.className = b.fail ? "card fail" : "card";
   }
 
+  // (v3) tóm tắt tài khoản giấy cho thẻ liên kết ở S1 — dùng chung API của S8
+  var paperSumText = null;
+  function fillPaperSummary() {
+    var el = document.getElementById("paperSum");
+    if (!el) return;
+    if (paperSumText) el.innerHTML = paperSumText;
+    api("/api/paper/accounts").then(function (d) {
+      var on = d.accounts.filter(function (a) { return a.enabled; }).map(function (a) { return a.code; });
+      var p = d.today_pnl;
+      paperSumText = "Hôm nay " + '<span class="' + (p > 0 ? "up" : p < 0 ? "down" : "") + '">' + (p > 0 ? "+" : p < 0 ? "−" : "") + fmt(Math.abs(p), 2) + " USD</span> · " +
+        d.today_trades + " lệnh · đang chạy " + (on.join(", ") || "không tài khoản nào") + " · xem ›";
+      var cur = document.getElementById("paperSum");
+      if (cur) cur.innerHTML = paperSumText;
+    }).catch(function () { /* thẻ vẫn là liên kết */ });
+  }
+
   function renderOverview(d) {
     var h = "";
     var p = d.price;
@@ -147,6 +163,9 @@
       h += metricCard("Tra 20 năm (95% số lần tra) · cần &lt; 1 giây", sp.value == null ? "—" : fmt(sp.value) + " ms", sp.value == null ? null : sp.value < sp.target,
         sp.value == null ? 'Chưa tra lần nào — <a href="/query">tra thử</a>' : (sp.value < sp.target ? "Đạt" : "Chưa đạt") + " · " + fmt(sp.count) + " lần tra");
       h += "</div>";
+      // (v3) liên kết sang S8 — số tóm tắt nạp riêng, lỗi thì chỉ còn liên kết
+      h += '<a class="card link" id="paperLink" href="/paper" style="display:block;color:inherit;text-decoration:none"><div class="label">Tài khoản giấy (v3) · tiền giả</div>' +
+        '<div class="value small num" id="paperSum">4 tài khoản · xem dashboard ›</div></a>';
     }
 
     // Nguồn lịch sử hỏng: một câu cho người xem, một câu cho người giữ máy, kèm giờ thử
@@ -181,6 +200,7 @@
       (hist.last_backfill_vn ? '<div class="muted mt">Nến chính thức (HistData) cập nhật lần cuối ' + esc(hist.last_backfill_vn) + "</div>" : "") + "</div>";
 
     content.innerHTML = h;
+    fillPaperSummary();
     var r = document.getElementById("retry");
     if (r) r.addEventListener("click", function () { r.disabled = true; r.textContent = "Đang tải…"; loadOverview(); });
     content.querySelectorAll("[data-reload]").forEach(function (b) {

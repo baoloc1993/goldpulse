@@ -1,4 +1,6 @@
-"""(v2) S5 Chat + S6 Dự đoán + S7 Lịch FED — trang HTML và API JSON, mọi route cần khoá truy cập (PERSONAS §2).
+"""(v2) S5 Chat + S6 Dự đoán + S7 Lịch FED · (v3) S8/S9 Tài khoản giấy — trang HTML + API JSON.
+
+Mọi route cần khoá truy cập (PERSONAS §2).
 
 Không có route nào gọi Claude hay gửi lệnh giao dịch: câu hỏi chỉ được xếp vào bot_job cho tiến trình não.
 """
@@ -13,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...schemas import Json
 from ...services import chat as chat_svc
 from ...services import fed as fed_svc
+from ...services import paper as paper_svc
 from ...services import predictions as pred_svc
 from ..deps import get_session, require_operator_api, require_operator_page
 from ..limiter import limiter
@@ -123,3 +126,54 @@ async def prediction_rows(session: DB, before: Annotated[int, Query(ge=1, le=INT
 @api.get("/fed")
 async def fed(session: DB) -> Json:
     return await fed_svc.screen(session)
+
+
+# --- (v3) S8 Tài khoản giấy · S9 Nhật ký lệnh — tiền giả, web chỉ được đổi `enabled` (PERSONAS §2) -------------
+AccCode = Annotated[str, Path(pattern="^[A-Z]$")]
+
+
+class EnabledIn(BaseModel):
+    enabled: bool = Field(strict=True)
+
+
+@pages.get("/paper", response_class=HTMLResponse, include_in_schema=False)
+async def page_paper(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "paper.html", {"screen": "s8", "title": "Tài khoản giấy"})
+
+
+@pages.get("/paper/{code}", response_class=HTMLResponse, include_in_schema=False)
+async def page_paper_account(request: Request, code: AccCode, session: DB) -> HTMLResponse:
+    if not await paper_svc.account_exists(session, code):
+        raise HTTPException(404, "Không có tài khoản này")
+    return templates.TemplateResponse(
+        request, "paper_trades.html", {"screen": "s9", "title": f"Tài khoản {code}", "code": code}
+    )
+
+
+@api.get("/paper/accounts")
+async def paper_accounts(session: DB) -> Json:
+    return await paper_svc.screen(session)
+
+
+@api.get("/paper/accounts/{code}")
+async def paper_account(code: AccCode, session: DB) -> Json:
+    d = await paper_svc.account_screen(session, code)
+    if d is None:
+        raise HTTPException(404, "Không có tài khoản này")
+    return d
+
+
+@api.get("/paper/accounts/{code}/trades")
+async def paper_trades(code: AccCode, session: DB, before: Annotated[int, Query(ge=1, le=INT4)]) -> Json:
+    if not await paper_svc.account_exists(session, code):
+        raise HTTPException(404, "Không có tài khoản này")
+    return {"rows": await paper_svc.trades_page(session, code, before)}
+
+
+@api.post("/paper/accounts/{code}/enabled")
+@limiter.limit("30/minute")
+async def paper_enabled(request: Request, code: AccCode, body: EnabledIn, session: DB) -> Json:
+    if not await paper_svc.set_enabled(session, code, body.enabled):
+        raise HTTPException(404, "Không có tài khoản này")
+    await session.commit()  # commit trước khi trả — client tải lại ngay phải thấy trạng thái mới
+    return {"code": code, "enabled": body.enabled}

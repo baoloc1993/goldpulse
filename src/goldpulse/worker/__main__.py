@@ -32,7 +32,7 @@ from ..repositories import fed as fed_repo
 from ..repositories import feed as feed_repo
 from ..repositories import jobs as job_repo
 from ..services import fed as fed_svc
-from ..services import ingest, model15m, predictions, signals
+from ..services import ingest, model15m, paper, predictions, signals
 from ..services.calendar import MINUTE, NY, last_complete_day, open_minutes_of_day
 from ..services.errors import record_error
 from ..services.monitor import LAG_LIMIT_S
@@ -357,6 +357,7 @@ class Worker:
         async with session_scope() as s:
             sig = await signals.compute(s, bar_end)
             sig.pop("recent", None)
+            sig["vol96"] = await signals.vol96(s, bar_end)  # (v3) luật B tài khoản giấy
             job_id = None
             # Nến mới nhất phải là nến vừa đóng ngay trước mốc — 18:00 NY mở cửa thì nến cuối là 16:45 (trước giờ
             # nghỉ / cuối tuần), không phải "nến vừa đóng" (AC-10)
@@ -388,8 +389,12 @@ class Worker:
                     s, "Bot dừng giữa chừng nhiều lần — bấm Gửi lại, hoặc kiểm tra `make brain` trên máy chủ."
                 )
                 await job_repo.expire_pending(s, "signal_prediction", 300, "Quá hạn — não không xử kịp nến này")
-            if scored or expired:
-                log.info("scored", predictions=scored, chat_expired=len(expired))
+            async with session_scope() as s:
+                opened, closed = await paper.tick(s)  # (v3) luồng I/J — tài khoản giấy, tiền giả
+            if scored or expired or opened or closed:
+                log.info(
+                    "scored", predictions=scored, chat_expired=len(expired), paper_open=opened, paper_closed=closed
+                )
             await self.sleep(60)
 
     # --- H. Lịch FED (v2) -------------------------------------------------------------

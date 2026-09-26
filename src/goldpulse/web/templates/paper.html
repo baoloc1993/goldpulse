@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block body %}
+<a class="back tap" href="/predictions">‹ Dự đoán</a>
+<h1>Tài khoản giấy</h1>
+<div id="content" aria-live="polite">
+  <div class="head3"><div class="skel head"></div><div class="skel head"></div><div class="skel head"></div></div>
+  <div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>
+  <div class="skel curve"></div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/paper.js" defer></script>{% endblock %}

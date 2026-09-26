@@ -337,6 +337,22 @@
     var CONF = { low: "thấp", medium: "vừa", high: "cao" };
 
     function rateText(a) { return a.scored ? fmt(a.rate, 1) + "%" : "—"; }
+    // (v3) thẻ đầu màn sang S8 — số nạp riêng từ API của S8, lỗi thì chỉ còn liên kết
+    var paperSum = null;
+    function paperCard() {
+      return '<a class="card link" href="/paper" style="display:block;color:inherit;text-decoration:none"><div class="label">Tài khoản giấy (v3) · 4 luật · tiền giả</div>' +
+        '<div class="value small num" id="paperSum">' + (paperSum || "xem dashboard ›") + "</div></a>";
+    }
+    function loadPaper() {
+      api("/api/paper/accounts").then(function (d) {
+        var p = d.today_pnl;
+        paperSum = "Hôm nay " + '<span class="' + (p > 0 ? "up" : p < 0 ? "down" : "") + '">' + signed(p, 2) + " USD</span> · " + d.today_trades + " lệnh · " +
+          d.accounts.map(function (a) { return esc(a.code) + " " + fmt(a.equity, 2) + (a.enabled ? "" : " (tắt)"); }).join(" · ") + " ›";
+        var el = document.getElementById("paperSum");
+        if (el) el.innerHTML = paperSum;
+      }).catch(function () { /* thẻ vẫn là liên kết */ });
+    }
+    loadPaper();
     function rowHtml(r) {
       var out = r.outcome === "pending" ? ["warn", "Chấm lúc " + r.due_vn] : OUT[r.outcome];
       var sig = r.signals || {};
@@ -367,7 +383,7 @@
         var lv = d.live, why = lv.can_suggest ? "" : lv.no_suggest_reason === "market_closed"
           ? " Hiện thị trường đang nghỉ nên bot tạm không dự đoán."
           : " Hiện giá realtime đang trễ nên bot tạm không dự đoán.";
-        content.innerHTML = '<div class="empty"><p>Chưa có dự đoán nào — bot tự dự đoán khi thị trường mở, giá realtime tươi và có ≥ 2 tín hiệu 15 phút cùng hướng — hoặc khi bạn hỏi "tăng hay giảm".' +
+        content.innerHTML = paperCard() + '<div class="empty"><p>Chưa có dự đoán nào — bot tự dự đoán khi thị trường mở, giá realtime tươi và có ≥ 2 tín hiệu 15 phút cùng hướng — hoặc khi bạn hỏi "tăng hay giảm".' +
           esc(why) + " Nến 15 phút gần nhất: " + esc(sigText(d.signal)) + '.</p><a href="/chat">Sang Chat hỏi thử</a></div>';
         return;
       }
@@ -379,7 +395,7 @@
       else if (a.scored < s.min_scored) note = a.scored + " lần đã chấm · " + (s.verdict === "go" ? "đã xác nhận — GO" : "dưới " + s.confirm_line + "% — chạy tiếp tới " + s.min_scored + " lần");
       else note = a.scored + " lần đã chấm · " + (s.verdict === "go" ? "GO" : s.verdict === "kill" ? "dưới 50% — KILL" : "50–55% — PIVOT");
       var bs = s.by_source;
-      content.innerHTML =
+      content.innerHTML = paperCard() +
         '<div class="' + cls + '"><div class="label">Dự đoán tự động (mô hình) · xác nhận khi đủ ' + s.min_confirm + " lần: ≥ " + s.confirm_line + '% là GO</div><div class="value num">' + rateText(a) +
         '</div><div class="muted num">' + esc(note) + " · " + a.correct + " đúng · " + a.wrong + " sai" + (a.pending ? " · " + a.pending + " chờ chấm" : "") + "</div></div>" +
         '<div class="grid g2">' +

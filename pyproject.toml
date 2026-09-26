@@ -44,6 +44,10 @@ extend-exclude = []
 select = ["E", "F", "I", "B", "UP", "ASYNC"]
 ignore = ["B008"]
 
+[tool.ruff.lint.per-file-ignores]
+# Công cụ dòng lệnh chạy tay (tua lại lịch sử) — đọc/ghi file JSONL đồng bộ là chủ ý
+"src/goldpulse/eval/*" = ["ASYNC230", "ASYNC240"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

@@ -34,9 +34,10 @@ def child_env() -> dict[str, str]:
 class ClaudeCli:
     name = "cli"
 
-    def __init__(self, bin_path: str, model: str, timeout: float) -> None:
+    def __init__(self, bin_path: str, model: str, timeout: float, effort: str = "medium") -> None:
         self.bin = bin_path
         self.model = model
+        self.effort = effort
         self.timeout = timeout
         self.cwd = Path(tempfile.gettempdir()) / "goldpulse-brain"
         self.cwd.mkdir(exist_ok=True)
@@ -46,7 +47,7 @@ class ClaudeCli:
 
     async def ask(self, system: str, user: str, schema: dict[str, Any]) -> BrainReply:
         args = [
-            self.bin, "-p", "--output-format", "json", "--model", self.model,
+            self.bin, "-p", "--output-format", "json", "--model", self.model, "--effort", self.effort,
             "--tools", "", "--strict-mcp-config", "--no-session-persistence",
             "--system-prompt", system, "--json-schema", json.dumps(schema, ensure_ascii=False),
         ]  # fmt: skip
@@ -95,6 +96,7 @@ class ClaudeCli:
                 "backend": self.name,
                 "model": models[0] if models else self.model,
                 "seconds": elapsed,
+                "effort": self.effort,
                 "input_tokens": usage.get("input_tokens"),
                 "output_tokens": usage.get("output_tokens"),
                 "cost_usd": body.get("total_cost_usd"),

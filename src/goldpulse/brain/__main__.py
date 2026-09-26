@@ -75,7 +75,9 @@ def make_backend() -> Brain:
         return ClaudeApi(settings.anthropic_api_key, settings.claude_api_model, settings.brain_timeout_seconds)
     from ..integrations.claude_cli import ClaudeCli
 
-    return ClaudeCli(settings.claude_cli_bin, settings.claude_cli_model, settings.brain_timeout_seconds)
+    return ClaudeCli(
+        settings.claude_cli_bin, settings.claude_cli_model, settings.brain_timeout_seconds, settings.claude_cli_effort
+    )
 
 
 def compose_answer(data: dict[str, Any], live: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:

@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # fake = câu mẫu theo schema, chỉ cho test / dogfood đợt 1 (bị chặn ở production)
     brain_backend: Literal["cli", "api", "fake"] = "cli"
     claude_cli_model: str = "opus"
+    # Mức nghĩ của `claude -p` — mặc định của Claude Code rất cao (76 giây/câu, đo thật 2026-09-26) > trần 60s AC-6
+    claude_cli_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     claude_cli_bin: str = "claude"
     anthropic_api_key: str | None = None
     claude_api_model: str = "claude-opus-5"

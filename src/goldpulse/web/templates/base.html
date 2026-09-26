@@ -21,7 +21,7 @@
   <a href="/coverage" class="{{ 'on' if screen == 's2' }}" {% if screen == 's2' %}aria-current="page"{% endif %}>Độ phủ</a>
   <a href="/query" class="{{ 'on' if screen == 's3' }}" {% if screen == 's3' %}aria-current="page"{% endif %}>Tra thử</a>
   <a href="/chat" class="{{ 'on' if screen in ('s5', 's7') }}" {% if screen == 's5' %}aria-current="page"{% endif %}>Chat</a>
-  <a href="/predictions" class="{{ 'on' if screen == 's6' }}" {% if screen == 's6' %}aria-current="page"{% endif %}>Dự đoán</a>
+  <a href="/predictions" class="{{ 'on' if screen in ('s6', 's8', 's9') }}" {% if screen == 's6' %}aria-current="page"{% endif %}>Dự đoán</a>
 </nav>
 <script src="/static/app.js" defer></script>
 {% block scripts %}{% endblock %}

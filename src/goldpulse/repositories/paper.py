@@ -199,12 +199,14 @@ async def trades_today(session: AsyncSession, day: date) -> dict[str, dict[str, 
     return {c: {"closed": int(n), "wins": int(w)} for c, n, w in rows}
 
 
-async def latest_close(session: AsyncSession, not_before: datetime) -> dict[str, Any] | None:
-    """Nến phút mới nhất (ts ≥ not_before) — giá tạm tính lãi/lỗ lệnh mở, kiểm cháy."""
+async def latest_close(session: AsyncSession, not_before: datetime, at: datetime) -> dict[str, Any] | None:
+    """Nến phút mới nhất trong [not_before, at] — giá tạm tính lãi/lỗ lệnh mở, kiểm cháy. Chặn trên bởi `at` để
+    tua lại lịch sử (seed dogfood) không nhìn giá tương lai."""
     row = (
         (
             await session.execute(
-                text("SELECT ts, close FROM candle_1m WHERE ts >= :nb ORDER BY ts DESC LIMIT 1"), {"nb": not_before}
+                text("SELECT ts, close FROM candle_1m WHERE ts >= :nb AND ts <= :at ORDER BY ts DESC LIMIT 1"),
+                {"nb": not_before, "at": at},
             )
         )
         .mappings()

@@ -41,7 +41,7 @@
   function ruleText(a) {
     var r = a.rule || {}, h = r.horizon_minutes === 60 ? "giữ 60 phút" : "giữ 15 phút";
     if (r.kind === "volatility") return "chỉ khi biến động 1 ngày ≥ " + fmt(r.min_vol, 1) + " USD/nến 15 phút · " + h;
-    if (r.kind === "confidence") return "chỉ khi mô hình chắc (|p − 0,5| ≥ " + fmt(r.min_conf, 3) + ") · " + h;
+    if (r.kind === "confidence") return "chỉ khi mô hình chắc (|p − 0.5| ≥ " + fmt(r.min_conf, 3) + ") · " + h;
     return "mọi dự đoán tự động · " + h;
   }
   function sw(a) {
@@ -109,16 +109,17 @@
 
     function curve(accs) {
       var have = accs.some(function (a) { return a.curve.length; });
-      if (!have) return '<div class="curve"><div class="skel" style="height:120px;margin:0"></div><div class="muted mt">Có số sau ngày giao dịch đầu tiên.</div></div>';
+      if (!have) return '<div class="curve"><div class="skel chartbox"></div><div class="muted mt">Có số sau ngày giao dịch đầu tiên.</div></div>';
       var dates = {};
       accs.forEach(function (a) { a.curve.forEach(function (p) { dates[p.date] = 1; }); });
       var days = Object.keys(dates).sort().slice(-20);
-      var W = 320, H = 120, pad = 8, max = 10, min = 0;
+      // viewBox theo đúng bề rộng thật → chữ trục không bị kéo giãn (SVG không co giãn tỉ lệ)
+      var W = Math.max(240, Math.round(content.clientWidth - 16)), H = 120, padL = 26, padR = 8, padT = 8, padB = 16, max = 10, min = 0;
       accs.forEach(function (a) { a.curve.forEach(function (p) { if (p.end > max) max = p.end; }); });
       max = Math.ceil(max + 1);
-      function x(i) { return pad + (W - 2 * pad) * (days.length === 1 ? 0.5 : i / (days.length - 1)); }
-      function y(v) { return pad + (H - 2 * pad - 10) * (1 - (v - min) / (max - min)); }
-      var out = '<line x1="0" x2="' + W + '" y1="' + y(10) + '" y2="' + y(10) + '" stroke="var(--color-border)" stroke-width="1"/>';
+      function x(i) { return padL + (W - padL - padR) * (days.length === 1 ? 0.5 : i / (days.length - 1)); }
+      function y(v) { return padT + (H - padT - padB) * (1 - (v - min) / (max - min)); }
+      var out = '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(10) + '" y2="' + y(10) + '" stroke="var(--color-border)" stroke-width="1"/>';
       accs.forEach(function (a) {
         var pts = a.curve.filter(function (p) { return days.indexOf(p.date) >= 0; });
         if (!pts.length) return;
@@ -130,14 +131,16 @@
       var ticks = days.length > 3 ? [0, Math.floor((days.length - 1) / 2), days.length - 1] : days.map(function (_, i) { return i; });
       ticks.forEach(function (i) {
         var p = days[i].split("-");
-        out += '<text x="' + x(i) + '" y="' + (H - 1) + '" font-size="9" fill="var(--color-text-muted)" text-anchor="' + (i === 0 ? "start" : i === days.length - 1 ? "end" : "middle") + '">' + p[2] + "/" + p[1] + "</text>";
+        out += '<text x="' + x(i) + '" y="' + (H - 1) + '" font-size="10" fill="var(--color-text-muted)" text-anchor="' + (i === 0 ? "start" : i === days.length - 1 ? "end" : "middle") + '">' + p[2] + "/" + p[1] + "</text>";
       });
-      out += '<text x="2" y="' + (y(10) - 2) + '" font-size="9" fill="var(--color-text-muted)">10</text><text x="2" y="' + (y(max) + 8) + '" font-size="9" fill="var(--color-text-muted)">' + max + "</text>";
+      out += '<text x="' + (padL - 4) + '" y="' + (y(10) + 3) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">10</text>' +
+        '<text x="' + (padL - 4) + '" y="' + (y(max) + 8) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">' + max + '</text>' +
+        '<text x="' + (padL - 4) + '" y="' + (y(0) + 3) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">0</text>';
       var legend = accs.map(function (a) {
         return '<span><svg viewBox="0 0 28 10" aria-hidden="true"><line x1="0" y1="5" x2="28" y2="5" stroke="' + (a.enabled ? "var(--color-text)" : "var(--color-text-muted)") +
           '" stroke-width="2"' + (DASH[a.code] ? ' stroke-dasharray="' + DASH[a.code] + '"' : "") + "/></svg>" + esc(a.code) + " " + esc(a.name) + (a.enabled ? "" : " (tắt)") + "</span>";
       }).join("");
-      return '<div class="curve"><svg class="chart" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" role="img" aria-label="Số dư cuối ngày ' + days.length + ' ngày">' + out +
+      return '<div class="curve"><svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Số dư cuối ngày ' + days.length + ' ngày">' + out +
         '</svg><div class="legend">' + legend + "</div></div>";
     }
 
@@ -151,12 +154,12 @@
       h += d.worker_alive
         ? '<div><span class="badge ok">Worker đang chạy · khớp lệnh mỗi phút</span></div>'
         : '<div class="error" role="alert"><p>Worker không chạy — lệnh không được khớp và không được đóng. Số dưới đây là lần cập nhật cuối. Trên máy chủ: <span class="num">make deploy</span> (hoặc <span class="num">make dev</span>).</p><button class="btn" type="button" data-reload>Tải lại</button></div>';
-      h += '<div class="fake">Tiền giả — sổ ghi trong hệ thống, không nối sàn nào. Mỗi tài khoản bắt đầu lại 10,00 USD mỗi ngày giao dịch (05:00 giờ VN = 18:00 New York).</div>';
+      h += '<div class="fake">Tiền giả — sổ ghi trong hệ thống, không nối sàn nào. Mỗi tài khoản bắt đầu lại 10.00 USD mỗi ngày giao dịch (05:00 giờ VN = 18:00 New York).</div>';
       h += d.accounts.map(accRow).join("");
       h += "<h2>Số dư cuối ngày · 20 ngày</h2>" + curve(d.accounts);
       h += '<h2>Luật</h2><div class="muted rules">' + d.accounts.map(function (a) {
         return "<p><strong>" + esc(a.code) + " " + esc(a.name) + "</strong> — " + esc(ruleText(a)) + ".</p>";
-      }).join("") + "<p>Chung: " + fmt(d.accounts[0] ? d.accounts[0].oz : 1, 0) + " oz (0,01 lot) · đòn bẩy 1:" + (d.accounts[0] ? d.accounts[0].leverage : 1000) +
+      }).join("") + "<p>Chung: " + fmt(d.accounts[0] ? d.accounts[0].oz : 1, 0) + " oz (0.01 lot) · đòn bẩy 1:" + (d.accounts[0] ? d.accounts[0].leverage : 1000) +
         " · spread " + fmt(d.accounts[0] ? d.accounts[0].spread : 0.3, 2) + " USD/oz · không cắt lỗ theo điểm, chỉ cháy khi số dư về 0. Sau 4 tuần: luật nào ≥ " +
         d.thresholds.go_min_trades + " lệnh, lãi sau phí > 0 và cháy ≤ " + Math.round(100 * d.thresholds.go_max_burn_ratio) + "% số ngày là GO.</p></div>";
       content.innerHTML = h;

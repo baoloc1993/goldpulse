@@ -147,7 +147,7 @@ async def close_due(session: AsyncSession, now: datetime | None = None) -> int:
                     await _close(session, acc, t, float(c["close"]), "market_close", t["due_at"])
             closed += 1
             continue
-        c = await repo.latest_close(session, now - MTM_MAX_AGE)
+        c = await repo.latest_close(session, now - MTM_MAX_AGE, now)
         if not c:
             continue  # nguồn giá đứng — không cháy ảo, không đóng (ARCHITECTURE §6 ca biên)
         if not is_market_open(now):
@@ -240,7 +240,7 @@ async def screen(session: AsyncSession, now: datetime | None = None) -> dict[str
 
     now = now or datetime.now(UTC)
     live = await live_state(session, now.astimezone(VN))
-    c = await repo.latest_close(session, now - timedelta(days=3))
+    c = await repo.latest_close(session, now - timedelta(days=3), now)
     mark = float(c["close"]) if c else None
     accounts = [await account_view(session, a, now, mark) for a in await repo.accounts(session)]
     return {
@@ -264,7 +264,7 @@ async def account_screen(session: AsyncSession, code: str, now: datetime | None 
     acc = await repo.get_account(session, code)
     if not acc:
         return None
-    c = await repo.latest_close(session, now - timedelta(days=3))
+    c = await repo.latest_close(session, now - timedelta(days=3), now)
     view = await account_view(session, acc, now, float(c["close"]) if c else None)
     view["rows"] = await trades_page(session, code, None)
     return view
@@ -284,7 +284,7 @@ async def set_enabled(session: AsyncSession, code: str, enabled: bool) -> bool:
 
 async def pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
     """Khối `paper` trong gói dữ liệu cho não — 4 hàng tóm tắt, nói rõ tiền giả (AC-15)."""
-    c = await repo.latest_close(session, now - timedelta(days=3))
+    c = await repo.latest_close(session, now - timedelta(days=3), now)
     mark = float(c["close"]) if c else None
     out = []
     for a in await repo.accounts(session):

@@ -206,3 +206,5 @@ body[data-screen="s5"] .wrap { padding-bottom: 180px; }
 .titlebar { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
 .titlebar h1 { margin: 0; }
 .rules p { margin: 0 0 var(--space-sm); }
+a.card.link { display: block; color: inherit; text-decoration: none; }
+.skel.chartbox { height: 120px; margin: 0; }

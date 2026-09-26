@@ -164,7 +164,7 @@
         sp.value == null ? 'Chưa tra lần nào — <a href="/query">tra thử</a>' : (sp.value < sp.target ? "Đạt" : "Chưa đạt") + " · " + fmt(sp.count) + " lần tra");
       h += "</div>";
       // (v3) liên kết sang S8 — số tóm tắt nạp riêng, lỗi thì chỉ còn liên kết
-      h += '<a class="card link" id="paperLink" href="/paper" style="display:block;color:inherit;text-decoration:none"><div class="label">Tài khoản giấy (v3) · tiền giả</div>' +
+      h += '<a class="card link" id="paperLink" href="/paper"><div class="label">Tài khoản giấy (v3) · tiền giả</div>' +
         '<div class="value small num" id="paperSum">4 tài khoản · xem dashboard ›</div></a>';
     }
 

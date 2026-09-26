@@ -371,16 +371,19 @@
           esc(why) + " Nến 15 phút gần nhất: " + esc(sigText(d.signal)) + '.</p><a href="/chat">Sang Chat hỏi thử</a></div>';
         return;
       }
-      var cls = s.scored < s.min_scored ? "card" : s.rate >= s.go ? "card pass" : s.rate < s.kill ? "card fail" : "card";
-      var note = s.scored < s.min_scored
-        ? s.scored + " / " + s.min_scored + " lần đã chấm · chưa đủ mẫu để kết luận"
-        : s.scored + " lần đã chấm · " + (s.verdict === "go" ? "đạt ngưỡng GO" : s.verdict === "kill" ? "dưới 50% — KILL" : "50–55% — PIVOT");
+      // Thẻ chính = dự đoán TỰ ĐỘNG của mô hình (PRD §6 phương án 2): xác nhận khi đủ 40 lần ≥ 50%
+      var a = s.auto, bt = s.backtest;
+      var cls = s.verdict === "go" ? "card pass" : s.verdict === "kill" ? "card fail" : "card";
+      var note;
+      if (a.scored < s.min_confirm) note = a.scored + " / " + s.min_confirm + " lần đã chấm · kiểm lịch sử " + bt.period + ": " + fmt(bt.accuracy_pct, 1) + "% trên " + fmt(bt.n) + " lần";
+      else if (a.scored < s.min_scored) note = a.scored + " lần đã chấm · " + (s.verdict === "go" ? "đã xác nhận — GO" : "dưới " + s.confirm_line + "% — chạy tiếp tới " + s.min_scored + " lần");
+      else note = a.scored + " lần đã chấm · " + (s.verdict === "go" ? "GO" : s.verdict === "kill" ? "dưới 50% — KILL" : "50–55% — PIVOT");
       var bs = s.by_source;
       content.innerHTML =
-        '<div class="' + cls + '"><div class="label">Tỉ lệ đúng · cần ≥ ' + s.go + "% khi đủ " + s.min_scored + ' lần</div><div class="value num">' + rateText(s) +
-        '</div><div class="muted num">' + esc(note) + " · " + s.correct + " đúng · " + s.wrong + " sai" + (s.pending ? " · " + s.pending + " chờ chấm" : "") + "</div></div>" +
+        '<div class="' + cls + '"><div class="label">Dự đoán tự động (mô hình) · xác nhận khi đủ ' + s.min_confirm + " lần: ≥ " + s.confirm_line + '% là GO</div><div class="value num">' + rateText(a) +
+        '</div><div class="muted num">' + esc(note) + " · " + a.correct + " đúng · " + a.wrong + " sai" + (a.pending ? " · " + a.pending + " chờ chấm" : "") + "</div></div>" +
         '<div class="grid g2">' +
-        '<div class="card"><div class="label">Tự động (có tín hiệu)</div><div class="value num">' + bs.auto.scored + " · " + rateText(bs.auto) + "</div></div>" +
+        '<div class="card"><div class="label">Gộp cả chat</div><div class="value num">' + s.scored + " · " + rateText(s) + "</div></div>" +
         '<div class="card"><div class="label">Từ chat</div><div class="value num">' + bs.chat.scored + " · " + rateText(bs.chat) + "</div></div>" +
         '<div class="card"><div class="label">Đứng giá / không chấm</div><div class="value num">' + s.flat + " / " + s.unscored + "</div>" +
         (d.skipped_errors ? '<div class="muted">' + d.skipped_errors + " lần bỏ qua vì lỗi não</div>" : "") + "</div>" +

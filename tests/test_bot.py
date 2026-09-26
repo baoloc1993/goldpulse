@@ -101,7 +101,10 @@ def test_outcome_rules():
     assert predictions.outcome_of("down", 100.0, 100.5) == "wrong"
     assert predictions.outcome_of("up", 100.0, 100.005) == "flat"
     assert predictions.outcome_of("up", 100.0, None) == "unscored"
-    assert predictions.verdict(60.0, 99) == "pending"  # chưa đủ 100 lần — chưa kết luận
+    # PRD §6 phương án 2 (2026-09-26): xác nhận khi đủ 40 lần tự động ≥ 50%; dưới thì chạy tiếp tới 100
+    assert predictions.verdict(70.0, 39) == "pending"
+    assert predictions.verdict(50.0, 40) == "go"
+    assert predictions.verdict(47.5, 40) == "pending"  # chưa KILL ở 40 lần — chạy tiếp
     assert predictions.verdict(55.0, 100) == "go"
     assert predictions.verdict(52.0, 150) == "pivot"
     assert predictions.verdict(49.9, 150) == "kill"

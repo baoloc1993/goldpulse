@@ -232,12 +232,18 @@ async def test_accuracy_counts_only_correct_and_wrong_and_waits_for_100_scored(d
     assert sm["verdict"] == "pending"  # 75% nhưng mới 4 lần chấm — chưa được kết luận GO
     assert sm["by_source"]["auto"]["rate"] == 100.0 and sm["by_source"]["chat"]["rate"] == 0.0
 
-    # Đủ 100 lần chấm: 55 đúng / 45 sai = 55% → go (flat vẫn không tính)
+    # Chat nhiều mấy cũng KHÔNG vào phán quyết (PRD §6 phương án 2: chỉ dự đoán tự động của mô hình)
     await _bulk(db, 52, "chat", "up", "correct", 1000)
     await _bulk(db, 44, "chat", "down", "wrong", 2000)
     async with db() as s:
         sm = await predictions.summary(s)
-    assert sm["scored"] == 100 and sm["rate"] == 55.0 and sm["verdict"] == "go"
+    assert sm["scored"] == 100 and sm["rate"] == 55.0 and sm["verdict"] == "pending"
+    # Đủ 40 lần tự động, 20/40 = 50% → xác nhận GO
+    await _bulk(db, 17, "auto", "up", "correct", 3000)
+    await _bulk(db, 20, "auto", "down", "wrong", 4000)
+    async with db() as s:
+        sm = await predictions.summary(s)
+    assert sm["auto"]["scored"] == 40 and sm["auto"]["rate"] == 50.0 and sm["verdict"] == "go"
 
 
 # --- 3. Não xử job dự đoán tự động -----------------------------------------------------------------

@@ -14,6 +14,7 @@ from ..repositories import candles as candle_repo
 from ..repositories import feed as feed_repo
 from ..repositories import jobs as job_repo
 from ..repositories import predictions as pred_repo
+from . import model15m
 from .calendar import VN
 
 SCORE_GRACE_S = 90  # nến phút cuối trước due_at đã được ghi
@@ -21,6 +22,10 @@ PRICE_WINDOW = timedelta(minutes=5)
 FLAT_USD = 0.01
 GO, KILL = 55.0, 50.0
 MIN_SCORED = 100
+# PRD §6 (chủ dự án chốt 2026-09-26, phương án 2): bằng chứng chính = kiểm lịch sử của mô hình; chạy thật chỉ để
+# XÁC NHẬN — đủ 40 dự đoán tự động đã chấm mà ≥ 50% là GO; dưới 50% thì chạy tiếp tới 100 rồi áp 55/50
+MIN_CONFIRM = 40
+CONFIRM_LINE = 50.0
 
 
 async def price_at(session: AsyncSession, at: datetime) -> float | None:
@@ -88,9 +93,12 @@ def _rate(correct: int, wrong: int) -> float | None:
 
 
 def verdict(rate: float | None, scored: int) -> str:
-    """GO / PIVOT / KILL chỉ khi đủ 100 lần đã chấm (PRD §6); chưa đủ → 'pending'."""
-    if rate is None or scored < MIN_SCORED:
+    """Phán quyết trên dự đoán TỰ ĐỘNG (PRD §6): < 40 lần → pending · 40–99 lần: ≥ 50% → go, dưới → pending (chạy
+    tiếp) · ≥ 100 lần: ≥ 55% go · 50–55% pivot · < 50% kill."""
+    if rate is None or scored < MIN_CONFIRM:
         return "pending"
+    if scored < MIN_SCORED:
+        return "go" if rate >= CONFIRM_LINE else "pending"
     return "go" if rate >= GO else "pivot" if rate >= KILL else "kill"
 
 
@@ -112,9 +120,16 @@ async def summary(session: AsyncSession) -> dict[str, Any]:
         }
 
     total = agg(lambda r: True)
+    auto = agg(lambda r: r["source"] == "auto")
+    md = model15m.model()["metrics"]["test_2025_2026"]
     return {
         **total,
-        "verdict": verdict(total["rate"], total["scored"]),
+        "auto": auto,
+        # Phán quyết chỉ trên dự đoán tự động — cái đã kiểm lịch sử; chat do Claude tự chọn hướng, hiện riêng
+        "verdict": verdict(auto["rate"], auto["scored"]),
+        "backtest": {"accuracy_pct": md["accuracy_pct"], "n": md["n"], "period": "2025–2026"},
+        "min_confirm": MIN_CONFIRM,
+        "confirm_line": CONFIRM_LINE,
         "min_scored": MIN_SCORED,
         "go": GO,
         "kill": KILL,

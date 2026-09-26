@@ -4,6 +4,7 @@
     python -m goldpulse.eval.replay run --samples data/eval/samples.jsonl --split train --prompt <file.md> \
         --name v1 --budget 20
     python -m goldpulse.eval.replay report data/eval/run-*.jsonl
+    python -m goldpulse.eval.replay day --date 2026-09-25 --days 5     # đi tới từng ngày, đúng luật production
 
 Chống "biết trước": gói không có ngày, không có lịch FED, mức giá dời một khoảng ngẫu nhiên (RSI/%b/biên độ không đổi).
 Chấm như production: close nến 15 phút kế tiếp so close nến có tín hiệu; |Δ| < 0,01 → loại.
@@ -26,6 +27,7 @@ from ..db import SessionLocal, engine
 from ..integrations.claude_base import BrainError
 from ..integrations.claude_cli import ClaudeCli
 from ..repositories import candles as candle_repo
+from ..services import fed as fed_svc
 from ..services import signals
 from ..services.calendar import VN
 from ..services.context_pack import WEEKDAYS
@@ -136,6 +138,84 @@ async def build_pack(r: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------- đi tới từng ngày (walk-forward)
+async def build_live_pack(bar_end: datetime) -> dict[str, Any]:
+    """Gói y như `context_pack.build_prediction` tại thời điểm `bar_end`: ngày giờ thật, FED tại thời điểm đó,
+    chỉ nến đã đóng TRƯỚC `bar_end` — không có gì của tương lai."""
+    async with SessionLocal() as s:
+        sig = await signals.compute(s, bar_end)
+        ctx = await signals.context(s, bar_end, sig["last_close"])
+        fed = await fed_svc.pack(s, bar_end)
+    local = bar_end.astimezone(VN)
+    recent = sig.pop("recent")
+    return {
+        "now_vn": f"{WEEKDAYS[local.weekday()]} {local:%d/%m/%Y %H:%M}",
+        "timezone": "Giờ Việt Nam (UTC+7)",
+        "live": {"price": sig["last_close"], "fresh": True, "market_open": True, "can_suggest": True},
+        "signals_15m": {**sig, "rules": RULES, "backtest": BACKTEST},
+        "bars_15m_recent": recent,
+        "context_no_predictive_power": {
+            **ctx,
+            "note": "Vị trí trong biên 5/20/60 ngày và RSI 14 khung 1h/4h/1D KHÔNG đoán được 15 phút kế tiếp"
+            " (backtest).",
+        },
+        "fed": fed,
+        "trigger": {"bar_end": bar_end.isoformat()},
+    }
+
+
+async def cmd_day(a: argparse.Namespace) -> None:
+    last = date.fromisoformat(a.date)
+    first = last - timedelta(days=a.days - 1)
+    rows, _ = await all_signal_bars(first, last + timedelta(days=1))
+    picks = [r for r in rows if signals.auto_trigger(r)]  # đúng luật production: ≥ 2 tín hiệu cùng hướng
+    system = Path(a.prompt).read_text(encoding="utf-8")
+    brain = ClaudeCli(settings.claude_cli_bin, a.model, settings.brain_timeout_seconds, a.effort)
+    out = Path(f"data/eval/day-{first}-{last}.jsonl")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    sem = asyncio.Semaphore(a.concurrency)
+    results: list[dict[str, Any]] = []
+
+    async def one(r: dict[str, Any]) -> None:
+        async with sem:
+            be = datetime.fromisoformat(r["bar_end"])
+            pack = await build_live_pack(be)
+            try:
+                rep_ = await brain.ask(system, json.dumps({"data": pack}, ensure_ascii=False, default=str), SCHEMA)
+                d = rep_.data
+                res = {**r, "direction": d.get("direction"), "confidence": d.get("confidence"),
+                       "reason": d.get("reason"), "cost_usd": rep_.usage.get("cost_usd")}  # fmt: skip
+            except BrainError as e:
+                res = {**r, "error": e.message}
+            results.append(res)
+
+    print(f"{first} → {last}: {len(rows)} nến có tín hiệu, {len(picks)} nến đủ luật ≥ 2 tín hiệu → gọi bot", flush=True)
+    await asyncio.gather(*(one(r) for r in picks))
+    results.sort(key=lambda r: r["bar_end"])
+    out.write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in results) + "\n", encoding="utf-8")
+    ok = [r for r in results if r.get("direction")]
+    print(f"\n{'giờ VN':12} {'tín hiệu':22} {'giá lúc đoán':>12} {'15 phút sau':>11}  bot     thật    kết quả")
+    for r in results:
+        t = datetime.fromisoformat(r["bar_end"]).astimezone(VN).strftime("%d/%m %H:%M")
+        names = "+".join(f["name"] for f in r["fired"]) + (" ▲" if r["hint"] == "up" else " ▼")
+        if r.get("error"):
+            print(f"{t:12} {names:22} lỗi: {r['error'][:60]}")
+            continue
+        mark = "ĐÚNG" if r["direction"] == r["actual"] else "sai"
+        arrow = {"up": "▲ tăng", "down": "▼ giảm"}
+        print(f"{t:12} {names:22} {r['close']:12.2f} {r['next_close']:11.2f}  {arrow[r['direction']]:7} "
+              f"{arrow[r['actual']]:7} {mark}  ({r['confidence']})")  # fmt: skip
+    if ok:
+        c = sum(r["direction"] == r["actual"] for r in ok)
+        rule = sum(r["hint"] == r["actual"] for r in ok)
+        cost = sum(r.get("cost_usd") or 0 for r in results)
+        print(
+            f"\nBot đúng {c}/{len(ok)} = {100 * c / len(ok):.0f}% · luật (theo tín hiệu) {rule}/{len(ok)}"
+            f" · {cost:.2f} USD credit"
+        )
+    print(f"→ {out}")
+
+
 # ---------------------------------------------------------------------------- chạy
 async def cmd_run(a: argparse.Namespace) -> None:
     samples = [json.loads(x) for x in Path(a.samples).read_text(encoding="utf-8").splitlines() if x.strip()]
@@ -242,6 +322,13 @@ def main() -> None:
     rp.add_argument("--concurrency", type=int, default=4)
     rp.add_argument("--model", default=settings.claude_cli_model)
     rp.add_argument("--effort", default=settings.claude_cli_effort)
+    dp = sub.add_parser("day")
+    dp.add_argument("--date", required=True, help="ngày cuối (UTC), vd 2026-09-25")
+    dp.add_argument("--days", type=int, default=1)
+    dp.add_argument("--prompt", default=str(ROOT / "src/goldpulse/brain/prompts/predict.md"))
+    dp.add_argument("--concurrency", type=int, default=2)
+    dp.add_argument("--model", default=settings.claude_cli_model)
+    dp.add_argument("--effort", default=settings.claude_cli_effort)
     rep = sub.add_parser("report")
     rep.add_argument("paths", nargs="+")
     a = ap.parse_args()
@@ -250,6 +337,8 @@ def main() -> None:
         try:
             if a.cmd == "sample":
                 await cmd_sample(a)
+            elif a.cmd == "day":
+                await cmd_day(a)
             elif a.cmd == "run":
                 await cmd_run(a)
         finally:

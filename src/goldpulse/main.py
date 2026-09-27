@@ -24,7 +24,66 @@ log = structlog.get_logger("web")
 
 app = FastAPI(title="GoldPulse", docs_url=None, redoc_url=None, openapi_url=None)
 app.state.limiter = limiter
-app.mount("/static", StaticFiles(directory=Path(__file__).parent / "web" / "static"), name="static")
+MAX_BODY = 64 * 1024  # mọi body hợp lệ < 3 KB (câu chat ≤ 2000 ký tự); 20 MB vẫn bị parse trọn (dogfood breaker v3)
+
+
+class SafeStatic(StaticFiles):
+    """Tên file có ký tự Windows cấm (`<`, `?`, `|`…) → os.stat ném OSError → 500 + lộ đường dẫn ở S1. Coi là 404."""
+
+    def lookup_path(self, path: str):  # type: ignore[override]
+        try:
+            return super().lookup_path(path)
+        except OSError:
+            return "", None
+
+
+class BodyLimit:
+    """ASGI: chặn body quá MAX_BODY trước khi route đọc — cả khi có Content-Length lẫn chunked."""
+
+    def __init__(self, inner) -> None:
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.inner(scope, receive, send)
+        headers = dict(scope.get("headers") or [])
+        length = headers.get(b"content-length")
+        if length is not None and length.isdigit() and int(length) > MAX_BODY:
+            return await _too_large(send)
+        seen = 0
+
+        async def limited():
+            nonlocal seen
+            msg = await receive()
+            if msg["type"] == "http.request":
+                seen += len(msg.get("body", b""))
+                if seen > MAX_BODY:
+                    raise _BodyTooLarge()
+            return msg
+
+        try:
+            await self.inner(scope, limited, send)
+        except _BodyTooLarge:
+            await _too_large(send)
+
+
+class _BodyTooLarge(Exception):
+    pass
+
+
+async def _too_large(send) -> None:
+    body = '{"detail":"Dữ liệu gửi lên quá lớn."}'.encode()
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 413,
+            "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())],
+        }
+    )
+    await send({"type": "http.response.body", "body": body})
+
+
+app.mount("/static", SafeStatic(directory=Path(__file__).parent / "web" / "static"), name="static")
 app.include_router(health.router)
 app.include_router(pages.router)
 app.include_router(api.router)
@@ -36,7 +95,9 @@ app.include_router(chat.api)
 async def _too_many(request: Request, exc: RateLimitExceeded) -> Response:
     if request.url.path == "/login":
         return pages.login_redirect("/overview", "rate")
-    return JSONResponse({"detail": "Thao tác quá nhanh — đợi 1 phút rồi thử lại."}, status_code=429)
+    return JSONResponse(
+        {"detail": "Thao tác quá nhanh — đợi 1 phút rồi thử lại."}, status_code=429, headers={"Retry-After": "60"}
+    )
 
 
 @app.exception_handler(RequestValidationError)
@@ -91,3 +152,6 @@ async def request_id(request: Request, call_next):
     if not request.url.path.startswith("/static/"):
         response.headers["cache-control"] = "no-store"  # số liệu vận hành, không để proxy/trình duyệt giữ bản cũ
     return response
+
+
+app.add_middleware(BodyLimit)  # ngoài cùng: chặn trước cả request_id/route

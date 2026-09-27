@@ -12,9 +12,11 @@ import asyncio
 import os
 import sys
 from datetime import timedelta
+from urllib.parse import urlsplit
 
 from sqlalchemy import text
 
+from goldpulse.config import settings
 from goldpulse.db import engine, session_scope
 from goldpulse.repositories import candles as candle_repo
 from goldpulse.repositories import paper as paper_repo
@@ -24,9 +26,10 @@ sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
 
 async def main(days: int) -> None:
-    db_name = os.environ.get("DATABASE_URL", "").rsplit("/", 1)[-1]
-    if db_name in ("", "goldpulse"):
-        raise SystemExit("Từ chối: seed chỉ chạy trên DB dogfood (DATABASE_URL=…/goldpulse_dev), không phải kho thật.")
+    # Danh sách TRẮNG (review v3): script TRUNCATE sổ giấy — lọt vào production là mất sổ 4 tuần của pha E
+    db_name = urlsplit(os.environ.get("DATABASE_URL", "")).path.lstrip("/")
+    if db_name not in ("goldpulse_dev", "goldpulse_dogfood") or settings.app_env == "production":
+        raise SystemExit("Từ chối: seed chỉ chạy trên goldpulse_dev / goldpulse_dogfood, APP_ENV khác production.")
     async with session_scope() as s:
         await s.execute(text("TRUNCATE paper_trade, paper_day RESTART IDENTITY"))
         await s.execute(text("DELETE FROM prediction WHERE backend = 'replay'"))

@@ -213,3 +213,18 @@ async def latest_close(session: AsyncSession, not_before: datetime, at: datetime
         .first()
     )
     return dict(row) if row else None
+
+
+async def bump_view(session: AsyncSession, day: str) -> None:
+    """worker_status['paper_views'] = {"YYYY-MM-DD": số lần mở S8/S9} — đo H2 (chủ dự án có mở thật không)."""
+    await session.execute(
+        text("""
+            INSERT INTO worker_status (key, value, updated_at)
+            VALUES ('paper_views', jsonb_build_object(CAST(:d AS text), 1), now())
+            ON CONFLICT (key) DO UPDATE SET
+                value = worker_status.value || jsonb_build_object(
+                    CAST(:d AS text), coalesce((worker_status.value ->> CAST(:d AS text))::int, 0) + 1),
+                updated_at = now()
+        """),
+        {"d": day},
+    )

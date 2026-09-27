@@ -138,7 +138,8 @@ class EnabledIn(BaseModel):
 
 
 @pages.get("/paper", response_class=HTMLResponse, include_in_schema=False)
-async def page_paper(request: Request) -> HTMLResponse:
+async def page_paper(request: Request, session: DB) -> HTMLResponse:
+    await paper_svc.record_view(session)  # H2 EXPERIMENTS-v3
     return templates.TemplateResponse(request, "paper.html", {"screen": "s8", "title": "Tài khoản giấy"})
 
 
@@ -147,6 +148,7 @@ async def page_paper_account(request: Request, code: str, session: DB) -> HTMLRe
     # Trang HTML: mã sai kiểu (/paper/a) → 404 tử tế như /paper/Z, không 422 JSON (dogfood edge 2026-09-27)
     if not re.fullmatch(r"[A-Z]", code) or not await paper_svc.account_exists(session, code):
         raise HTTPException(404, "Không có tài khoản này")
+    await paper_svc.record_view(session)
     return templates.TemplateResponse(
         request, "paper_trades.html", {"screen": "s9", "title": f"Tài khoản {code}", "code": code}
     )

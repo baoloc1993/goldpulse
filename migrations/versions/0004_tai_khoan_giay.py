@@ -89,6 +89,13 @@ def upgrade() -> None:
         sa.Column("burned", sa.Boolean, nullable=False, server_default=sa.false()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
+    # Mốc đọc dự đoán = dự đoán mới nhất lúc deploy: dự đoán tự động vòng 2 KHÔNG được thành hàng "bỏ qua"
+    # vĩnh viễn trong sổ giấy (bug-hunter v3) — thí nghiệm bắt đầu từ dự đoán kế tiếp
+    op.execute(
+        "INSERT INTO worker_status (key, value, updated_at) "
+        "SELECT 'paper', jsonb_build_object('last_prediction_id', coalesce(max(id), 0), 'at', now()), now() "
+        "FROM prediction ON CONFLICT (key) DO NOTHING"
+    )
     for code, name, rule in ACCOUNTS:
         op.execute(
             sa.text("INSERT INTO paper_account (code, name, rule) VALUES (:c, :n, CAST(:r AS jsonb))").bindparams(
@@ -98,6 +105,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("DELETE FROM worker_status WHERE key IN ('paper', 'paper_views')")
     op.drop_table("paper_day")
     op.drop_table("paper_trade")
     op.drop_table("paper_account")

@@ -12,7 +12,7 @@ from ..deps import get_session
 router = APIRouter()
 
 
-@router.get("/health")
+@router.api_route("/health", methods=["GET", "HEAD"])  # HEAD: dịch vụ uptime hay ping bằng HEAD
 async def health(session: Annotated[AsyncSession, Depends(get_session)]) -> JSONResponse:
     ok = await monitor.db_alive(session)
     return JSONResponse({"ok": ok}, status_code=200 if ok else 503)

@@ -389,8 +389,11 @@ class Worker:
                     s, "Bot dừng giữa chừng nhiều lần — bấm Gửi lại, hoặc kiểm tra `make brain` trên máy chủ."
                 )
                 await job_repo.expire_pending(s, "signal_prediction", 300, "Quá hạn — não không xử kịp nến này")
+            # (v3) luồng J rồi I — tài khoản giấy, tiền giả; hai giao dịch riêng: lỗi mở lệnh không cuộn lại việc đóng
             async with session_scope() as s:
-                opened, closed = await paper.tick(s)  # (v3) luồng I/J — tài khoản giấy, tiền giả
+                closed = await paper.close_due(s)
+            async with session_scope() as s:
+                opened = await paper.open_for_new(s)
             if scored or expired or opened or closed:
                 log.info(
                     "scored", predictions=scored, chat_expired=len(expired), paper_open=opened, paper_closed=closed

@@ -161,7 +161,9 @@ async def test_burn_closes_early_and_blocks_rest_of_day(db):
         await _candle(s, T0 + timedelta(minutes=3), 4290.0)
         await paper.close_due(s, T0 + timedelta(minutes=4))
         a = (await repo.trades_page(s, "A", None, 1))[0]
-        assert a["status"] == "closed" and a["exit_reason"] == "stopout" and a["pnl"] == pytest.approx(-10.3)
+        assert (
+            a["status"] == "closed" and a["exit_reason"] == "stopout" and a["pnl"] == pytest.approx(-10.0)
+        )  # chặn ở số dư
         day = await repo.day_get(s, "A", date(2026, 9, 23))
         assert day["burned"] and day["end_equity"] == 0
         await _pred(s, T0 + timedelta(minutes=30))
@@ -179,11 +181,15 @@ async def test_stale_price_does_not_burn_and_stale_prediction_is_skipped(db):
         await _candle(s, T0 + timedelta(minutes=1), 4280.0)
         await paper.close_due(s, T0 + timedelta(minutes=11))
         assert (await repo.open_trade_of(s, "A")) is not None
+        # hạn 14:15 đã qua → đóng lệnh trước, để dự đoán sau đi đúng vào nhánh "cũ" chứ không phải "đang có lệnh"
+        await _candle(s, T0 + timedelta(minutes=14), 4301.0)
+        await paper.close_due(s, T0 + timedelta(minutes=18))
+        assert (await repo.open_trade_of(s, "C")) is None
         # worker vắng: dự đoán 10 phút tuổi mới được xử → không vào giá cũ
         await _pred(s, T0 + timedelta(minutes=20))
         await paper.open_for_new(s, T0 + timedelta(minutes=30))
         c = (await repo.trades_page(s, "C", None, 1))[0]
-    assert c["skip_reason"] in ("open_trade", "stale")
+    assert c["skip_reason"] == "stale"
     async with db() as s:
         b = (await repo.trades_page(s, "B", None, 1))[0]
     assert b["skip_reason"] == "rule"  # luật kiểm TRƯỚC điều kiện tài khoản
@@ -241,3 +247,47 @@ async def test_login_returns_to_s9_and_bad_code_page_is_html_404(client, db):
     for path in ("/paper/a", "/paper/A%3Cimg%20src=x%3E", "/paper/" + "A" * 300):
         bad = await client.get(path)
         assert bad.status_code == 404 and "text/html" in bad.headers["content-type"], path
+
+
+@needs_db
+async def test_platform_limits_body_head_retry_after_and_views(client, db):
+    assert (await client.head("/health")).status_code == 200
+    assert (await client.get("/static/%3Cx%3E.js")).status_code == 404
+    assert (await client.post("/login", data={"key": KEY})).status_code == 303
+    big = {"enabled": False, "pad": "x" * (70 * 1024)}
+    r = await client.post("/api/paper/accounts/A/enabled", json=big)
+    assert r.status_code == 413
+    # body chunked (không Content-Length) bị cắt ở 64 KB — FastAPI bọc lỗi đọc body thành 400 (chấp nhận:
+    # trình duyệt luôn gửi Content-Length nên nhận 413; mục tiêu là không đọc trọn body vào RAM)
+
+    async def chunks():
+        for _ in range(80):
+            yield b"x" * 1024
+
+    r = await client.post(
+        "/api/paper/accounts/A/enabled", content=chunks(), headers={"content-type": "application/json"}
+    )
+    assert r.status_code in (400, 413)
+    for _ in range(30):
+        await client.post("/api/paper/accounts/A/enabled", json={"enabled": True})
+    r = await client.post("/api/paper/accounts/A/enabled", json={"enabled": True})
+    assert r.status_code == 429 and r.headers.get("retry-after") == "60"
+    await client.get("/paper")
+    await client.get("/paper/B")
+    async with db() as s:
+        v = (await s.execute(text("SELECT value FROM worker_status WHERE key = 'paper_views'"))).scalar_one()
+    assert sum(v.values()) == 2
+
+
+@needs_db
+async def test_one_trade_never_loses_more_than_the_day_balance(db):
+    async with db() as s:
+        await _pred(s, T0)
+        await paper.open_for_new(s, T0 + timedelta(seconds=30))
+        # giá giật 25 USD ngược hướng trước nhịp kiểm cháy kế tiếp
+        await _candle(s, T0 + timedelta(minutes=2), 4275.0)
+        await paper.close_due(s, T0 + timedelta(minutes=2, seconds=30))
+        a = (await repo.trades_page(s, "A", None, 1))[0]
+        day = await repo.day_get(s, "A", date(2026, 9, 23))
+    assert a["exit_reason"] == "stopout" and a["pnl"] == pytest.approx(-10.0)
+    assert day["realized_pnl"] == pytest.approx(-10.0) and day["burned"] and day["end_equity"] == 0

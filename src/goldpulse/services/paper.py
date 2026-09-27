@@ -8,6 +8,7 @@ import `integrations/` và không có cấu hình sàn nào. Giá vào = `predic
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..repositories import candles as candle_repo
@@ -16,9 +17,12 @@ from ..repositories import paper as repo
 from . import predictions
 from .calendar import NY, VN, is_market_open
 
+log = structlog.get_logger("paper")
 STALE_S = 300  # dự đoán quá 5 phút tuổi (worker vắng) → không vào giá cũ
 GRACE_S = predictions.SCORE_GRACE_S  # nến phút cuối trước hạn đã ghi
-MTM_MAX_AGE = timedelta(minutes=2)  # kiểm cháy chỉ bằng nến còn tươi — nguồn chết thì chờ, không cháy ảo
+# Kiểm cháy chỉ bằng nến tươi (nguồn chết thì chờ, không cháy ảo). ts là ĐẦU phút, nến phút trước ghi sau vài
+# giây → 2 phút để hở điểm mù đầu phút (bug-hunter v3)
+MTM_MAX_AGE = timedelta(minutes=3)
 CURVE_DAYS = 20
 STATUS_KEY = "paper"
 LIVE_KEYS = ("price", "lag_seconds", "fresh", "market_open", "price_time_vn", "lag_limit", "next_open_vn")
@@ -69,8 +73,8 @@ async def _decide(session: AsyncSession, acc: dict[str, Any], p: dict[str, Any],
     if equity < p["price_at"] / acc["leverage"]:
         return "margin"
     horizon = int(acc["rule"].get("horizon_minutes", 15))
-    due = p["made_at"] + timedelta(minutes=horizon)
-    if not (is_market_open(p["made_at"]) and is_market_open(due + timedelta(minutes=5))):
+    # Thị trường phải mở SUỐT thời gian giữ + 5 phút chấm (không chỉ hai đầu — luật D 60 phút; bug-hunter v3)
+    if not all(is_market_open(p["made_at"] + timedelta(minutes=m)) for m in range(0, horizon + 6, 5)):
         return "market_closing"
     if (now - p["made_at"]).total_seconds() > STALE_S:
         return "stale"
@@ -89,45 +93,61 @@ async def open_for_new(session: AsyncSession, now: datetime | None = None) -> in
     accounts = await repo.accounts(session)
     opened = 0
     for p in preds:
-        day = trade_date_of(p["made_at"])
-        for acc in accounts:
-            reason = await _decide(session, acc, p, now)
-            horizon = int(acc["rule"].get("horizon_minutes", 15))
-            sig = p["signals"] or {}
-            row = {
-                "account_code": acc["code"],
-                "prediction_id": p["id"],
-                "trade_date": day,
-                "opened_at": p["made_at"],
-                "direction": p["direction"],
-                "oz": acc["oz"],
-                "entry_price": p["price_at"],
-                "spread": acc["spread"],
-                "due_at": p["made_at"] + timedelta(minutes=horizon),
-                "status": "skipped" if reason else "open",
-                "skip_reason": reason,
-                "context": {
-                    "p_up": (sig.get("model") or {}).get("p_up"),
-                    "vol96": sig.get("vol96"),
-                    "fired": [f.get("name") for f in (sig.get("fired") or []) if isinstance(f, dict)],
-                },
-            }
-            if reason is None:
-                await repo.day_ensure(session, acc["code"], day, float(acc["start_equity"]))
-            if await repo.insert_trade(session, row) and reason is None:
-                opened += 1
+        try:
+            async with session.begin_nested():  # một dự đoán hỏng (dữ liệu lạ) không kẹt cả hàng — bỏ qua, đi tiếp
+                opened += await _open_one(session, accounts, p, now)
+        except Exception:
+            log.exception("paper_open_failed", prediction_id=p["id"])
         last_id = p["id"]
     await feed_repo.set_status(session, STATUS_KEY, {"last_prediction_id": last_id, "at": now.isoformat()})
     return opened
 
 
+async def _open_one(session: AsyncSession, accounts: list[dict[str, Any]], p: dict[str, Any], now: datetime) -> int:
+    opened = 0
+    day = trade_date_of(p["made_at"])
+    for acc in accounts:
+        reason = await _decide(session, acc, p, now)
+        horizon = int(acc["rule"].get("horizon_minutes", 15))
+        sig = p["signals"] or {}
+        row = {
+            "account_code": acc["code"],
+            "prediction_id": p["id"],
+            "trade_date": day,
+            "opened_at": p["made_at"],
+            "direction": p["direction"],
+            "oz": acc["oz"],
+            "entry_price": p["price_at"],
+            "spread": acc["spread"],
+            "due_at": p["made_at"] + timedelta(minutes=horizon),
+            "status": "skipped" if reason else "open",
+            "skip_reason": reason,
+            "context": {
+                "p_up": (sig.get("model") or {}).get("p_up"),
+                "vol96": sig.get("vol96"),
+                "fired": [f.get("name") for f in (sig.get("fired") or []) if isinstance(f, dict)],
+            },
+        }
+        if reason is None:
+            await repo.day_ensure(session, acc["code"], day, float(acc["start_equity"]))
+        if await repo.insert_trade(session, row) and reason is None:
+            opened += 1
+    return opened
+
+
 async def _close(
     session: AsyncSession, acc: dict[str, Any], t: dict[str, Any], price: float, reason: str, at: datetime
-):
-    pnl = pnl_of(acc, t["direction"], t["entry_price"], price)
-    if await repo.close_trade(session, t["id"], exit_price=price, reason=reason, pnl=pnl, closed_at=at):
-        await repo.day_ensure(session, acc["code"], t["trade_date"], float(acc["start_equity"]))
-        await repo.day_apply(session, acc["code"], t["trade_date"], pnl, reason == "stopout")
+) -> bool:
+    # Lỗ một lệnh không vượt số dư còn lại của ngày (như sàn có bảo vệ số dư âm): giá giật qua ngưỡng giữa hai nhịp
+    # kiểm cháy / worker vừa sống lại không được ghi −15, −20 USD cho tài khoản 10 USD (review v3, DECISIONS)
+    equity, _ = await _equity_today(session, acc, t["trade_date"])
+    pnl = max(pnl_of(acc, t["direction"], t["entry_price"], price), -round(equity, 4))
+    burned = reason == "stopout" or equity + pnl <= 0
+    if not await repo.close_trade(session, t["id"], exit_price=price, reason=reason, pnl=pnl, closed_at=at):
+        return False
+    await repo.day_ensure(session, acc["code"], t["trade_date"], float(acc["start_equity"]))
+    await repo.day_apply(session, acc["code"], t["trade_date"], pnl, burned)
+    return True
 
 
 async def close_due(session: AsyncSession, now: datetime | None = None) -> int:
@@ -140,30 +160,31 @@ async def close_due(session: AsyncSession, now: datetime | None = None) -> int:
         if now >= t["due_at"] + timedelta(seconds=GRACE_S):
             p1 = await predictions.price_at(session, t["due_at"])
             if p1 is not None:
-                await _close(session, acc, t, p1, "horizon", t["due_at"])
+                closed += await _close(session, acc, t, p1, "horizon", t["due_at"])
             else:  # không có nến trong 5 phút trước hạn (đóng cửa / worker chết) → nến cuối có
                 floor = t["due_at"].replace(second=0, microsecond=0)
                 c = await candle_repo.close_before(session, floor, floor - timedelta(days=3))
                 if c:
-                    await _close(session, acc, t, float(c["close"]), "market_close", t["due_at"])
-            closed += 1
+                    closed += await _close(session, acc, t, float(c["close"]), "market_close", t["due_at"])
+                else:
+                    log.warning("paper_no_candle_to_close", trade_id=t["id"], due_at=t["due_at"].isoformat())
             continue
+        if now >= t["due_at"]:
+            continue  # đã tới hạn, chờ nến trước hạn được ghi (nhánh trên) — không cháy/đóng bằng giá sau hạn
         c = await repo.latest_close(session, now - MTM_MAX_AGE, now)
         if not c:
             continue  # nguồn giá đứng — không cháy ảo, không đóng (ARCHITECTURE §6 ca biên)
         if not is_market_open(now):
-            await _close(session, acc, t, float(c["close"]), "market_close", now)
-            closed += 1
+            closed += await _close(session, acc, t, float(c["close"]), "market_close", now)
             continue
         equity, _ = await _equity_today(session, acc, t["trade_date"])
         if equity + pnl_of(acc, t["direction"], t["entry_price"], float(c["close"])) <= 0:
-            await _close(session, acc, t, float(c["close"]), "stopout", now)
-            closed += 1
+            closed += await _close(session, acc, t, float(c["close"]), "stopout", now)
     return closed
 
 
 async def tick(session: AsyncSession, now: datetime | None = None) -> tuple[int, int]:
-    """Một nhịp worker: đóng trước (giải phóng chỗ), rồi mở theo dự đoán mới."""
+    """Một nhịp (test/seed): đóng trước (giải phóng chỗ), rồi mở. Worker gọi hai hàm ở hai giao dịch riêng."""
     closed = await close_due(session, now)
     opened = await open_for_new(session, now)
     return opened, closed
@@ -174,6 +195,7 @@ def verdict(t: dict[str, Any]) -> str:
     if t["eval_pnl"] <= 0:
         return "none"
     burn_ok = t["days"] == 0 or t["burned_days"] / t["days"] <= GO_MAX_BURN_RATIO
+    # ≥ 40 lệnh + lãi nhưng cháy > 20% ngày: PRD §6 bỏ ngỏ → PIVOT (chạy tiếp, không GO) — DECISIONS 2026-09-27
     return "go" if t["eval_n"] >= GO_MIN_TRADES and burn_ok else "pivot"
 
 
@@ -312,3 +334,7 @@ async def pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
         "bắt đầu lại mỗi ngày giao dịch; mỗi tài khoản một luật vào lệnh theo dự đoán tự động.",
         "accounts": out,
     }
+
+
+async def record_view(session: AsyncSession, now: datetime | None = None) -> None:
+    await repo.bump_view(session, (now or datetime.now(UTC)).astimezone(VN).date().isoformat())

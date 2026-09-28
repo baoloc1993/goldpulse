@@ -115,6 +115,30 @@ async def test_final_candle_overwrites_temp(db):
     assert bar[0] is True
 
 
+async def test_no_temp_candle_when_market_closed(db):
+    """gold-api vẫn trả giá lúc nghỉ — không dựng nến tạm cho thứ Bảy / giờ nghỉ 17:00 NY (DECISIONS 2026-09-28)."""
+    from goldpulse.services import ingest
+
+    saturday = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
+    daily_break = datetime(2026, 9, 29, 21, 30, tzinfo=UTC)  # 17:30 thứ Ba giờ NY (EDT)
+    open_minute = datetime(2026, 9, 29, 14, 0, tzinfo=UTC)
+    async with db() as s:
+        assert await ingest.store_temp_minute(s, saturday, [4260.0]) is False
+        assert await ingest.store_temp_minute(s, daily_break, [4260.0]) is False
+        assert await ingest.store_temp_minute(s, open_minute, [4260.0, 4261.0]) is True
+        rows = (
+            (
+                await s.execute(
+                    text("SELECT ts FROM candle_1m WHERE ts IN (:a, :b, :c) ORDER BY ts"),
+                    {"a": saturday, "b": daily_break, "c": open_minute},
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert rows == [open_minute]
+
+
 async def test_saturday_is_empty_without_download(db):
     from goldpulse.repositories import crawl as crawl_repo
     from goldpulse.services.calendar import open_minutes_of_day

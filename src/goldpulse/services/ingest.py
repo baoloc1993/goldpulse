@@ -12,6 +12,7 @@ from ..repositories import crawl as crawl_repo
 from .calendar import (
     MINUTE,
     day_bounds,
+    is_market_open,
     merge_ranges,
     open_minutes_of_day,
     session_window,
@@ -75,6 +76,10 @@ async def store_backfill_day(session: AsyncSession, day: date, candles: Sequence
 
 
 async def store_temp_minute(session: AsyncSession, minute: datetime, prices: Sequence[float]) -> bool:
+    # gold-api vẫn trả giá "tươi" đứng yên lúc thị trường nghỉ — nến đó lọt vào chuỗi nến sống làm tín hiệu
+    # bật giả sáng thứ Hai (DECISIONS 2026-09-28)
+    if not is_market_open(minute):
+        return False
     ohlc = build_temp_candle(prices)
     if ohlc is None:
         return False

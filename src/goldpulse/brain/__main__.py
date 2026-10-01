@@ -15,6 +15,7 @@ if "--production" in sys.argv:
     os.environ["APP_ENV"] = "production"
 
 import asyncio  # noqa: E402
+import contextlib  # noqa: E402
 import json  # noqa: E402
 import re  # noqa: E402
 import signal  # noqa: E402
@@ -54,6 +55,10 @@ TRADE_WORDS = re.compile(
 AUTO_MAX_AGE_S = 300  # job dự đoán tự động chờ quá 5 phút → giá đã trôi, bỏ nến đó
 RETRY_PAUSE_S = 20
 HEARTBEAT_S = 30
+# Docker/WSL khởi động lại → kết nối asyncpg chết im lặng, chờ mãi không lỗi (01/10: treo 9 giờ, mất 1 dự đoán).
+# Quá hạn → bỏ pool cũ, nối lại (DECISIONS 2026-10-01)
+DB_TIMEOUT_S = 30
+JOB_TIMEOUT_S = 300
 
 
 def load(name: str) -> str:
@@ -147,7 +152,8 @@ class BrainLoop:
     async def heartbeat_loop(self) -> None:
         while not self.stop.is_set():
             try:
-                await self.beat()
+                async with asyncio.timeout(DB_TIMEOUT_S):
+                    await self.beat()
             except Exception:
                 log.exception("heartbeat_failed")
             try:
@@ -159,11 +165,41 @@ class BrainLoop:
         self.last_error = msg
         self.last_error_at = datetime.now(UTC).isoformat()
 
-    async def run(self) -> None:
-        # Hai não trên một kho (vd make dev + make brain) → job requeue bị xử đôi: giữ advisory lock suốt đời não
+    async def acquire_lock(self) -> bool:
+        """Hai não trên một kho (vd make dev + make brain) → job requeue bị xử đôi: giữ advisory lock suốt đời não."""
         self.lock_conn = await engine.connect()
-        if not (await self.lock_conn.execute(text("SELECT pg_try_advisory_lock(20260926)"))).scalar():
-            await self.lock_conn.close()
+        if (await self.lock_conn.execute(text("SELECT pg_try_advisory_lock(20260926)"))).scalar():
+            return True
+        await self.lock_conn.close()
+        return False
+
+    async def reconnect(self, where: str) -> None:
+        """DB không phản hồi: bỏ mọi kết nối cũ (không chờ đóng socket chết), nối lại và giành lại lock.
+        Lock còn bị giữ (phiên cũ chưa bị máy chủ dọn, hoặc có não khác) → chờ, không thoát."""
+        log.error("db_stuck", where=where)
+        self.note_error(f"DB không phản hồi ({where}) — đang nối lại")
+        # invalidate = đóng hẳn socket (nhả advisory lock nếu DB còn sống); close chỉ trả kết nối về pool, lock còn giữ
+        with contextlib.suppress(Exception):
+            async with asyncio.timeout(5):
+                await self.lock_conn.invalidate()
+        await engine.dispose(close=False)
+        while not self.stop.is_set():
+            try:
+                async with asyncio.timeout(DB_TIMEOUT_S):
+                    if await self.acquire_lock():
+                        log.info("db_reconnected", where=where)
+                        return
+                log.warning("db_lock_busy")
+            except Exception as e:  # noqa: BLE001 — DB còn chết: thử lại
+                log.warning("db_reconnect_failed", error=repr(e))
+                await engine.dispose(close=False)
+            try:
+                await asyncio.wait_for(self.stop.wait(), 10)
+            except TimeoutError:
+                pass
+
+    async def run(self) -> None:
+        if not await self.acquire_lock():
             await engine.dispose()
             raise SystemExit("Đã có một não GoldPulse khác đang chạy trên kho này — dừng.")
         db = engine.url
@@ -173,15 +209,25 @@ class BrainLoop:
         hb = asyncio.create_task(self.heartbeat_loop())
         while not self.stop.is_set():
             try:
-                async with session_scope() as s:
-                    job = await job_repo.claim(s)
+                try:
+                    async with asyncio.timeout(DB_TIMEOUT_S):
+                        async with session_scope() as s:
+                            job = await job_repo.claim(s)
+                except TimeoutError:
+                    await self.reconnect("claim")
+                    continue
                 if not job:
                     try:
                         await asyncio.wait_for(self.stop.wait(), 2)
                     except TimeoutError:
                         pass
                     continue
-                ok = await self.handle(job)
+                try:
+                    async with asyncio.timeout(JOB_TIMEOUT_S):
+                        ok = await self.handle(job)
+                except TimeoutError:  # job còn 'running' → worker trả về pending sau 180 s
+                    await self.reconnect(f"job {job['id']}")
+                    continue
                 if not ok:
                     await asyncio.sleep(RETRY_PAUSE_S)  # "thử lại tối đa 3 lần cách 20s" (ARCHITECTURE §6)
             except Exception as e:
@@ -191,7 +237,9 @@ class BrainLoop:
         hb.cancel()
         await asyncio.gather(hb, return_exceptions=True)
         await self.backend.close()
-        await self.lock_conn.close()
+        with contextlib.suppress(Exception):
+            async with asyncio.timeout(5):
+                await self.lock_conn.close()
         await engine.dispose()
         log.info("brain_stop")
 

@@ -377,3 +377,39 @@ def test_model15m_needs_history_and_uses_threshold():
     assert r["trigger"] == (abs(r["p_up"] - 0.5) >= model15m.model()["confidence_threshold"])
     md = model15m.model()
     assert md["metrics"]["test_2025_2026"]["accuracy_pct"] > 55  # file mô hình đúng là bản đã kiểm
+
+
+@needs_db
+async def test_brain_recovers_when_db_hangs(db, monkeypatch):
+    """DB treo (Docker/WSL khởi động lại) → não không chờ mãi: bỏ pool, nối lại, lấy job tiếp (DECISIONS 2026-10-01)."""
+    import asyncio
+
+    from goldpulse.brain import __main__ as brain
+
+    monkeypatch.setattr(brain, "DB_TIMEOUT_S", 0.5)
+    calls = {"n": 0}
+
+    async def claim(s):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            await asyncio.sleep(3600)  # socket chết: không lỗi, không trả lời
+        return None
+
+    monkeypatch.setattr(brain.job_repo, "claim", claim)
+
+    class Backend:
+        name, model = "fake", None
+
+        async def close(self):
+            pass
+
+    loop = brain.BrainLoop(Backend())
+    task = asyncio.create_task(loop.run())
+    for _ in range(100):
+        await asyncio.sleep(0.1)
+        if calls["n"] >= 3:
+            break
+    loop.stop.set()
+    await asyncio.wait_for(task, 10)
+    assert calls["n"] >= 3
+    assert loop.last_error and "DB không phản hồi" in loop.last_error

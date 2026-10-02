@@ -228,3 +228,37 @@ async def bump_view(session: AsyncSession, day: str) -> None:
         """),
         {"d": day},
     )
+
+
+# --- (v3) báo Telegram: chỉ đọc (DECISIONS 2026-10-02) ---------------------------------------------------------
+
+
+async def max_trade_id(session: AsyncSession) -> int:
+    return int((await session.execute(text("SELECT coalesce(max(id), 0) FROM paper_trade"))).scalar() or 0)
+
+
+async def trades_after(session: AsyncSession, after_id: int, limit: int = 200) -> list[dict[str, Any]]:
+    """Dòng sổ mới (mở hoặc bỏ qua) theo id tăng dần, kèm tên tài khoản."""
+    rows = (
+        await session.execute(
+            text("""
+                SELECT t.*, a.name AS account_name FROM paper_trade t JOIN paper_account a ON a.code = t.account_code
+                WHERE t.id > :a ORDER BY t.id LIMIT :n
+            """),
+            {"a": after_id, "n": limit},
+        )
+    ).mappings()
+    return [dict(r) for r in rows]
+
+
+async def closed_since(session: AsyncSession, since: datetime) -> list[dict[str, Any]]:
+    rows = (
+        await session.execute(
+            text("""
+                SELECT t.*, a.name AS account_name FROM paper_trade t JOIN paper_account a ON a.code = t.account_code
+                WHERE t.status = 'closed' AND t.closed_at >= :s ORDER BY t.closed_at, t.id
+            """),
+            {"s": since},
+        )
+    ).mappings()
+    return [dict(r) for r in rows]

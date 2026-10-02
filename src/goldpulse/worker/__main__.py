@@ -25,6 +25,7 @@ from ..integrations.goldapi import GoldApiClient, GoldApiError
 from ..integrations.histdata import FIRST_DAY as HD_FIRST
 from ..integrations.histdata import FileNotAvailable, HistDataClient
 from ..integrations.histdata import file_key as hd_file_key
+from ..integrations.telegram import TelegramClient, TelegramError
 from ..logs import setup_logging
 from ..repositories import chat as chat_repo
 from ..repositories import crawl as crawl_repo
@@ -32,7 +33,7 @@ from ..repositories import fed as fed_repo
 from ..repositories import feed as feed_repo
 from ..repositories import jobs as job_repo
 from ..services import fed as fed_svc
-from ..services import ingest, model15m, paper, predictions, signals
+from ..services import ingest, model15m, notify, paper, predictions, signals
 from ..services.calendar import MINUTE, NY, last_complete_day, open_minutes_of_day
 from ..services.errors import record_error
 from ..services.monitor import LAG_LIMIT_S
@@ -432,6 +433,53 @@ class Worker:
         finally:
             await fred.close()
 
+    # --- K. Báo Telegram (v3) ---------------------------------------------------------
+    async def notify_loop(self) -> None:
+        """Mỗi 15 s: lệnh giấy mới vào / vừa đóng → tin Telegram. Chỉ đọc sổ; lỗi gửi không chạm luồng I/J."""
+        if not settings.telegram_bot_token:
+            log.info("telegram_off")
+            await self.stop.wait()
+            return
+        tg = TelegramClient(settings.telegram_bot_token)
+        try:
+            while not self.stop.is_set():
+                await self.notify_once(tg)
+                await self.sleep(15)
+        finally:
+            await tg.close()
+
+    async def notify_once(self, tg: TelegramClient) -> None:
+        async with session_scope() as s:
+            raw = await feed_repo.get_status(s, notify.STATE_KEY)
+        state = {k: v for k, v in (raw or {}).items() if k != "updated_at"} or None
+        chat_id = settings.telegram_chat_id or (state or {}).get("chat_id")
+        if chat_id is None:
+            try:
+                chat_id = await tg.first_private_chat()
+                if chat_id is None:
+                    return  # chủ dự án chưa nhắn bot lần nào
+                await tg.send(
+                    chat_id, "✅ GoldPulse đã nối Telegram — sẽ báo khi tài khoản giấy vào/đóng lệnh (tiền giả)."
+                )
+            except TelegramError as e:
+                log.warning("telegram_error", error=str(e))
+                return
+            state = {**(state or {}), "chat_id": chat_id}
+            async with session_scope() as s:
+                await feed_repo.set_status(s, notify.STATE_KEY, state)
+        async with session_scope() as s:
+            messages, new_state = await notify.collect(s, state, datetime.now(UTC))
+        for m in messages:
+            try:
+                await tg.send(chat_id, m)
+            except TelegramError as e:  # giữ mốc cũ → lượt sau gửi lại cả lượt (tin đã gửi có thể lặp)
+                log.warning("telegram_error", error=str(e))
+                return
+        async with session_scope() as s:
+            await feed_repo.set_status(s, notify.STATE_KEY, new_state)
+        if messages:
+            log.info("telegram_sent", n=len(messages))
+
     async def cleanup_loop(self) -> None:
         while not self.stop.is_set():
             async with session_scope() as s:
@@ -459,6 +507,7 @@ class Worker:
             asyncio.create_task(self._guard(self.signal_loop), name="signal"),
             asyncio.create_task(self._guard(self.score_loop), name="score"),
             asyncio.create_task(self._guard(self.fed_loop), name="fed"),
+            asyncio.create_task(self._guard(self.notify_loop), name="notify"),
         ]
         await self.stop.wait()
         for t in tasks:

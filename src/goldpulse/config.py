@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     brain_timeout_seconds: float = 120.0
     prediction_horizon_minutes: int = 15
 
+    # --- (v3) báo Telegram khi tài khoản giấy vào/đóng lệnh — trống token = tắt (DECISIONS 2026-10-02) ---
+    telegram_bot_token: str | None = None
+    # Trống → chat riêng đầu tiên nhắn bot, khoá vào worker_status.telegram
+    telegram_chat_id: int | None = None
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

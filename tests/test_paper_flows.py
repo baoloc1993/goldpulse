@@ -292,3 +292,50 @@ async def test_market_pack_has_paper_accounts_marked_fake_money(db):
     assert rows["A"]["today_pnl_usd"] == pytest.approx(1.7) and rows["A"]["total_trades"] == 1
     assert rows["A"]["burned_days"] == "0/1"
     json.dumps(pack, ensure_ascii=False)  # không có date/Decimal lọt vào gói
+
+
+# --- (v3) báo Telegram: chỉ đọc sổ (DECISIONS 2026-10-02) ------------------------------------------------------
+
+
+@needs_db
+async def test_telegram_messages_open_close_no_backlog_no_repeat(db):
+    from goldpulse.services import notify
+
+    async with db() as s:
+        await _win_cycle(s, T0 - 60 * M)  # lệnh cũ trước khi bật báo — không được gửi bù
+        msgs, state = await notify.collect(s, None, T0)
+        assert msgs == [] and state["last_trade_id"] > 0
+
+        await _pred(s, T0)  # p_up 0,62 · vol96 1,5 → A, C vào; B bỏ (luật biến động); D còn lệnh cũ 60'
+        await paper.open_for_new(s, T0 + timedelta(seconds=30))
+        msgs, state = await notify.collect(s, state, T0 + M)
+        assert len(msgs) == 1
+        assert "Bot đoán TĂNG" in msgs[0] and "Giá vào 4300.00 · bot chắc 62%" in msgs[0]
+        assert "Vào lệnh: A Gốc (đóng 21:15) · C Tự tin (đóng 21:15)" in msgs[0]
+        assert "Bỏ qua: B Biến động — không khớp luật · D 1 giờ — đang có lệnh mở" in msgs[0]
+        assert (await notify.collect(s, state, T0 + 2 * M))[0] == []  # không lặp
+
+        await _candle(s, T0 + 14 * M, 4302.0)
+        await paper.close_due(s, T0 + 17 * M)
+        msgs, state = await notify.collect(s, state, T0 + 17 * M)
+        # lệnh D cũ (mở trước khi bật báo) đóng sau khi bật → vẫn báo; không có nến trong 5' trước hạn → thị trường nghỉ
+        assert [m.split(" đóng")[0] for m in msgs] == ["⏸ D 1 giờ", "✅ A Gốc", "✅ C Tự tin"]
+        assert "Không tính vào đánh giá 4 tuần." in msgs[0]
+        a = next(m for m in msgs if "A Gốc" in m)
+        assert "+1.70 USD" in a and "TĂNG 4300.00 → 4302.00 · hết giờ giữ" in a
+        assert "Hôm nay +3.40 (số dư 13.40) · cộng dồn +3.40" in a  # 2 lệnh thắng trong ngày
+        assert (await notify.collect(s, state, T0 + 18 * M))[0] == []
+
+
+def test_telegram_close_message_marks_burn_and_market_close():
+    from goldpulse.services import notify
+
+    base = {"account_code": "D", "account_name": "1 giờ", "direction": "down", "entry_price": 4200.0}
+    burn = notify.close_message(
+        {**base, "pnl": -10.0, "exit_price": 4210.0, "exit_reason": "stopout"},
+        {"realized_pnl": -10.0, "end_equity": 0.0, "burned": True},
+        -12.5,
+    )
+    assert burn.startswith("🔥 D 1 giờ đóng −10.00 USD") and "dừng tới 05:00" in burn and "cộng dồn −12.50" in burn
+    mc = notify.close_message({**base, "pnl": 1.0, "exit_price": 4198.7, "exit_reason": "market_close"}, None, 0.0)
+    assert mc.startswith("⏸") and "Không tính vào đánh giá 4 tuần." in mc

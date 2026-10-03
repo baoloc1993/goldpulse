@@ -208,17 +208,21 @@ async def test_api_btc_can_khoa_va_khong_lan_voi_vang(client):
 
 @needs_db
 async def test_lan_dau_chi_tinh_gio_vua_dong_khong_ghi_gio_bi_lo(db):
-    now = datetime(2026, 10, 3, 12, 1, tzinfo=UTC)
+    """Tick 1 chỉ xử giờ vừa đóng; tick 2 (20 s sau) KHÔNG quay ngược 24 giờ; worker vắng thì giờ SAU mốc vẫn bù."""
+    t0 = datetime(2026, 10, 3, 12, 1, tzinfo=UTC)
     async with db() as s:
-        # 31 ngày nến phẳng tới 11:59 — đủ điều kiện bắt đầu chạy chiến thuật
-        start = now.replace(minute=0) - timedelta(days=31)
-        n = int((now.replace(minute=0) - start) / M)
-        await _candles(s, start, [P0 + (i % 7) for i in range(n)])
-        done = await paper.process_hours(s, now)
-        assert done == [] or done == [datetime(2026, 10, 3, 11, 0, tzinfo=UTC)]  # đủ 760 giờ chưa → có thể chưa tính
-        assert len(await repo.signal_bars(s, SYMBOL, now - timedelta(days=2))) <= 1  # không ghi 24 giờ cũ
+        start = t0.replace(minute=0) - timedelta(days=100)
+        n = int((t0.replace(minute=0) + 4 * H - start) / M)
+        await _candles(s, start, [P0 + (i * 7 % 13) for i in range(n)])
+        assert await paper.process_hours(s, t0) == [datetime(2026, 10, 3, 11, 0, tzinfo=UTC)]
+        assert await paper.process_hours(s, t0 + timedelta(seconds=20)) == []
+        got = len(await repo.signal_bars(s, SYMBOL, t0 - timedelta(days=2)))
+        assert got == 1  # không ghi 24 giờ cũ
+        # worker vắng tới 15:01 → các giờ 12:00, 13:00, 14:00 được bù (và đã quá hạn → không vào lệnh ở giá cũ)
+        done = await paper.process_hours(s, t0 + 3 * H)
+        assert done == [t0.replace(minute=0) + k * H for k in (0, 1, 2)]
         for code in ("BTC-A", "BTC-B", "BTC-C", "BTC-D"):
-            assert all(r["skip_reason"] != "stale" for r in await _rows(s, code))
+            assert all(r["skip_reason"] == "stale" for r in await _rows(s, code))
 
 
 @needs_db

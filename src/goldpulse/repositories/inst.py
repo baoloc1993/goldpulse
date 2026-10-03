@@ -183,6 +183,13 @@ async def signal_bars(session: AsyncSession, symbol: str, since: datetime) -> se
     return {r[0] for r in rows}
 
 
+async def first_signal_bar(session: AsyncSession, symbol: str) -> datetime | None:
+    """Giờ tín hiệu đầu tiên từng có — mốc bắt đầu thí nghiệm; giờ trước mốc này không bao giờ bị coi là "bị lỡ"."""
+    return (
+        await session.execute(text("SELECT min(bar_ts) FROM inst_signal WHERE symbol = :s"), {"s": symbol})
+    ).scalar()
+
+
 async def insert_signal(
     session: AsyncSession,
     symbol: str,

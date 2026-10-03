@@ -19,6 +19,8 @@ WEB = [
     # Trang S1 giữ kết nối keep-alive (tải lại 5s/lần) — thiếu mốc này thì reload treo mãi
     "--timeout-graceful-shutdown",
     "3",
+    # Như Dockerfile production: không tin X-Forwarded-For do client tự đặt (giới hạn tốc độ theo IP thật)
+    "--no-proxy-headers",
 ]
 WORKER = [sys.executable, "-m", "goldpulse.worker"]
 BRAIN = [sys.executable, "-m", "goldpulse.brain"]

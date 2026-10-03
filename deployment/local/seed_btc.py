@@ -4,8 +4,8 @@
 
 Với từng giờ tròn trong N ngày: tính 4 chiến thuật (`services/btc/strategies.evaluate`) trên 90 ngày nến trước đó rồi
 `paper.close_open` / `paper.open_from_signal` với `now` = giờ đó + 61 giây — như worker chạy đúng giờ. TRUNCATE
-inst_trade/inst_day/inst_signal trước khi tua (chạy lại được). Chỉ dùng cho DB dogfood: từ chối chạy trên DB có tên
-production (`goldpulse`, `goldpulse_btc`).
+inst_trade/inst_day/inst_signal trước khi tua (chạy lại được). PHẢI dừng worker trước (script tự kiểm). Chỉ dùng cho
+DB dogfood: từ chối chạy trên DB có tên production (`goldpulse`, `goldpulse_btc`).
 """
 
 import asyncio
@@ -28,6 +28,10 @@ async def main(days: int) -> None:
     db_name = urlsplit(os.environ.get("DATABASE_URL", "")).path.lstrip("/")
     if db_name in FORBIDDEN or not db_name:
         raise SystemExit(f"Từ chối: DB '{db_name}' là kho production — seed chỉ dùng cho DB dogfood")
+    # Worker giữ advisory lock 20260924 suốt đời — còn worker thì seed và worker ghi chen nhau (dogfood vòng 4)
+    lock = await engine.connect()
+    if not (await lock.execute(text("SELECT pg_try_advisory_lock(20260924)"))).scalar():
+        raise SystemExit("Còn một worker đang chạy trên DB này — dừng worker trước khi seed")
     async with session_scope() as s:
         first, last = await repo.candle_span(s, SYMBOL)
     if not first or not last or last - first < timedelta(days=days + 35):
@@ -60,6 +64,7 @@ async def main(days: int) -> None:
                 f"{code}: {t['trades']} lệnh · cộng dồn {t['pnl']:+.2f} USD · cháy {t['burned_days']}/{t['days']} ngày"
             )
     print(f"Đã tua {days} ngày ({start:%d/%m} → {end:%d/%m %H:%M} UTC): mở {opened} lệnh, bỏ qua {skipped}")
+    await lock.close()
     await engine.dispose()
 
 

@@ -219,3 +219,12 @@ a.card.link { display: block; color: inherit; text-decoration: none; }
 
 /* (v4) S8 "‹ Dự đoán" + "BTC ›" cùng hàng khi instance chạy chung hai cặp */
 .toplinks { display: flex; justify-content: space-between; gap: var(--space-sm); }
+
+/* (v4) S10/S11: biểu đồ BTC cao 140px (trục Y theo dữ liệu thật, chữ trục 13px); số không bị bẻ dòng, thẻ đầu 2+1 cột
+   ở ≤360px để giá 6 chữ số (100,215.30) và huy hiệu "Nến trễ …" không vỡ (dogfood mobile vòng 4) */
+.curve svg.chart.btc { height: 140px; }
+.head3.btc .value { white-space: nowrap; }
+@media (max-width: 360px) {
+  .head3.btc { grid-template-columns: 1fr 1fr; }
+  .head3.btc .card:last-child { grid-column: 1 / -1; }
+}

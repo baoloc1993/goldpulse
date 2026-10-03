@@ -13,6 +13,9 @@
   };
   var EXIT = { horizon: ["ok", "Hết hạn"], day_close: ["muted", "Hết ngày"], stopout: ["err", "Cháy"] };
   var toggleErr = null;
+  var pressing = 0; // chạm gần nhất — tự tải lại không dựng lại DOM đúng lúc ngón tay đang bấm (dogfood rushed)
+  ["pointerdown", "touchstart", "keydown"].forEach(function (ev) { document.addEventListener(ev, function () { pressing = Date.now(); }, true); });
+  function touching() { return Date.now() - pressing < 700; }
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -118,7 +121,7 @@
 
   /* ================= S10 ================= */
   if (screen === "s10") {
-    var last = null, offline = null, busy = false;
+    var last = null, offline = null, busy = false, shownErr = "";
 
     function accRow(a, lv) {
       var eq = a.equity, t = a.today, tot = a.total, o = a.open;
@@ -135,6 +138,7 @@
         state = (t.trades ? "Không có lệnh đang mở. " : "Chưa có lệnh hôm nay. ") + waitText(lv);
       }
       var winRate = t.trades ? " · thắng " + Math.round(100 * t.wins / t.trades) + "%" : "";
+      var rowErr = toggleErr && toggleErr.code === a.code ? toggleErrBlock() : "";
       return '<div class="' + cls + '" role="link" tabindex="0" data-href="/btc/' + esc(a.code) + '"><div class="top"><div>' +
         '<div class="name">' + esc(letter(a.code)) + " · " + esc(a.name) +
         (t.burned ? ' <span class="badge err">Cháy</span>' : "") + (a.enabled ? "" : ' <span class="badge muted">Đã tắt</span>') + '<span class="chev">›</span></div>' +
@@ -143,7 +147,7 @@
         '<div class="sub num">Lãi/lỗ hôm nay <span class="' + (a.enabled ? tone(t.pnl) : "") + '">' + signed(t.pnl) + " USD</span></div>" +
         '<div class="sub">' + state + "</div>" +
         '<div class="sub num">Hôm nay ' + t.trades + " lệnh" + winRate + " · cộng dồn " + tot.days + " ngày " + signed(tot.pnl) + " USD (" + tot.trades + " lệnh) · cháy " +
-        tot.burned_days + " trong " + tot.days + " ngày</div></div>" + sw(a) + "</div></div>";
+        tot.burned_days + " trong " + tot.days + " ngày</div>" + rowErr + "</div>" + sw(a) + "</div></div>";
     }
 
     function curve(accs) {
@@ -152,9 +156,9 @@
       var dates = {};
       accs.forEach(function (a) { a.curve.forEach(function (p) { dates[p.date] = 1; }); });
       var days = Object.keys(dates).sort().slice(-20);
-      var W = Math.max(240, Math.round(content.clientWidth - 16)), H = 120, padL = 26, padR = 8, padT = 8, padB = 16, max = 10, min = 0;
-      accs.forEach(function (a) { a.curve.forEach(function (p) { if (p.end > max) max = p.end; }); });
-      max = Math.ceil(max + 1);
+      var W = Math.max(240, Math.round(content.clientWidth - 16)), H = 140, padL = 30, padR = 8, padT = 10, padB = 20, max = 10, min = 10;
+      accs.forEach(function (a) { a.curve.forEach(function (p) { if (p.end > max) max = p.end; if (p.end < min) min = p.end; }); });
+      max = Math.ceil(max + 1); min = Math.max(0, Math.floor(min - 1));
       function x(i) { return padL + (W - padL - padR) * (days.length === 1 ? 0.5 : i / (days.length - 1)); }
       function y(v) { return padT + (H - padT - padB) * (1 - (v - min) / (max - min)); }
       var out = '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(10) + '" y2="' + y(10) + '" stroke="var(--color-border)" stroke-width="1"/>';
@@ -169,16 +173,16 @@
       var ticks = days.length > 7 ? [0, Math.floor((days.length - 1) / 2), days.length - 1] : days.map(function (_, i) { return i; });
       ticks.forEach(function (i) {
         var p = days[i].split("-");
-        out += '<text x="' + x(i) + '" y="' + (H - 1) + '" font-size="10" fill="var(--color-text-muted)" text-anchor="' + (i === 0 ? "start" : i === days.length - 1 ? "end" : "middle") + '">' + p[2] + "/" + p[1] + "</text>";
+        out += '<text x="' + x(i) + '" y="' + (H - 1) + '" font-size="13" fill="var(--color-text-muted)" text-anchor="' + (i === 0 ? "start" : i === days.length - 1 ? "end" : "middle") + '">' + p[2] + "/" + p[1] + "</text>";
       });
-      out += '<text x="' + (padL - 4) + '" y="' + (y(10) + 3) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">10</text>' +
-        '<text x="' + (padL - 4) + '" y="' + (y(max) + 8) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">' + max + '</text>' +
-        '<text x="' + (padL - 4) + '" y="' + (y(0) + 3) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">0</text>';
+      out += '<text x="' + (padL - 4) + '" y="' + (y(10) + 3) + '" font-size="13" text-anchor="end" fill="var(--color-text-muted)">10</text>' +
+        '<text x="' + (padL - 4) + '" y="' + (y(max) + 8) + '" font-size="13" text-anchor="end" fill="var(--color-text-muted)">' + max + '</text>' +
+        '<text x="' + (padL - 4) + '" y="' + (y(min) + 3) + '" font-size="13" text-anchor="end" fill="var(--color-text-muted)">' + min + '</text>';
       var legend = accs.map(function (a) {
         return '<span><svg viewBox="0 0 28 10" aria-hidden="true"><line x1="0" y1="5" x2="28" y2="5" stroke="' + (a.enabled ? "var(--color-text)" : "var(--color-text-muted)") +
           '" stroke-width="2"' + (DASH[a.code] ? ' stroke-dasharray="' + DASH[a.code] + '"' : "") + "/></svg>" + esc(letter(a.code)) + " " + esc(a.name) + (a.enabled ? "" : " (tắt)") + "</span>";
       }).join("");
-      return '<div class="curve"><svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Số dư cuối ngày ' + days.length + ' ngày">' + out +
+      return '<div class="curve"><svg class="chart btc" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Số dư cuối ngày ' + days.length + ' ngày">' + out +
         '</svg><div class="legend">' + legend + "</div></div>";
     }
 
@@ -200,9 +204,9 @@
     function render(d) {
       settleToggleErr(d.accounts);
       var lv = d.live;
-      var h = toggleErrBlock();
+      var h = "";
       if (offline) h += '<div class="error" role="alert"><p>Không cập nhật được. ' + esc(errText(offline)) + ' Số bên dưới là lần tải cuối (' + esc(d.now_vn) + ' giờ VN).</p><button class="btn" type="button" data-reload>Thử lại</button></div>';
-      h += '<div class="head3">' +
+      h += '<div class="head3 btc">' +
         '<div class="card"><div class="label">Lãi/lỗ hôm nay</div><div class="value num ' + tone(d.today_pnl) + '">' + signed(d.today_pnl) + " USD</div></div>" +
         '<div class="card"><div class="label">Lệnh hôm nay</div><div class="value num">' + d.today_trades + (d.today_trades ? " · thắng " + d.today_wins : "") + "</div></div>" +
         priceCard(lv) + "</div>";
@@ -228,12 +232,16 @@
         " lệnh, cộng dồn lãi > 0 và cháy ≤ " + Math.round(100 * d.thresholds.go_max_burn_ratio) + "% số ngày thì chiến thuật đó được giữ; không tài khoản nào lãi thì dừng bot giao dịch BTC.</p></div>";
       content.innerHTML = h;
       Array.prototype.forEach.call(content.querySelectorAll(".acc"), function (el) {
-        function go(ev) { if (!ev.target.closest(".sw")) location.href = el.dataset.href; }
+        function go(ev) { if (!ev.target.closest(".sw, #swErr")) location.href = el.dataset.href; }
         el.addEventListener("click", go);
         el.addEventListener("keydown", function (ev) { if (ev.key === "Enter") go(ev); });
       });
       bindSwitches(content, function () { load(true); });
       bindReload();
+      var se = document.getElementById("swErr");
+      var key = toggleErr ? toggleErr.code + toggleErr.want : "";
+      if (se && key !== shownErr) se.scrollIntoView({ block: "nearest" }); // lỗi nằm trong hàng vừa bấm: cuộn cho thấy, một lần
+      shownErr = key;
     }
 
     function good10(d) { return d && Array.isArray(d.accounts) && d.live && d.thresholds; }
@@ -247,7 +255,10 @@
       busy = true;
       api("/api/btc/accounts").then(function (d) {
         if (!good10(d)) { var e = new Error("shape"); e.shape = true; throw e; }
-        last = d; offline = null; render(d);
+        var same = last && offline === null && JSON.stringify(last) === JSON.stringify(d);
+        last = d; offline = null;
+        if ((same || touching()) && !force) return;
+        render(d);
       })
         .catch(function (e) {
           if (e.message === "auth") return;
@@ -261,7 +272,7 @@
         .finally(function () { busy = false; });
     }
     load(true);
-    setInterval(function () { if (!document.hidden && !content.querySelector(".sw[disabled]")) load(false); }, 5000);
+    setInterval(function () { if (!document.hidden && !content.querySelector(".sw[disabled]") && !touching()) load(false); }, 5000);
   }
 
   /* ================= S11 ================= */
@@ -295,9 +306,9 @@
       if (t.status === "closed") {
         var move = t.direction * (t.exit_price / t.entry_price - 1);
         why += "\nRa: " + (t.exit_reason === "horizon" ? "hết thời gian giữ" : t.exit_reason === "stopout" ? "lỗ hết số dư (cháy)" : "hết ngày lúc 06:59 sáng — không tính vào số lệnh đánh giá 8 tuần") +
-          (t.exit_reason === "stopout" ? "" : " · giá đi theo hướng " + (move >= 0 ? "+" : "−") + fmt(Math.abs(100 * move), 3) + "% − phí 0,14% → " + signed(t.pnl) + " USD");
+          (t.exit_reason === "stopout" ? "" : " · giá đi theo hướng " + (move >= 0 ? "+" : "−") + fmt(Math.abs(100 * move), 3) + "% − phí 0.14% → " + signed(t.pnl) + " USD");
       }
-      return '<button class="prow" type="button" aria-expanded="false" data-id="' + t.id + '"><div class="top"><span class="num">' + esc(t.opened_vn) + (t.closed_vn ? " → " + esc(t.closed_vn) : "") + " · " + arrow +
+      return '<button class="prow" type="button" aria-expanded="false" data-id="' + esc(t.id) + '"><div class="top"><span class="num">' + esc(t.opened_vn) + (t.closed_vn ? " → " + esc(t.closed_vn) : "") + " · " + arrow +
         ' <span class="muted">' + fmt(t.entry_price, 2) + (t.exit_price != null ? " → " + fmt(t.exit_price, 2) : "") + "</span></span>" +
         '<span class="badge ' + badge[0] + '">' + esc(badge[1]) + "</span></div>" +
         '<div class="num">' + money + '</div><div class="more">' + esc(why) + "</div></button>";
@@ -308,15 +319,19 @@
         el.addEventListener("click", function () { var o = el.classList.toggle("open"); el.setAttribute("aria-expanded", o ? "true" : "false"); });
       });
     }
-    function render(d) {
+    var headJson = null, listBuilt = false, listJson = null;
+    function renderHead(d, paused) {
       settleToggleErr([d]);
-      var openIds = Array.prototype.map.call(content.querySelectorAll(".prow.open"), function (el) { return el.dataset.id; });
       document.getElementById("accTitle").textContent = letter(d.code) + " · " + d.name;
       var slot = document.getElementById("swSlot");
-      slot.innerHTML = sw(d);
-      bindSwitches(slot, function () { load(); });
+      var swState = String(d.enabled);
+      if (slot.dataset.s !== swState) {
+        slot.dataset.s = swState;
+        slot.innerHTML = sw(d);
+        bindSwitches(slot, function () { load(true); });
+      }
       var t = d.today, tot = d.total;
-      var h = toggleErrBlock() + '<div class="head3">' +
+      var h = toggleErrBlock() + '<div class="head3 btc">' +
         '<div class="card"><div class="label">Số dư hiện tại</div><div class="value num ' + tone(d.equity - d.start_equity) + '">' + fmt(d.equity, 2) + "</div></div>" +
         '<div class="card"><div class="label">Lãi/lỗ hôm nay</div><div class="value num ' + tone(t.pnl) + '">' + signed(t.pnl) + '</div><div class="muted">' + t.trades + " lệnh</div></div>" +
         '<div class="card"><div class="label">Cộng dồn</div><div class="value num ' + tone(tot.pnl) + '">' + signed(tot.pnl) + '</div><div class="muted">' + tot.days + " ngày · cháy " + tot.burned_days + "</div></div></div>";
@@ -324,6 +339,14 @@
         " · " + holdText(d.strategy || {}) + " · lệnh = " + fmt(d.leverage, 0) + " × số dư · phí + trượt " + fmt(d.cost_pct, 2) + "% khứ hồi</div>";
       h += '<div class="note">' + esc(ruleText(d)) + " Tiền giả.</div>";
       if (!d.enabled) h += '<div class="note">' + OFF_TEXT + "</div>";
+      if (paused) h += '<div class="note" id="paused">Danh sách lệnh tạm dừng cập nhật (bạn đang xem chi tiết hoặc đã bấm Tải thêm) — số ở trên vẫn mới. Tải lại trang để cập nhật danh sách.</div>';
+      var head = document.getElementById("head");
+      head.innerHTML = h;
+      bindSwitches(head, function () { load(true); });
+    }
+    function renderList(d) {
+      var box = document.getElementById("listbox");
+      var h = "";
       if (!d.rows.length) {
         h += '<div class="empty"><p>Tài khoản này chưa có lệnh. ' + (d.enabled ? waitText(d.live) : "Bật tài khoản để bot bắt đầu vào lệnh theo chiến thuật trên.") +
           '</p><a href="/btc">Về màn BTC</a></div>';
@@ -332,14 +355,9 @@
           (d.rows.length === 50 ? '<button class="btn line block" type="button" id="more">Tải thêm</button>' : "");
         lastId = d.rows[d.rows.length - 1].id;
       }
-      h += '<div class="note" id="paused" hidden>Tạm dừng tự cập nhật trong lúc bạn xem chi tiết lệnh — đóng chi tiết để cập nhật lại.</div>';
-      content.innerHTML = h;
-      openIds.forEach(function (id) {
-        var el = content.querySelector('.prow[data-id="' + id + '"]');
-        if (el) { el.classList.add("open"); el.setAttribute("aria-expanded", "true"); }
-      });
-      bindRows(content);
-      bindSwitches(content, function () { load(); });
+      box.innerHTML = h;
+      listBuilt = true;
+      bindRows(box);
       var more = document.getElementById("more");
       if (more) more.addEventListener("click", function () {
         more.disabled = true; more.textContent = "Đang tải…";
@@ -353,27 +371,41 @@
         }).catch(function (e) { more.disabled = false; more.textContent = "Tải thêm — lỗi, bấm thử lại"; if (e.message !== "auth") more.title = errText(e); });
       });
     }
-    function load() {
-      if (busy11) return;
+    function render(d, force) {
+      if (!document.getElementById("head")) content.innerHTML = '<div id="head"></div><div id="listbox"></div>';
+      var reading = !!content.querySelector(".prow.open");
+      var paused = listBuilt && (extra || reading);
+      var j = JSON.stringify([d.enabled, d.today, d.total, d.equity, d.name, toggleErr, paused]);
+      if (j !== headJson || force) { headJson = j; renderHead(d, paused); }
+      if (!listBuilt || (!extra && !reading && !touching())) {
+        var openIds = Array.prototype.map.call(content.querySelectorAll(".prow.open"), function (el) { return el.dataset.id; });
+        var lj = JSON.stringify(d.rows.map(function (r) { return [r.id, r.status, r.pnl, r.exit_reason]; }));
+        if (!listBuilt || lj !== listJson) {
+          listJson = lj;
+          renderList(d);
+          openIds.forEach(function (id) {
+            var el = content.querySelector('.prow[data-id="' + id + '"]');
+            if (el) { el.classList.add("open"); el.setAttribute("aria-expanded", "true"); }
+          });
+        }
+      }
+    }
+    function load(force) {
+      if (busy11 && !force) return;
       busy11 = true;
       api("/api/btc/accounts/" + code).then(function (d) {
         if (!d || !d.code || !Array.isArray(d.rows) || !d.total || !d.today) { var e = new Error("shape"); e.shape = true; throw e; }
-        loaded = true; render(d);
+        loaded = true; render(d, force);
       })
         .catch(function (e) {
           if (e.message === "auth") return;
           if (loaded) return;
           content.innerHTML = '<div class="error" role="alert"><p>' + esc(errText(e)) + '</p><button class="btn" type="button" id="retry">Thử lại</button></div>';
-          document.getElementById("retry").addEventListener("click", function () { this.disabled = true; this.textContent = "Đang thử…"; load(); });
+          document.getElementById("retry").addEventListener("click", function () { this.disabled = true; this.textContent = "Đang thử…"; load(true); });
         })
         .finally(function () { busy11 = false; });
     }
-    load();
-    setInterval(function () {
-      var reading = !!content.querySelector(".prow.open");
-      var p = document.getElementById("paused");
-      if (p) p.hidden = !reading;
-      if (!document.hidden && !extra && !reading && !document.querySelector(".sw[disabled]")) load();
-    }, 5000);
+    load(true);
+    setInterval(function () { if (!document.hidden && !document.querySelector(".sw[disabled]") && !touching()) load(false); }, 5000);
   }
 })();

@@ -264,7 +264,7 @@ async def live(session: AsyncSession, now: datetime) -> dict[str, Any]:
         "lag_seconds": round(lag) if lag is not None else None,
         "fresh": lag is not None and lag < LAG_LIMIT_S,
         "lag_limit": LAG_LIMIT_S,
-        "error": feed["error"] if feed and not feed["ok"] else None,
+        "error": "Binance không trả lời (chi tiết ở log worker)" if feed and not feed["ok"] else None,
         "worker_alive": bool(st.get("updated_at") and (now - st["updated_at"]).total_seconds() < ALIVE_S),
         "history_days": round((last - first).total_seconds() / 86400, 1) if first and last else 0.0,
         "history_target": LOOKBACK.days,

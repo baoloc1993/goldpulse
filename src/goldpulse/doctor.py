@@ -65,6 +65,21 @@ async def main() -> int:
     finally:
         await gold.close()
 
+    if settings.btc_on:  # (v4) nguồn nến BTC — Binance công khai, không key
+        from .integrations.binance import BinanceClient
+
+        bn = BinanceClient(settings.binance_base_url)
+        try:
+            closed, live, server_now = await bn.klines("BTCUSDT", limit=3)
+            lag = (server_now - (closed[-1].ts + timedelta(minutes=1))).total_seconds() if closed else None
+            line(True, f"Binance: BTCUSDT {live.close if live else closed[-1].close:,.2f} (nến đóng trễ {lag:.0f}s)")
+        except Exception as e:  # noqa: BLE001
+            good &= line(False, f"Binance: {e} — thử BINANCE_BASE_URL khác (api1.binance.com…)")
+        finally:
+            await bn.close()
+    if settings.btc_on and not settings.gold_on:
+        return 0 if good else 1  # instance chỉ BTC: không cần HistData/Dukascopy/FRED/não
+
     hd = HistDataClient()
     now = datetime.now(UTC)
     try:

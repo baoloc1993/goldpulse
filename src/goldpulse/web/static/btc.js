@@ -52,7 +52,7 @@
   function holdText(s) { return "giữ " + (s.hold_hours || 1) + " giờ"; }
   function ruleText(a) {
     var s = a.strategy || {};
-    if (s.kind === "model") return "Mỗi giờ tròn, mô hình chấm ~20 chỉ số của BTC; chỉ vào khi thuộc 5% lần nó chắc nhất, " + holdText(s) + ".";
+    if (s.kind === "model") return "Mỗi giờ tròn, mô hình chấm hàng chục chỉ số của BTC; chỉ vào khi thuộc 5% lần nó chắc nhất, " + holdText(s) + ".";
     if (s.kind === "model_trend") return "Như A nhưng lấy 10% lần chắc nhất, và chỉ khi cùng chiều xu hướng 24 giờ (giá trên đường trung bình thì chỉ mua, dưới thì chỉ bán), " + holdText(s) + ".";
     if (s.kind === "spike") return "Nến 1 giờ chạy mạnh gấp " + fmt(s.k_sigma || 3, 0) + " lần bình thường → đánh theo chiều đó, " + holdText(s) + ".";
     if (s.kind === "squeeze") return "Giá đi ngang hẹp nhất trong 30 ngày rồi một nến phá ra khỏi dải Bollinger → đánh theo chiều phá, " + holdText(s) + ".";

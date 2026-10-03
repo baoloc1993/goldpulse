@@ -204,3 +204,18 @@ async def test_api_btc_can_khoa_va_khong_lan_voi_vang(client):
     assert (await client.get("/btc/BTC-Z")).status_code == 404
     assert (await client.get("/btc/btc-a")).status_code == 404
     assert (await client.get("/btc")).status_code == 200
+
+
+@needs_db
+async def test_lan_dau_chi_tinh_gio_vua_dong_khong_ghi_gio_bi_lo(db):
+    now = datetime(2026, 10, 3, 12, 1, tzinfo=UTC)
+    async with db() as s:
+        # 31 ngày nến phẳng tới 11:59 — đủ điều kiện bắt đầu chạy chiến thuật
+        start = now.replace(minute=0) - timedelta(days=31)
+        n = int((now.replace(minute=0) - start) / M)
+        await _candles(s, start, [P0 + (i % 7) for i in range(n)])
+        done = await paper.process_hours(s, now)
+        assert done == [] or done == [datetime(2026, 10, 3, 11, 0, tzinfo=UTC)]  # đủ 760 giờ chưa → có thể chưa tính
+        assert len(await repo.signal_bars(s, SYMBOL, now - timedelta(days=2))) <= 1  # không ghi 24 giờ cũ
+        for code in ("BTC-A", "BTC-B", "BTC-C", "BTC-D"):
+            assert all(r["skip_reason"] != "stale" for r in await _rows(s, code))

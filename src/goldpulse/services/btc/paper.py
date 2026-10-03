@@ -192,7 +192,8 @@ async def process_hours(session: AsyncSession, now: datetime) -> list[datetime]:
     top = now.replace(minute=0, second=0, microsecond=0)
     have = await repo.signal_bars(session, SYMBOL, top - MISSED_MAX)
     done: list[datetime] = []
-    bar_ts = top - MISSED_MAX
+    # Lần chạy đầu tiên (chưa có tín hiệu nào): bắt đầu từ giờ vừa đóng — chưa có "giờ bị lỡ" nào để ghi (S11 không rác)
+    bar_ts = top - MISSED_MAX if have else top - timedelta(hours=1)
     while bar_ts < top:
         if bar_ts not in have and bar_ts >= first + timedelta(days=30):
             entry = await repo.candle_at(session, SYMBOL, bar_ts + timedelta(minutes=59))

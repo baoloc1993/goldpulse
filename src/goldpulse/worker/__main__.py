@@ -1,5 +1,6 @@
 """Worker: `python -m goldpulse.worker` — luồng A (nạp lịch sử), B (realtime), C (lấy bù), dọn dẹp;
-(v2) F (tín hiệu 15 phút → job dự đoán), G (chấm dự đoán + dọn hàng chờ não), H (nạp lịch FED)."""
+(v2) F (tín hiệu 15 phút → job dự đoán), G (chấm dự đoán + dọn hàng chờ não), H (nạp lịch FED);
+(v4) L–O của BTC ở `worker/btc.py`. Luồng vàng chỉ chạy khi INSTRUMENTS chứa XAUUSD, BTC khi chứa BTCUSDT."""
 
 import asyncio
 import signal
@@ -37,6 +38,7 @@ from ..services import ingest, model15m, notify, paper, predictions, signals
 from ..services.calendar import MINUTE, NY, last_complete_day, open_minutes_of_day
 from ..services.errors import record_error
 from ..services.monitor import LAG_LIMIT_S
+from .btc import BtcLoops
 
 log = structlog.get_logger("worker")
 
@@ -498,21 +500,35 @@ class Worker:
             raise SystemExit("Đã có một worker GoldPulse khác đang chạy trên kho này — dừng.")
         async with session_scope() as s:
             await feed_repo.set_status_if_absent(s, "first_run", {"at": datetime.now(UTC).isoformat()})
-        log.info("worker_start", history_start=str(settings.history_start_date))
-        tasks = [
-            asyncio.create_task(self._guard(self.history_loop), name="history"),
-            asyncio.create_task(self._guard(self.realtime_loop), name="realtime"),
-            asyncio.create_task(self._guard(self.backfill_loop), name="backfill"),
-            asyncio.create_task(self._guard(self.cleanup_loop), name="cleanup"),
-            asyncio.create_task(self._guard(self.signal_loop), name="signal"),
-            asyncio.create_task(self._guard(self.score_loop), name="score"),
-            asyncio.create_task(self._guard(self.fed_loop), name="fed"),
-            asyncio.create_task(self._guard(self.notify_loop), name="notify"),
-        ]
+        log.info(
+            "worker_start", history_start=str(settings.history_start_date), instruments=sorted(settings.instrument_set)
+        )
+        tasks = []
+        if settings.gold_on:
+            tasks += [
+                asyncio.create_task(self._guard(self.history_loop), name="history"),
+                asyncio.create_task(self._guard(self.realtime_loop), name="realtime"),
+                asyncio.create_task(self._guard(self.backfill_loop), name="backfill"),
+                asyncio.create_task(self._guard(self.cleanup_loop), name="cleanup"),
+                asyncio.create_task(self._guard(self.signal_loop), name="signal"),
+                asyncio.create_task(self._guard(self.score_loop), name="score"),
+                asyncio.create_task(self._guard(self.fed_loop), name="fed"),
+                asyncio.create_task(self._guard(self.notify_loop), name="notify"),
+            ]
+        btc = BtcLoops(self) if settings.btc_on else None
+        if btc:
+            tasks += [
+                asyncio.create_task(self._guard(btc.price_loop), name="btc_price"),
+                asyncio.create_task(self._guard(btc.trade_loop), name="btc_trade"),
+                asyncio.create_task(self._guard(btc.notify_loop), name="btc_notify"),
+                asyncio.create_task(self._guard(btc.cleanup_loop), name="btc_cleanup"),
+            ]
         await self.stop.wait()
         for t in tasks:
             t.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+        if btc:
+            await btc.close()
         await self.duka.close()
         await self.hd.close()
         await self.lock_conn.close()

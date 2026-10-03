@@ -60,7 +60,9 @@ def main():
         flips += r["trigger"] != (abs(P[i] - 0.5) >= md["confidence_threshold"])
         for k, name in enumerate(FEATURES):
             fdiff[name] = max(fdiff.get(name, 0.0), abs(f[name] - FV[i][k]))
-    print(f"{len(picks)} nến (gồm {min(NPICK // 3, len(trig))} nến trigger): lệch xác suất lớn nhất {worst:.5f} · lệch trigger {flips}")
+    print(
+        f"{len(picks)} nến (gồm {min(NPICK // 3, len(trig))} nến trigger): lệch xác suất lớn nhất {worst:.5f} · lệch trigger {flips}"
+    )
     print("lệch đặc trưng lớn nhất:", {k: round(v, 5) for k, v in sorted(fdiff.items(), key=lambda t: -t[1])[:8]})
 
 

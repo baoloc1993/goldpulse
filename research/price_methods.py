@@ -79,7 +79,9 @@ F["round10"] = (c % 10) / 10
 period = np.where(ts.dt.year <= 2021, "A", np.where(ts.dt.year <= 2024, "B", "C"))
 ok = valid & (ts.dt.year >= 2012).values & (gap_prev == 900) & np.isfinite(F.values).all(axis=1) & np.isfinite(atr)
 P = {p: ok & (period == p) for p in "ABC"}
-print("mẫu:", {p: int(P[p].sum()) for p in "ABC"}, "· tỉ lệ nến tăng:", {p: round(100 * y[P[p]].mean(), 1) for p in "ABC"})
+print(
+    "mẫu:", {p: int(P[p].sum()) for p in "ABC"}, "· tỉ lệ nến tăng:", {p: round(100 * y[P[p]].mean(), 1) for p in "ABC"}
+)
 
 
 def show(name, pred, mask=None):

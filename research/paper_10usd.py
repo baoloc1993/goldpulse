@@ -22,7 +22,11 @@ START, SPREAD = 10.0, 0.30
 
 raw = pd.read_csv(sys.argv[1], parse_dates=["ts"])
 df, F = build(raw)
-md = json.load(open(__import__("pathlib").Path(__file__).resolve().parent.parent / "data/models/logit15m_v1.json", encoding="utf-8"))
+md = json.load(
+    open(
+        __import__("pathlib").Path(__file__).resolve().parent.parent / "data/models/logit15m_v1.json", encoding="utf-8"
+    )
+)
 FV = F.values
 Z = (FV - np.array(md["mean"])) / np.array(md["scale"])
 P = 1 / (1 + np.exp(-(Z @ np.array(md["coef"]) + md["intercept"])))
@@ -73,17 +77,21 @@ def run(T, oz, sl, lev, max_loss_day=None, max_trades=None):
 def show(label, D):
     pnl = D["end"] - START
     n = D["n"].sum()
-    print(f"{label:<44} ngày {len(D):>3} · lệnh {n:>4} · thắng {D['wins'].sum() / max(n, 1):5.1%} · "
-          f"lãi TB/ngày {pnl.mean():+6.2f} · ngày lãi {(pnl > 0).mean():5.1%} · cháy {(D['end'] < 1).mean():5.1%} · "
-          f"tệ nhất {pnl.min():+6.2f} · tổng {pnl.sum():+8.2f}")
+    print(
+        f"{label:<44} ngày {len(D):>3} · lệnh {n:>4} · thắng {D['wins'].sum() / max(n, 1):5.1%} · "
+        f"lãi TB/ngày {pnl.mean():+6.2f} · ngày lãi {(pnl > 0).mean():5.1%} · cháy {(D['end'] < 1).mean():5.1%} · "
+        f"tệ nhất {pnl.min():+6.2f} · tổng {pnl.sum():+8.2f}"
+    )
 
 
 B, C = T[T["yr"].between(2022, 2024)], T[T["yr"] >= 2025]
 print("\n== Không phí, không cắt lỗ — kiểm lại tỉ lệ đúng hướng ==")
 for name, S in (("2022–24", B), ("2025–26", C)):
-    print(f"{name}: {len(S)} lệnh · đúng hướng {(S['dir'] * (S['exit'] - S['entry']) > 0).mean():.1%} · "
-          f"Δ TB theo hướng {(S['dir'] * (S['exit'] - S['entry'])).mean():+.3f} USD/oz · "
-          f"|Δ| TB {(S['exit'] - S['entry']).abs().mean():.3f} · spread {SPREAD}")
+    print(
+        f"{name}: {len(S)} lệnh · đúng hướng {(S['dir'] * (S['exit'] - S['entry']) > 0).mean():.1%} · "
+        f"Δ TB theo hướng {(S['dir'] * (S['exit'] - S['entry'])).mean():+.3f} USD/oz · "
+        f"|Δ| TB {(S['exit'] - S['entry']).abs().mean():.3f} · spread {SPREAD}"
+    )
 
 grid = []
 for oz in (1.0, 0.01):
@@ -91,7 +99,9 @@ for oz in (1.0, 0.01):
         for mld in (None, 3, 5):
             grid.append((oz, sl, mld))
 
-print("\n== CHỌN LUẬT trên 2022–2024 (đòn bẩy 1:1000; 1 oz = 0,01 lot tài khoản thường, 0,01 oz = 0,01 lot tài khoản cent) ==")
+print(
+    "\n== CHỌN LUẬT trên 2022–2024 (đòn bẩy 1:1000; 1 oz = 0,01 lot tài khoản thường, 0,01 oz = 0,01 lot tài khoản cent) =="
+)
 res = []
 for oz, sl, mld in grid:
     D = run(B, oz, sl, 1000, mld)

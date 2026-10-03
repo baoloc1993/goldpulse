@@ -109,7 +109,16 @@ def summarize(t: pd.DataFrame, lo_y: int, hi_y: int, ndays: int) -> dict:
     yr = pd.DatetimeIndex(t["day"]).year
     s = t[(yr >= lo_y) & (yr <= hi_y)]
     if s.empty:
-        return {"n": 0, "per4w": 0, "hit": np.nan, "gross": np.nan, "net": np.nan, "usd4w": 0, "burn": 0, "winday": np.nan}
+        return {
+            "n": 0,
+            "per4w": 0,
+            "hit": np.nan,
+            "gross": np.nan,
+            "net": np.nan,
+            "usd4w": 0,
+            "burn": 0,
+            "winday": np.nan,
+        }
     daily = s.groupby("day")["pnl"].sum()
     return {
         "n": len(s), "per4w": len(s) / ndays * 28, "hit": (s.gross > 0).mean(), "gross": s.gross.mean() * 100,
@@ -144,7 +153,9 @@ def build_variants(h1: pd.DataFrame) -> tuple[list[Variant], np.ndarray]:
         base = np.where(conf >= thr, dm, 0)
         for H in (1, 4):
             V.append(Variant("mô hình", f"top {q:.0%} giữ {H}h", base, H))
-        V.append(Variant("mô hình + xu hướng", f"top {q:.0%} cùng chiều EMA 24h, giữ 1h", np.where(dm == trend, base, 0), 1))
+        V.append(
+            Variant("mô hình + xu hướng", f"top {q:.0%} cùng chiều EMA 24h, giữ 1h", np.where(dm == trend, base, 0), 1)
+        )
         V.append(Variant("mô hình + chốt/cắt", f"top {q:.0%} chốt 1σ cắt 1σ, tối đa 4h", base, 4, tp=1.0, sl=1.0))
     V.append(Variant("đối chứng", "ngược mô hình top 5%", -np.where(conf >= np.quantile(conf[sel], 0.95), dm, 0), 1))
 
@@ -152,8 +163,12 @@ def build_variants(h1: pd.DataFrame) -> tuple[list[Variant], np.ndarray]:
     z = np.nan_to_num(r1 / np.roll(sigma, 1))
     for k in (2.0, 3.0):
         for H in (1, 4):
-            V.append(Variant("đánh ngược nến giật", f"|Δ1h| ≥ {k}σ, giữ {H}h", np.where(np.abs(z) >= k, -np.sign(z), 0), H))
-            V.append(Variant("đánh theo nến giật", f"|Δ1h| ≥ {k}σ, giữ {H}h", np.where(np.abs(z) >= k, np.sign(z), 0), H))
+            V.append(
+                Variant("đánh ngược nến giật", f"|Δ1h| ≥ {k}σ, giữ {H}h", np.where(np.abs(z) >= k, -np.sign(z), 0), H)
+            )
+            V.append(
+                Variant("đánh theo nến giật", f"|Δ1h| ≥ {k}σ, giữ {H}h", np.where(np.abs(z) >= k, np.sign(z), 0), H)
+            )
 
     # 3. RSI(2) cực trị thuận xu hướng dài (kiểu Connors)
     rsi2 = f["rsi9"].values * 0  # placeholder để giữ shape
@@ -176,7 +191,7 @@ def build_variants(h1: pd.DataFrame) -> tuple[list[Variant], np.ndarray]:
 
     # 5. Nén biên độ rồi bung (Bollinger squeeze)
     m20, s20 = c.rolling(20).mean(), c.rolling(20).std()
-    width = (4 * s20 / m20)
+    width = 4 * s20 / m20
     narrow = width < width.rolling(720).quantile(0.2)
     s = np.where(narrow.shift(1, fill_value=False) & (c > m20 + 2 * s20), 1,
                  np.where(narrow.shift(1, fill_value=False) & (c < m20 - 2 * s20), -1, 0))  # fmt: skip
@@ -193,14 +208,25 @@ def build_variants(h1: pd.DataFrame) -> tuple[list[Variant], np.ndarray]:
         s = np.zeros(len(c), dtype=int)
         for hh, dd in dirs.items():
             s[(hr == hh)] = int(dd)
-        V.append(Variant("giờ trong ngày", f"{k} giờ mạnh nhất 2018–21 ({', '.join(f'{x}h{"+" if dirs[x] > 0 else "−"}' for x in best)}), giữ 1h", s, 1))
+        V.append(
+            Variant(
+                "giờ trong ngày",
+                f"{k} giờ mạnh nhất 2018–21 ({', '.join(f'{x}h{"+" if dirs[x] > 0 else "−"}' for x in best)}), giữ 1h",
+                s,
+                1,
+            )
+        )
 
     # 7. Khối lượng đột biến — theo/ngược chiều thân nến
     vr = np.nan_to_num(f["vratio"].values)
     body = np.sign(np.nan_to_num(f["body"].values))
     for H in (1, 4):
-        V.append(Variant("khối lượng đột biến theo", f"KL ≥ 3× TB 24h, giữ {H}h", np.where(vr >= np.log(3), body, 0), H))
-        V.append(Variant("khối lượng đột biến ngược", f"KL ≥ 3× TB 24h, giữ {H}h", np.where(vr >= np.log(3), -body, 0), H))
+        V.append(
+            Variant("khối lượng đột biến theo", f"KL ≥ 3× TB 24h, giữ {H}h", np.where(vr >= np.log(3), body, 0), H)
+        )
+        V.append(
+            Variant("khối lượng đột biến ngược", f"KL ≥ 3× TB 24h, giữ {H}h", np.where(vr >= np.log(3), -body, 0), H)
+        )
 
     # 8. EMA 9/21 cắt nhau
     e9, e21 = c.ewm(span=9).mean(), c.ewm(span=21).mean()
@@ -212,7 +238,14 @@ def build_variants(h1: pd.DataFrame) -> tuple[list[Variant], np.ndarray]:
     # 9. Lệch xa trung bình ngày → về trung bình
     gap = f["ema_gap"].values / np.nan_to_num(sigma, nan=1) / np.sqrt(24)
     for k in (1.5, 2.5):
-        V.append(Variant("về trung bình ngày", f"lệch EMA24h ≥ {k}σ ngày, giữ 4h", np.where(np.abs(gap) >= k, -np.sign(gap), 0), 4))
+        V.append(
+            Variant(
+                "về trung bình ngày",
+                f"lệch EMA24h ≥ {k}σ ngày, giữ 4h",
+                np.where(np.abs(gap) >= k, -np.sign(gap), 0),
+                4,
+            )
+        )
 
     for v in V:
         v.sig = np.where(ok, np.nan_to_num(v.sig), 0).astype(int)

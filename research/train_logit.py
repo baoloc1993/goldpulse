@@ -40,7 +40,11 @@ thr = float(np.quantile(conf[B], 1 - TOP))
 
 def acc(mask):
     sel = mask & (conf >= thr)
-    return round(100 * ((p[sel] > 0.5) == (y[sel] == 1)).mean(), 2), int(sel.sum()), round(100 * sel.sum() / mask.sum(), 2)
+    return (
+        round(100 * ((p[sel] > 0.5) == (y[sel] == 1)).mean(), 2),
+        int(sel.sum()),
+        round(100 * sel.sum() / mask.sum(), 2),
+    )
 
 
 metrics = {k: dict(zip(("accuracy_pct", "n", "coverage_pct"), acc(v), strict=True)) for k, v in

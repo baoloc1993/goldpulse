@@ -52,6 +52,25 @@ class Settings(BaseSettings):
     # Trống → chat riêng đầu tiên nhắn bot, khoá vào worker_status.telegram
     telegram_chat_id: int | None = None
 
+    # --- (v4) cặp bật trong instance (DECISIONS 2026-10-03): XAUUSD = vòng 1–3 y nguyên · BTCUSDT = BTC độc lập ---
+    instruments: str = "XAUUSD"
+    binance_base_url: str = "https://api.binance.com"
+    btc_poll_seconds: float = 10.0
+    telegram_btc_bot_token: str | None = None
+    telegram_btc_chat_id: int | None = None
+
+    @property
+    def instrument_set(self) -> set[str]:
+        return {s.strip().upper() for s in self.instruments.split(",") if s.strip()}
+
+    @property
+    def gold_on(self) -> bool:
+        return "XAUUSD" in self.instrument_set
+
+    @property
+    def btc_on(self) -> bool:
+        return "BTCUSDT" in self.instrument_set
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

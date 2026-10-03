@@ -216,3 +216,6 @@ a.card.link { display: block; color: inherit; text-decoration: none; }
 .acc .rule { font-size: var(--text-sm); color: var(--color-text); margin-top: 4px; }
 .acc .chev { color: var(--color-text-muted); margin-left: 4px; }
 .note { font-size: var(--text-sm); color: var(--color-text-muted); margin: var(--space-sm) 0; }
+
+/* (v4) S8 "‹ Dự đoán" + "BTC ›" cùng hàng khi instance chạy chung hai cặp */
+.toplinks { display: flex; justify-content: space-between; gap: var(--space-sm); }

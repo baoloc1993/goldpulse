@@ -28,25 +28,35 @@ SCREENS = {
 }
 
 
+def home() -> str:
+    """(v4) Màn đầu sau khoá: instance chỉ BTC vào thẳng S10 (PROTOTYPE §2 v4)."""
+    return "/overview" if settings.gold_on else "/btc"
+
+
+# (v4) S8 có liên kết "BTC ›" chỉ khi instance chạy chung hai cặp
+templates.env.globals["btc_on"] = settings.btc_on
+templates.env.globals["gold_on"] = settings.gold_on
+
+
 def _years() -> list[int]:
     return list(range(settings.history_start_date.year, datetime.now(UTC).year + 1))
 
 
 @router.get("/", include_in_schema=False)
 async def root(request: Request) -> RedirectResponse:
-    return RedirectResponse("/overview" if is_operator(request) else "/login", status_code=303)
+    return RedirectResponse(home() if is_operator(request) else "/login", status_code=303)
 
 
 def safe_next(value: str | None) -> str:
     """Chỉ nhận các màn nội bộ (giữ query string, vd bộ lọc S3) — chặn open redirect (//evil.com, http://…)."""
     if not value:
-        return "/overview"
+        return home()
     parts = urlsplit(value)
-    internal = {f"/{name}" for name in (*SCREENS, *V2_PATHS)} | {"/paper"}
-    # (v3) /paper/<mã tài khoản A–Z> — dogfood edge: mở link S9 khi chưa đăng nhập thì vào lại đúng S9
-    is_s9 = re.fullmatch(r"/paper/[A-Z]", parts.path) is not None
+    internal = {f"/{name}" for name in (*SCREENS, *V2_PATHS)} | {"/paper", "/btc"}
+    # (v3) /paper/<mã tài khoản A–Z> — dogfood edge: mở link S9 khi chưa đăng nhập thì vào lại đúng S9; (v4) /btc/BTC-X
+    is_s9 = re.fullmatch(r"/paper/[A-Z]|/btc/BTC-[A-Z]", parts.path) is not None
     if parts.scheme or parts.netloc or (parts.path not in internal and not is_s9):
-        return "/overview"
+        return home()
     return parts.path + (f"?{urlencode(parse_qsl(parts.query))}" if parts.query else "")
 
 
@@ -74,9 +84,7 @@ async def login_page(request: Request, next: str | None = None, het: int = 0, er
 
 @router.post("/login", response_class=HTMLResponse, include_in_schema=False)
 @limiter.limit("10/minute")
-async def login(
-    request: Request, key: Annotated[str, Form()] = "", next: Annotated[str, Form()] = "/overview"
-) -> HTMLResponse:
+async def login(request: Request, key: Annotated[str, Form()] = "", next: Annotated[str, Form()] = "") -> HTMLResponse:
     if not key.strip():
         return login_redirect(next, "empty")  # type: ignore[return-value]
     if not key_matches(key):

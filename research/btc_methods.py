@@ -90,7 +90,9 @@ def run(name: str, b: pd.DataFrame) -> None:
     d = np.where(p > 0.5, 1, -1)
     print(f"\n=== {name} · {len(c)} nến · biên độ TB |Δ1 nến| {np.nanmean(np.abs(fwd[1][ok])) * 100:.3f}% "
           f"(phí 0,14% = {COST / np.nanmean(np.abs(fwd[1][ok])):.0%} biên độ) ===")  # fmt: skip
-    print(f"logistic, đúng hướng mọi nến: chọn {((p[sel] > 0.5) == y[sel]).mean():.1%} · kiểm {((p[te] > 0.5) == y[te]).mean():.1%}")
+    print(
+        f"logistic, đúng hướng mọi nến: chọn {((p[sel] > 0.5) == y[sel]).mean():.1%} · kiểm {((p[te] > 0.5) == y[te]).mean():.1%}"
+    )
     for H in (1, 4):
         print(f"-- mô hình, giữ {H} nến · top q tự tin (ngưỡng lấy từ 2022–24)")
         for q in (0.02, 0.05, 0.10, 0.20, 0.50, 1.0):

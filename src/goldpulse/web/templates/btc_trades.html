@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block body %}
+<a class="back tap" href="/btc">‹ BTC</a>
+<div class="titlebar"><h1 id="accTitle">{{ code }}</h1><span id="swSlot"></span></div>
+<div id="content" data-code="{{ code }}" aria-live="polite">
+  <div class="head3"><div class="skel head9"></div><div class="skel head9"></div><div class="skel head9"></div></div>
+  <div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/btc.js" defer></script>{% endblock %}

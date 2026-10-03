@@ -15,7 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .api.deps import LoginRequired
 from .api.limiter import limiter
-from .api.routes import api, chat, health, pages
+from .api.routes import api, btc, chat, health, pages
 from .logs import setup_logging
 from .services.errors import record_error
 
@@ -89,12 +89,14 @@ app.include_router(pages.router)
 app.include_router(api.router)
 app.include_router(chat.pages)
 app.include_router(chat.api)
+app.include_router(btc.pages)
+app.include_router(btc.api)
 
 
 @app.exception_handler(RateLimitExceeded)
 async def _too_many(request: Request, exc: RateLimitExceeded) -> Response:
     if request.url.path == "/login":
-        return pages.login_redirect("/overview", "rate")
+        return pages.login_redirect(pages.home(), "rate")
     return JSONResponse(
         {"detail": "Thao tác quá nhanh — đợi 1 phút rồi thử lại."}, status_code=429, headers={"Retry-After": "60"}
     )

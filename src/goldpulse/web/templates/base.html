@@ -16,6 +16,8 @@
 {% block body %}{% endblock %}
 </main>
 {% if screen %}
+{# (v4) S10/S11 không có thanh điều hướng dưới — instance BTC chỉ có hai màn (DECISIONS 2026-10-03) #}
+{% if screen not in ('s10', 's11') %}
 <nav class="tabbar" aria-label="Điều hướng">
   <a href="/overview" class="{{ 'on' if screen == 's1' }}" {% if screen == 's1' %}aria-current="page"{% endif %}>Tổng quan</a>
   <a href="/coverage" class="{{ 'on' if screen == 's2' }}" {% if screen == 's2' %}aria-current="page"{% endif %}>Độ phủ</a>
@@ -24,6 +26,7 @@
   <a href="/predictions" class="{{ 'on' if screen in ('s6', 's8', 's9') }}" {% if screen == 's6' %}aria-current="page"{% endif %}>Dự đoán</a>
 </nav>
 <script src="/static/app.js" defer></script>
+{% endif %}
 {% block scripts %}{% endblock %}
 {% endif %}
 </body>

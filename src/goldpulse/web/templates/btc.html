@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block body %}
+{% if gold_on %}<a class="back tap" href="/paper">‹ Tài khoản vàng</a>{% endif %}
+<h1>BTC · tài khoản giấy</h1>
+<div id="content" aria-live="polite">
+  <div class="head3"><div class="skel head8"></div><div class="skel head8"></div><div class="skel head8"></div></div>
+  <div class="skel strip"></div>
+  <div class="skel accrow"></div><div class="skel accrow"></div><div class="skel accrow"></div><div class="skel accrow"></div>
+  <div class="skel curve"></div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/btc.js" defer></script>{% endblock %}

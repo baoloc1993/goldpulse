@@ -70,7 +70,9 @@ def main() -> None:
     daily(today.replace(day=1), today)
     bars = pd.concat(parts).drop_duplicates("ts").sort_values("ts")
     bars.to_csv(OUT, index=False)
-    print(f"{len(bars)} nến 15m · {bars.ts.iloc[0]} → {bars.ts.iloc[-1]} · thiếu phút: {(bars.n1m < 15).mean():.2%} nến")
+    print(
+        f"{len(bars)} nến 15m · {bars.ts.iloc[0]} → {bars.ts.iloc[-1]} · thiếu phút: {(bars.n1m < 15).mean():.2%} nến"
+    )
 
 
 if __name__ == "__main__":

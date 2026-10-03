@@ -34,8 +34,10 @@ B, C = T[T["yr"].between(2022, 2024)], T[T["yr"] >= 2025]
 print("lãi ròng/lệnh/oz sau spread theo ngưỡng biến động đã biết (TB |Δ15m| 96 nến trước)")
 for th in (0, 1, 1.5, 2, 3, 4, 5, 6):
     b, cc = B[B.vol >= th], C[C.vol >= th]
-    print(f"vol ≥ {th:>3}: 2022–24 {len(b):>5} lệnh net {b.net.mean():+.3f} · "
-          f"2025–26 {len(cc):>4} lệnh net {cc.net.mean():+.3f} · thắng sau phí {(cc.net > 0).mean():.1%}")
+    print(
+        f"vol ≥ {th:>3}: 2022–24 {len(b):>5} lệnh net {b.net.mean():+.3f} · "
+        f"2025–26 {len(cc):>4} lệnh net {cc.net.mean():+.3f} · thắng sau phí {(cc.net > 0).mean():.1%}"
+    )
 print("\ntheo mức tự tin của mô hình (top phân vị trong nến trigger)")
 for q in (0, 0.5, 0.75, 0.9):
     thr = B.conf.quantile(q)
@@ -45,7 +47,10 @@ print("\ntheo năm")
 for y in range(2012, 2027):
     s = T[T.yr == y]
     if len(s):
-        print(y, f"{len(s):>4} lệnh · vol TB {s.vol.mean():.2f} · trước phí {(s.net + SPREAD).mean():+.3f} · sau phí {s.net.mean():+.3f}")
+        print(
+            y,
+            f"{len(s):>4} lệnh · vol TB {s.vol.mean():.2f} · trước phí {(s.net + SPREAD).mean():+.3f} · sau phí {s.net.mean():+.3f}",
+        )
 
 # Luật D — giữ 4 nến (1 giờ) thay vì 1 nến, cùng spread
 gap4 = (ts.shift(-4) - ts).dt.total_seconds().values
@@ -55,4 +60,9 @@ print("\nluật D — giữ 1 giờ (chỉ lệnh có 4 nến liền kề)")
 for name, S in (("2022–24", T[T.yr.between(2022, 2024)]), ("2025–26", T[T.yr >= 2025])):
     s = S.dropna(subset=["net1h"])
     print(f"{name}: {len(s)} lệnh · sau phí {s.net1h.mean():+.3f} · đúng hướng {((s.net1h + SPREAD) > 0).mean():.1%}")
-print("ngưỡng tự tin q0.5 (2022–24):", round(float(B.conf.quantile(0.5)), 4), "· ngưỡng mô hình:", md["confidence_threshold"])
+print(
+    "ngưỡng tự tin q0.5 (2022–24):",
+    round(float(B.conf.quantile(0.5)), 4),
+    "· ngưỡng mô hình:",
+    md["confidence_threshold"],
+)

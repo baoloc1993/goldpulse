@@ -63,3 +63,4 @@ test-results/
 # Backup DB production (dữ liệu, không phải code)
 deployment/production/backups/
 research/bars15.csv
+research/btc_bars15.csv

@@ -229,5 +229,6 @@ async def test_do_tre_nen_chi_tinh_phan_tre_hon_nen_ke_tiep(db):
         await _candles(s, datetime(2026, 10, 3, 11, 59, tzinfo=UTC), [P0])  # nến 11:59 vừa đóng lúc 12:00:00
         lv = await paper.live(s, now)
         assert lv["lag_seconds"] == 0 and lv["fresh"]
-        lv = await paper.live(s, datetime(2026, 10, 3, 12, 4, 0, tzinfo=UTC))  # nến kế tiếp lẽ ra có từ 12:01:00 → trễ 180 s
+        # nến kế tiếp lẽ ra có từ 12:01:00 → trễ 180 s
+        lv = await paper.live(s, datetime(2026, 10, 3, 12, 4, 0, tzinfo=UTC))
         assert lv["lag_seconds"] == 180 and not lv["fresh"]

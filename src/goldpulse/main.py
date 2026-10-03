@@ -16,6 +16,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .api.deps import LoginRequired
 from .api.limiter import limiter
 from .api.routes import api, btc, chat, health, pages
+from .config import settings
 from .logs import setup_logging
 from .services.errors import record_error
 
@@ -89,8 +90,9 @@ app.include_router(pages.router)
 app.include_router(api.router)
 app.include_router(chat.pages)
 app.include_router(chat.api)
-app.include_router(btc.pages)
-app.include_router(btc.api)
+if settings.btc_on:  # (v4) instance chỉ vàng không có /btc — không banner đỏ vô nghĩa
+    app.include_router(btc.pages)
+    app.include_router(btc.api)
 
 
 @app.exception_handler(RateLimitExceeded)

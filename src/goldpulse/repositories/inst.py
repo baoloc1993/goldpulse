@@ -45,7 +45,7 @@ async def hourly_bars(session: AsyncSession, symbol: str, start: datetime, end: 
     rows = (
         await session.execute(
             text("""
-                SELECT date_trunc('hour', ts) AS bar_ts,
+                SELECT date_trunc('hour', ts, 'UTC') AS bar_ts,
                        (array_agg(open ORDER BY ts))[1] AS open, max(high) AS high, min(low) AS low,
                        (array_agg(close ORDER BY ts DESC))[1] AS close, sum(volume) AS volume, count(*) AS n
                 FROM inst_candle WHERE symbol = :s AND ts >= :a AND ts < :b
@@ -69,6 +69,22 @@ async def candles_between(session: AsyncSession, symbol: str, after: datetime, u
         )
     ).mappings()
     return [dict(r) for r in rows]
+
+
+async def first_gap(session: AsyncSession, symbol: str, since: datetime, skip: set[datetime]) -> datetime | None:
+    """Phút đầu tiên của một lỗ thủng (hai nến liền nhau cách > 1 phút) từ `since`, bỏ lỗ đã thử lấp (skip)."""
+    rows = await session.execute(
+        text("""
+            SELECT ts + interval '1 minute' FROM (
+                SELECT ts, lead(ts) OVER (ORDER BY ts) AS nxt FROM inst_candle WHERE symbol = :s AND ts >= :a
+            ) t WHERE nxt - ts > interval '1 minute' ORDER BY ts
+        """),
+        {"s": symbol, "a": since},
+    )
+    for (ts,) in rows:
+        if ts not in skip:
+            return ts
+    return None
 
 
 async def candle_at(session: AsyncSession, symbol: str, ts: datetime) -> dict[str, Any] | None:

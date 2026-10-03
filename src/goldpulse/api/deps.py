@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import settings
 from ..db import SessionLocal
 
-COOKIE = "gp_ops"
+# Cookie không phân biệt cổng: instance chỉ BTC dùng tên riêng, đăng nhập 8081 không đè cookie 8080 (review v4)
+COOKIE = "gp_ops" if settings.gold_on else "gp_ops_btc"
 COOKIE_MAX_AGE = 90 * 24 * 3600
 
 

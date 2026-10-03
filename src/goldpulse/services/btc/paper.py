@@ -25,6 +25,7 @@ CURVE_DAYS = 20
 LOOKBACK = timedelta(days=90)
 MISSED_MAX = timedelta(hours=24)
 STATUS_KEY = "btc"
+TRADE_KEY = "btc_trade"  # nhịp tim vòng lệnh (M+N) — vòng giá sống mà vòng lệnh chết thì S10 phải báo đỏ
 ALIVE_S = 120
 LAG_LIMIT_S = 60
 # PRD §6 vòng 4 — ghi trước khi nhìn số (chủ dự án 2026-10-03)
@@ -58,6 +59,11 @@ async def _equity_today(session: AsyncSession, acc: dict[str, Any], day: date) -
 
 
 # --- N. đóng lệnh ---------------------------------------------------------------------------------------------------
+
+
+def exit_at(t: dict[str, Any]) -> datetime:
+    """Giờ lệnh THỰC SỰ đóng theo luật (hạn, hoặc hết ngày UTC nếu hạn qua ngày) — để hiển thị, không phải due_at."""
+    return _exit_plan(t)[0] + MIN
 
 
 def _exit_plan(t: dict[str, Any]) -> tuple[datetime, str]:
@@ -111,10 +117,20 @@ async def close_open(session: AsyncSession, now: datetime) -> int:
                 closed += await _close(session, acc, t, float(k["close"]), exit_reason, k["ts"] + MIN)
                 done = True
                 break
+        if not done and last is None and now >= exit_candle + MIN + EXIT_GRACE:
+            # Mất SẠCH nến giữa giờ vào và giờ đóng (lỗ thủng) mà kho đã có nến sau đó → không kẹt `open` mãi:
+            # đóng ở giá vào (không có giá nào khác), mất đúng phí. Hiếm; lấp lỗ thủng thật là việc của backfill.
+            newer = await repo.latest_candle(session, SYMBOL, now)
+            if newer is not None and newer["ts"] > exit_candle:
+                log.warning("btc_no_candles_in_trade_window", trade_id=t["id"], exit_candle=exit_candle.isoformat())
+                closed += await _close(session, acc, t, float(t["entry_price"]), exit_reason, exit_candle + MIN)
         if not done and last is not None and now >= exit_candle + MIN + EXIT_GRACE:
-            # Nguồn thiếu đúng phút đóng lệnh (hiếm) → đóng ở nến cuối có trước đó, không chờ mãi
-            log.warning("btc_exit_candle_missing", trade_id=t["id"], exit_candle=exit_candle.isoformat())
-            closed += await _close(session, acc, t, float(last["close"]), exit_reason, last["ts"] + MIN)
+            # Nguồn thiếu đúng phút đóng lệnh → đóng ở nến cuối có trước đó. CHỈ khi nguồn đã đi qua phút đó (đã có nến
+            # sau nó); chưa có thì là worker/Binance chết hoặc đang lấy bù → chờ, không đóng sớm ở giá cũ (review v4)
+            newer = await repo.latest_candle(session, SYMBOL, now)
+            if newer is not None and newer["ts"] > exit_candle:
+                log.warning("btc_exit_candle_missing", trade_id=t["id"], exit_candle=exit_candle.isoformat())
+                closed += await _close(session, acc, t, float(last["close"]), exit_reason, last["ts"] + MIN)
     return closed
 
 
@@ -225,7 +241,8 @@ async def process_hours(session: AsyncSession, now: datetime) -> list[datetime]:
 
 def verdict(t: dict[str, Any]) -> str:
     """PRD §6 vòng 4: go · pivot (lãi nhưng chưa đủ 30 lệnh, hoặc đủ mà cháy > 20% ngày) · none."""
-    if t["eval_pnl"] <= 0:
+    # Dấu lãi theo Σ các ngày (day_close vẫn tính vào số dư — PRD §6); số lệnh đánh giá thì LOẠI day_close
+    if t["pnl"] <= 0:
         return "none"
     burn_ok = t["days"] == 0 or t["burned_days"] / t["days"] <= GO_MAX_BURN_RATIO
     return "go" if t["eval_n"] >= GO_MIN_TRADES and burn_ok else "pivot"
@@ -236,7 +253,7 @@ def _trade_view(t: dict[str, Any]) -> dict[str, Any]:
         "id": t["id"],
         "bar_vn": t["bar_ts"].astimezone(VN).strftime("%d/%m %H:%M"),
         "opened_vn": t["opened_at"].astimezone(VN).strftime("%d/%m %H:%M"),
-        "due_vn": t["due_at"].astimezone(VN).strftime("%H:%M"),
+        "due_vn": exit_at(t).astimezone(VN).strftime("%H:%M"),
         "closed_vn": t["closed_at"].astimezone(VN).strftime("%H:%M") if t["closed_at"] else None,
         "direction": t["direction"],
         "entry_price": t["entry_price"],
@@ -254,6 +271,7 @@ async def live(session: AsyncSession, now: datetime) -> dict[str, Any]:
     feed = await repo.latest_feed(session, SYMBOL)
     price = await repo.latest_price(session, SYMBOL)
     st = await feed_repo.get_status(session, STATUS_KEY) or {}
+    tr = await feed_repo.get_status(session, TRADE_KEY) or {}
     first, last = await repo.candle_span(session, SYMBOL)
     lag = None
     if last is not None:
@@ -265,7 +283,8 @@ async def live(session: AsyncSession, now: datetime) -> dict[str, Any]:
         "fresh": lag is not None and lag < LAG_LIMIT_S,
         "lag_limit": LAG_LIMIT_S,
         "error": "Binance không trả lời (chi tiết ở log worker)" if feed and not feed["ok"] else None,
-        "worker_alive": bool(st.get("updated_at") and (now - st["updated_at"]).total_seconds() < ALIVE_S),
+        "worker_alive": bool(st.get("updated_at") and (now - st["updated_at"]).total_seconds() < ALIVE_S)
+        and bool(tr.get("updated_at") and (now - tr["updated_at"]).total_seconds() < ALIVE_S),
         "history_days": round((last - first).total_seconds() / 86400, 1) if first and last else 0.0,
         "history_target": LOOKBACK.days,
         "next_check_vn": (now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1))

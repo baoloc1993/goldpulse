@@ -29,8 +29,8 @@ async def db():
     async with session_scope() as s:
         await s.execute(
             text(
-                "TRUNCATE inst_trade, inst_day, inst_signal, inst_candle, inst_feed, worker_status"
-                " RESTART IDENTITY CASCADE"
+                "TRUNCATE inst_trade, inst_day, inst_signal, inst_candle, inst_feed, worker_status,"
+                " paper_trade, paper_day, prediction, bot_job RESTART IDENTITY CASCADE"
             )
         )
         await s.execute(text("UPDATE inst_account SET enabled = true"))

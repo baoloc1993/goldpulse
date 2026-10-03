@@ -117,11 +117,16 @@
       });
     }
   }
+  var VERDICT = { go: "đạt điều kiện GO", pivot: "lãi nhưng chưa đủ điều kiện (PIVOT)", none: "chưa lãi" };
+  // Con số mà quyết định GO/PIVOT/KILL thực sự dựa vào (PRD §6 vòng 4): số lệnh đánh giá (không tính lệnh hết ngày) / ngưỡng
+  function evalText(tot, thr) {
+    return "Đánh giá 8 tuần: " + tot.eval_n + "/" + thr.go_min_trades + " lệnh · cộng dồn " + signed(tot.pnl) + " USD · " + (VERDICT[tot.verdict] || "—");
+  }
   function arrowOf(dir) { return dir === 1 ? '<span class="up">▲ mua</span>' : '<span class="down">▼ bán</span>'; }
 
   /* ================= S10 ================= */
   if (screen === "s10") {
-    var last = null, offline = null, busy = false, shownErr = "";
+    var last = null, offline = null, busy = false, shownErr = "", thr = { go_min_trades: 30 };
 
     function accRow(a, lv) {
       var eq = a.equity, t = a.today, tot = a.total, o = a.open;
@@ -147,7 +152,8 @@
         '<div class="sub num">Lãi/lỗ hôm nay <span class="' + (a.enabled ? tone(t.pnl) : "") + '">' + signed(t.pnl) + " USD</span></div>" +
         '<div class="sub">' + state + "</div>" +
         '<div class="sub num">Hôm nay ' + t.trades + " lệnh" + winRate + " · cộng dồn " + tot.days + " ngày " + signed(tot.pnl) + " USD (" + tot.trades + " lệnh) · cháy " +
-        tot.burned_days + " trong " + tot.days + " ngày</div>" + rowErr + "</div>" + sw(a) + "</div></div>";
+        tot.burned_days + " trong " + tot.days + " ngày</div>" +
+        '<div class="sub num">' + esc(evalText(tot, thr)) + "</div>" + rowErr + "</div>" + sw(a) + "</div></div>";
     }
 
     function curve(accs) {
@@ -204,6 +210,7 @@
     function render(d) {
       settleToggleErr(d.accounts);
       var lv = d.live;
+      thr = d.thresholds;
       var h = "";
       if (offline) h += '<div class="error" role="alert"><p>Không cập nhật được. ' + esc(errText(offline)) + ' Số bên dưới là lần tải cuối (' + esc(d.now_vn) + ' giờ VN).</p><button class="btn" type="button" data-reload>Thử lại</button></div>';
       h += '<div class="head3 btc">' +
@@ -337,6 +344,7 @@
         '<div class="card"><div class="label">Cộng dồn</div><div class="value num ' + tone(tot.pnl) + '">' + signed(tot.pnl) + '</div><div class="muted">' + tot.days + " ngày · cháy " + tot.burned_days + "</div></div></div>";
       h += '<div class="note num">' + tot.trades + " lệnh" + (tot.trades ? " · thắng " + fmt(100 * tot.wins / tot.trades, 0) + "% sau phí" : "") +
         " · " + holdText(d.strategy || {}) + " · lệnh = " + fmt(d.leverage, 0) + " × số dư · phí + trượt " + fmt(d.cost_pct, 2) + "% khứ hồi</div>";
+      h += '<div class="note num">' + esc(evalText(tot, d.thresholds)) + "</div>";
       h += '<div class="note">' + esc(ruleText(d)) + " Tiền giả.</div>";
       if (!d.enabled) h += '<div class="note">' + OFF_TEXT + "</div>";
       if (paused) h += '<div class="note" id="paused">Danh sách lệnh tạm dừng cập nhật (bạn đang xem chi tiết hoặc đã bấm Tải thêm) — số ở trên vẫn mới. Tải lại trang để cập nhật danh sách.</div>';

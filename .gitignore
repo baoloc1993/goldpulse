@@ -5,6 +5,7 @@
 .env
 .env.*
 !deployment/.env.example
+!deployment/btc/.env.example
 *.pem
 *.key
 
@@ -62,5 +63,6 @@ test-results/
 
 # Backup DB production (dữ liệu, không phải code)
 deployment/production/backups/
+deployment/btc/backups/
 research/bars15.csv
 research/btc_bars15.csv

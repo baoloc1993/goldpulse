@@ -9,10 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...repositories import inst as repo
 from ..calendar import VN
-from . import SYMBOL
+from . import SYMBOL, paper
 
 STATE_KEY = "btc_telegram"
-CLOSED_WINDOW = timedelta(hours=6)
+CLOSED_WINDOW = timedelta(hours=72)  # worker chết lâu rồi sống lại vẫn báo lệnh đã đóng trong lúc vắng
 DIRECTION = {1: "MUA", -1: "BÁN"}
 KIND = {
     "model": "mô hình chắc",
@@ -53,7 +53,7 @@ def open_message(rows: list[dict[str, Any]]) -> str:
     for t in opened:
         lines.append(
             f"Vào: {_label(t)} {DIRECTION.get(t['direction'], '?')} · {KIND.get(t['context'].get('kind'), '')}"
-            f" · lệnh {t['notional']:.2f} USD · đóng {_vn(t['due_at'])}"
+            f" · lệnh {t['notional']:.2f} USD · đóng {_vn(paper.exit_at(t))}"
         )
     for t in skipped:
         lines.append(

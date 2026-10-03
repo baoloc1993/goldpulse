@@ -55,9 +55,12 @@ class BinanceClient:
             resp = await self._client.get(f"{self._base}/api/v3/klines", params=params)
         except httpx.HTTPError as e:
             raise BinanceError(f"{type(e).__name__}: {e}") from e
-        if resp.status_code in (418, 429):
-            ra = resp.headers.get("Retry-After")
-            raise BinanceError(f"{resp.status_code}: Binance yêu cầu chậm lại", float(ra) if ra else 60.0)
+        if resp.status_code in (418, 429, 451, 502, 503, 504):
+            try:
+                wait = float(resp.headers.get("Retry-After", ""))
+            except ValueError:  # thiếu hoặc kiểu ngày HTTP
+                wait = {451: 300.0}.get(resp.status_code, 60.0)
+            raise BinanceError(f"{resp.status_code}: Binance chưa trả được (thử lại sau {wait:.0f}s)", wait)
         if resp.status_code != 200:
             raise BinanceError(f"{resp.status_code}: {resp.text[:200]}")
         try:

@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_FILE = Path(__file__).resolve().parents[2] / "deployment" / "local" / ".env"
@@ -58,6 +58,14 @@ class Settings(BaseSettings):
     btc_poll_seconds: float = 10.0
     telegram_btc_bot_token: str | None = None
     telegram_btc_chat_id: int | None = None
+
+    @field_validator("instruments")
+    @classmethod
+    def _check_instruments(cls, v: str) -> str:
+        got = {s.strip().upper() for s in v.split(",") if s.strip()}
+        if not got or not got <= {"XAUUSD", "BTCUSDT"}:
+            raise ValueError("INSTRUMENTS phải là XAUUSD, BTCUSDT hoặc XAUUSD,BTCUSDT")
+        return v
 
     @property
     def instrument_set(self) -> set[str]:

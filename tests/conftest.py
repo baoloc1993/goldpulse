@@ -10,7 +10,10 @@ BASE = os.environ.get("TEST_DATABASE_ADMIN_URL", "postgresql://goldpulse:goldpul
 TEST_DB = "goldpulse_test"
 os.environ["DATABASE_URL"] = BASE.rsplit("/", 1)[0].replace("postgresql://", "postgresql+asyncpg://") + "/" + TEST_DB
 os.environ["OPS_ACCESS_KEY"] = "test-key-0123456789"
-os.environ["APP_ENV"] = "test"  # cookie không Secure — client test đi http
+os.environ["APP_ENV"] = "test"
+os.environ["INSTRUMENTS"] = (
+    "XAUUSD,BTCUSDT"  # (v4) route /btc chỉ mount khi instance bật BTC  # cookie không Secure — client test đi http
+)
 
 
 def _db_available() -> bool:

@@ -1,8 +1,8 @@
 # Instance BTC (vòng 4, DECISIONS 2026-10-03): cùng image với production vàng, INSTRUMENTS=BTCUSDT, project Docker riêng
 # `goldpulse-btc` → Postgres + volume riêng, KHÔNG đụng production vàng (project `goldpulse`, cổng 8080/5432).
 # Chạy:  docker compose -f deployment/btc/docker-compose.yml --env-file deployment/btc/.env up -d --build
-# Web: http://127.0.0.1:8081 (WEB_BIND=0.0.0.0 để điện thoại cùng LAN vào). Không có brain, không có backup tự động —
-# sổ giấy BTC chạy lại được từ 90 ngày nến Binance; chụp tay: docker compose … exec db pg_dump (DEPLOY.md §4).
+# Web: http://127.0.0.1:8081 (WEB_BIND=0.0.0.0 để điện thoại cùng LAN vào). Không có brain. Có container backup
+# (pg_dump mỗi ngày, giữ 14 bản, vào deployment/btc/backups). Khôi phục: DEPLOY.md §4.
 name: goldpulse-btc
 services:
   db:
@@ -43,6 +43,25 @@ services:
     env_file: .env
     command: ["python", "-m", "goldpulse.worker"]
     depends_on: { migrate: { condition: service_completed_successfully } }
+    restart: unless-stopped
+
+  backup:
+    # pg_dump mỗi ngày vào deployment/btc/backups, giữ 14 bản (review vòng 4: mất volume = mất cả thí nghiệm 8 tuần,
+    # sổ giấy KHÔNG dựng lại được từ nến vì các quyết định bỏ qua/tắt/bật không nằm trong nến)
+    image: postgres:16-alpine
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["./backups:/backups"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          f=/backups/goldpulse-btc-$$(date -u +%Y%m%d-%H%M).dump
+          pg_dump -h db -U goldpulse -d goldpulse_btc -Fc -f "$$f.tmp" && mv "$$f.tmp" "$$f" && echo "backup ok $$f"
+          ls -1t /backups/*.dump 2>/dev/null | tail -n +15 | xargs -r rm -f
+          sleep 86400
+        done
+    depends_on: { db: { condition: service_healthy } }
     restart: unless-stopped
 
 volumes:

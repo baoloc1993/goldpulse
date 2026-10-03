@@ -31,6 +31,19 @@ class BtcLoops:
     def __init__(self, w: "Worker") -> None:
         self.w = w
         self.client = BinanceClient(settings.binance_base_url)
+        self.skew = timedelta(
+            0
+        )  # giờ Binance − giờ máy; mọi quyết định "giờ nào, trễ bao nhiêu" dùng giờ đã hiệu chỉnh
+        self.tried_gaps: set[datetime] = set()
+
+    def now(self) -> datetime:
+        return datetime.now(UTC) + self.skew
+
+    def _note_skew(self, server_now: datetime) -> None:
+        skew = server_now - datetime.now(UTC)
+        if abs(skew.total_seconds()) > 60 and abs((skew - self.skew).total_seconds()) > 30:
+            log.warning("btc_clock_skew", seconds=round(skew.total_seconds()))
+        self.skew = skew
 
     async def close(self) -> None:
         await self.client.close()
@@ -45,11 +58,12 @@ class BtcLoops:
         while not self.w.stop.is_set():
             async with session_scope() as s:
                 first, last = await repo.candle_span(s, SYMBOL)
-            now = datetime.now(UTC)
+            now = self.now()
             start = (last + MIN) if last else (now - btc_paper.LOOKBACK).replace(second=0, microsecond=0)
             if start >= now.replace(second=0, microsecond=0) - MIN:
-                return
-            closed, _, _ = await self.client.klines(SYMBOL, start=start, limit=1000)
+                return await self.heal_gaps(now)
+            closed, _, server_now = await self.client.klines(SYMBOL, start=start, limit=1000)
+            self._note_skew(server_now)
             if not closed:
                 return
             async with session_scope() as s:
@@ -59,12 +73,28 @@ class BtcLoops:
             await self._status(state="backfill", history_days=round(days, 1), last_ts=closed[-1].ts.isoformat())
             log.info("btc_backfill", upto=closed[-1].ts.isoformat(), n=len(closed))
 
+    async def heal_gaps(self, now: datetime) -> None:
+        """Lỗ thủng GIỮA kho (backfill chỉ đi tiếp từ nến cuối) — lấp mỗi lần một lỗ, mỗi lỗ thử một lần mỗi tiến trình
+        (Binance bảo trì thật thì không có nến để lấy, đừng gọi lại mãi)."""
+        async with session_scope() as s:
+            gap = await repo.first_gap(s, SYMBOL, now - btc_paper.LOOKBACK, self.tried_gaps)
+        if gap is None:
+            return
+        self.tried_gaps.add(gap)
+        closed, _, server_now = await self.client.klines(SYMBOL, start=gap, limit=1000)
+        self._note_skew(server_now)
+        if closed:
+            async with session_scope() as s:
+                await repo.upsert_candles(s, SYMBOL, [(k.ts, k.open, k.high, k.low, k.close, k.volume) for k in closed])
+        log.info("btc_gap_healed", gap=gap.isoformat(), n=len(closed))
+
     async def price_loop(self) -> None:
         while not self.w.stop.is_set():
             polled = datetime.now(UTC)
             try:
                 await self.backfill()
                 closed, live, server_now = await self.client.klines(SYMBOL, limit=3)
+                self._note_skew(server_now)
                 async with session_scope() as s:
                     await repo.upsert_candles(
                         s, SYMBOL, [(k.ts, k.open, k.high, k.low, k.close, k.volume) for k in closed]
@@ -86,11 +116,13 @@ class BtcLoops:
     # --- M + N ------------------------------------------------------------------------------------------------------
     async def trade_loop(self) -> None:
         while not self.w.stop.is_set():
-            now = datetime.now(UTC)
+            now = self.now()
             async with session_scope() as s:
                 n_closed = await btc_paper.close_open(s, now)
             async with session_scope() as s:
                 hours = await btc_paper.process_hours(s, now)
+            async with session_scope() as s:
+                await feed_repo.set_status(s, btc_paper.TRADE_KEY, {"at": now.isoformat()})
             if n_closed or hours:
                 log.info("btc_tick", closed=n_closed, hours=[h.isoformat() for h in hours])
             await self.w.sleep(TRADE_TICK_S)

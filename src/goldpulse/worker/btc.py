@@ -71,7 +71,7 @@ class BtcLoops:
                     )
                     _, last = await repo.candle_span(s, SYMBOL)
                     price = live.close if live else (closed[-1].close if closed else None)
-                    lag = (server_now - (last + MIN)).total_seconds() if last else None
+                    lag = max(0.0, (server_now - (last + 2 * MIN)).total_seconds()) if last else None
                     await repo.insert_feed(s, SYMBOL, polled, price, last, lag, True)
                 await self._status(state="ok", last_ts=last.isoformat() if last else None)
                 wait = settings.btc_poll_seconds

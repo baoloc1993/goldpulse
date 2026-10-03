@@ -2,5 +2,5 @@
 {% block title %}Không có trang này{% endblock %}
 {% block body %}
 <h1>Không có trang này</h1>
-<div class="empty"><p>Đường dẫn này không tồn tại trong GoldPulse.</p><a href="/overview">Về Tổng quan</a></div>
+<div class="empty"><p>Đường dẫn này không tồn tại trong GoldPulse.</p>{% if gold_on %}<a href="/overview">Về Tổng quan</a>{% else %}<a href="/btc">Về màn BTC</a>{% endif %}</div>
 {% endblock %}

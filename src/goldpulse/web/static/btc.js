@@ -9,7 +9,7 @@
   var DASH = { "BTC-A": "", "BTC-B": "6 3", "BTC-C": "2 3", "BTC-D": "6 3 2 3" };
   var SKIP = {
     open_trade: "đang có lệnh mở", burned: "đã cháy hôm nay", disabled: "tài khoản đang tắt",
-    stale: "máy xử giờ này muộn hơn 5 phút (máy vắng) — không vào ở giá cũ"
+    stale: "bot xử lý giờ này chậm hơn 5 phút so với giờ tròn nên không vào ở giá cũ"
   };
   var EXIT = { horizon: ["ok", "Hết hạn"], day_close: ["muted", "Hết ngày"], stopout: ["err", "Cháy"] };
   var toggleErr = null;
@@ -34,8 +34,10 @@
         location.href = "/login?het=1&next=" + encodeURIComponent(location.pathname);
         throw new Error("auth");
       }
-      return r.json().catch(function () { return {}; }).then(function (body) {
+      return r.json().then(function (b) { return { ok: true, body: b }; }, function () { return { ok: false, body: {} }; }).then(function (x) {
+        var body = x.body;
         if (!r.ok) { var e = new Error(typeof body.detail === "string" ? body.detail : "HTTP " + r.status); e.status = r.status; throw e; }
+        if (!x.ok || body === null || typeof body !== "object") { var e2 = new Error("shape"); e2.shape = true; throw e2; }
         return body;
       });
     }, function (e) {
@@ -46,20 +48,23 @@
   function errText(e) {
     if (e.slow) return "Máy chủ phản hồi chậm quá 15 giây — kiểm tra Wi-Fi rồi thử lại.";
     if (e.status >= 500) return "Máy chủ GoldPulse đang gặp lỗi — thử lại sau ít phút.";
+    if (e.shape) return "Máy chủ trả dữ liệu lạ (mạng Wi-Fi có thể đang chặn hoặc bắt đăng nhập) — thử lại sau ít phút.";
     if (e.status) return e.message;
     return "Mất kết nối tới máy chủ — kiểm tra mạng, hoặc máy chạy GoldPulse có đang bật không.";
   }
   function holdText(s) { return "giữ " + (s.hold_hours || 1) + " giờ"; }
   function ruleText(a) {
     var s = a.strategy || {};
-    if (s.kind === "model") return "Mỗi giờ tròn, mô hình chấm hàng chục chỉ số của BTC; chỉ vào khi thuộc 5% lần nó chắc nhất, " + holdText(s) + ".";
-    if (s.kind === "model_trend") return "Như A nhưng lấy 10% lần chắc nhất, và chỉ khi cùng chiều xu hướng 24 giờ (giá trên đường trung bình thì chỉ mua, dưới thì chỉ bán), " + holdText(s) + ".";
+    if (s.kind === "model") return "Mỗi giờ tròn, mô hình chấm hàng chục chỉ số của BTC; chỉ vào ở 1 trong 20 giờ nó chắc nhất, " + holdText(s) + ".";
+    if (s.kind === "model_trend") return "Như A nhưng lấy 1 trong 10 giờ chắc nhất, và chỉ khi cùng chiều xu hướng 24 giờ (giá trên đường trung bình thì chỉ mua, dưới thì chỉ bán), " + holdText(s) + ".";
     if (s.kind === "spike") return "Nến 1 giờ chạy mạnh gấp " + fmt(s.k_sigma || 3, 0) + " lần bình thường → đánh theo chiều đó, " + holdText(s) + ".";
     if (s.kind === "squeeze") return "Giá đi ngang hẹp nhất trong 30 ngày rồi một nến phá ra khỏi dải Bollinger → đánh theo chiều phá, " + holdText(s) + ".";
     return "";
   }
   function waitText(lv) {
-    return "Chưa có tín hiệu — kiểm mỗi giờ tròn, lần tới " + esc(lv.next_check_vn || "") + ".";
+    // Khi nào có lệnh + người dùng có phải làm gì không (dogfood newbie vòng 4)
+    return "Bot tự vào lệnh khi có tín hiệu — bạn không cần làm gì. Kiểm mỗi giờ tròn (lần tới " + esc(lv.next_check_vn || "") +
+      " giờ VN); có thể nhiều giờ, thậm chí cả ngày không có lệnh.";
   }
   var OFF_TEXT = "Đang tắt — không mở lệnh mới. Lệnh đang mở (nếu có) vẫn đóng đúng luật; số liệu cũ giữ nguyên.";
   function sw(a) {
@@ -137,13 +142,13 @@
         '<div class="eq ' + (a.enabled ? tone(eq - a.start_equity) : "") + '">' + fmt(eq, 2) + ' <span class="muted">USD</span></div>' +
         '<div class="sub num">Lãi/lỗ hôm nay <span class="' + (a.enabled ? tone(t.pnl) : "") + '">' + signed(t.pnl) + " USD</span></div>" +
         '<div class="sub">' + state + "</div>" +
-        '<div class="sub num">Hôm nay ' + t.trades + " lệnh" + winRate + " · cộng dồn " + tot.days + " ngày " + signed(tot.pnl) + " USD (" + tot.trades + " lệnh) · ngày cháy " +
-        tot.burned_days + "/" + tot.days + "</div></div>" + sw(a) + "</div></div>";
+        '<div class="sub num">Hôm nay ' + t.trades + " lệnh" + winRate + " · cộng dồn " + tot.days + " ngày " + signed(tot.pnl) + " USD (" + tot.trades + " lệnh) · cháy " +
+        tot.burned_days + " trong " + tot.days + " ngày</div></div>" + sw(a) + "</div></div>";
     }
 
     function curve(accs) {
       var have = accs.some(function (a) { return a.curve.length; });
-      if (!have) return '<div class="curve"><div class="skel chartbox"></div><div class="muted mt">Có số sau ngày đầu tiên có lệnh.</div></div>';
+      if (!have) return '<div class="curve"><div class="muted">Chưa có ngày nào có lệnh — đường số dư hiện sau ngày đầu tiên có lệnh.</div></div>';
       var dates = {};
       accs.forEach(function (a) { a.curve.forEach(function (p) { dates[p.date] = 1; }); });
       var days = Object.keys(dates).sort().slice(-20);
@@ -196,9 +201,9 @@
       settleToggleErr(d.accounts);
       var lv = d.live;
       var h = toggleErrBlock();
-      if (offline) h += '<div class="error" role="alert"><p>Không cập nhật được. ' + esc(errText(offline)) + ' Số bên dưới là lần tải cuối.</p><button class="btn" type="button" data-reload>Thử lại</button></div>';
+      if (offline) h += '<div class="error" role="alert"><p>Không cập nhật được. ' + esc(errText(offline)) + ' Số bên dưới là lần tải cuối (' + esc(d.now_vn) + ' giờ VN).</p><button class="btn" type="button" data-reload>Thử lại</button></div>';
       h += '<div class="head3">' +
-        '<div class="card"><div class="label">Hôm nay · 4 TK</div><div class="value num ' + tone(d.today_pnl) + '">' + signed(d.today_pnl) + " USD</div></div>" +
+        '<div class="card"><div class="label">Lãi/lỗ hôm nay</div><div class="value num ' + tone(d.today_pnl) + '">' + signed(d.today_pnl) + " USD</div></div>" +
         '<div class="card"><div class="label">Lệnh hôm nay</div><div class="value num">' + d.today_trades + (d.today_trades ? " · thắng " + d.today_wins : "") + "</div></div>" +
         priceCard(lv) + "</div>";
       if (lv.history_days < 30) {
@@ -207,7 +212,7 @@
       } else {
         h += statusBlock(d);
       }
-      h += '<div class="fake">Tiền giả — sổ ghi trong hệ thống, không nối sàn nào. Mỗi tài khoản bắt đầu lại 10.00 USD lúc 07:00 sáng mỗi ngày (00:00 UTC). Giá BTCUSDT của Binance (1 USDT ≈ 1 USD).</div>';
+      h += '<div class="fake">Tiền giả — sổ ghi trong hệ thống, không nối sàn nào. Mỗi tài khoản bắt đầu lại 10.00 USD lúc 07:00 sáng giờ VN mỗi ngày (00:00 UTC). <strong>Cháy</strong> = lỗ hết 10.00 USD trong ngày, nghỉ tới sáng hôm sau. Giá BTCUSDT của Binance (1 USDT ≈ 1 USD).</div>';
       h += d.accounts.map(function (a) { return accRow(a, lv); }).join("");
       var nDays = {};
       d.accounts.forEach(function (a) { a.curve.forEach(function (p) { nDays[p.date] = 1; }); });
@@ -215,7 +220,7 @@
       h += "<h2>Số dư cuối ngày" + (nd ? " · " + nd + " ngày gần nhất" : "") + "</h2>" + curve(d.accounts);
       var a0 = d.accounts[0] || { leverage: 20, cost_pct: 0.14 };
       h += '<h2>Cách tính</h2><div class="muted rules">' +
-        "<p>Mỗi lệnh có giá trị = " + fmt(a0.leverage, 0) + " × số dư lúc vào (đòn bẩy x" + fmt(a0.leverage, 0) + "). Phí 0,05% + trượt giá 0,02% mỗi chiều — tổng " +
+        "<p>Mỗi lệnh có giá trị = " + fmt(a0.leverage, 0) + " × số dư lúc vào (đòn bẩy x" + fmt(a0.leverage, 0) + "). Phí 0.05% + trượt giá 0.02% mỗi chiều — tổng " +
         fmt(a0.cost_pct, 2) + "% giá trị lệnh mỗi lần vào/ra. Mỗi tài khoản tối đa 1 lệnh cùng lúc.</p>" +
         "<p>Không cắt lỗ theo điểm: giá đi ngược khoảng 5% là mất trọn số dư của ngày — gọi là <strong>cháy</strong>, tài khoản nghỉ tới 07:00 sáng hôm sau. Lệnh còn mở lúc 06:59 sáng (cuối ngày UTC) được đóng.</p>" +
         "<p><strong>Cộng dồn</strong> là tổng lãi/lỗ của các ngày; mỗi ngày vẫn bắt đầu lại từ 10.00 USD.</p>" +
@@ -228,23 +233,32 @@
         el.addEventListener("keydown", function (ev) { if (ev.key === "Enter") go(ev); });
       });
       bindSwitches(content, function () { load(true); });
-      Array.prototype.forEach.call(content.querySelectorAll("[data-reload]"), function (b) { b.addEventListener("click", function () { load(true); }); });
+      bindReload();
     }
 
+    function good10(d) { return d && Array.isArray(d.accounts) && d.live && d.thresholds; }
+    function bindReload() {
+      Array.prototype.forEach.call(content.querySelectorAll("[data-reload]"), function (b) {
+        b.addEventListener("click", function () { b.disabled = true; b.textContent = "Đang thử…"; load(true); });
+      });
+    }
     function load(force) {
       if (busy && !force) return;
       busy = true;
-      api("/api/btc/accounts").then(function (d) { last = d; offline = null; render(d); })
+      api("/api/btc/accounts").then(function (d) {
+        if (!good10(d)) { var e = new Error("shape"); e.shape = true; throw e; }
+        last = d; offline = null; render(d);
+      })
         .catch(function (e) {
           if (e.message === "auth") return;
           offline = e;
-          if (last) render(last);
-          else {
-            content.innerHTML = toggleErrBlock() + '<div class="error" role="alert"><p>' + esc(errText(e)) + '</p><button class="btn" type="button" data-reload>Thử lại</button></div>';
-            content.querySelector("[data-reload]").addEventListener("click", function () { load(true); });
-          }
+          try {
+            if (last) { render(last); return; }
+          } catch (e2) { last = null; }
+          content.innerHTML = toggleErrBlock() + '<div class="error" role="alert"><p>' + esc(errText(e)) + '</p><button class="btn" type="button" data-reload>Thử lại</button></div>';
+          bindReload();
         })
-        .then(function () { busy = false; });
+        .finally(function () { busy = false; });
     }
     load(true);
     setInterval(function () { if (!document.hidden && !content.querySelector(".sw[disabled]")) load(false); }, 5000);
@@ -272,8 +286,8 @@
     function tradeRow(t) {
       var arrow = arrowOf(t.direction);
       if (t.status === "skipped") {
-        return '<div class="prow skip"><div class="num">Giờ ' + esc(t.bar_vn) + " · " + arrow + "</div>" +
-          "<div>Không vào lệnh — " + esc(SKIP[t.skip_reason] || t.skip_reason) + "</div></div>";
+        return '<div class="prow skip"><div class="num">Bỏ qua giờ ' + esc(t.bar_vn) + ' (giờ VN)</div>' +
+          "<div>Chiến thuật báo " + (t.direction === 1 ? "mua" : "bán") + " nhưng không vào lệnh — " + esc(SKIP[t.skip_reason] || t.skip_reason) + "</div></div>";
       }
       var badge = t.status === "open" ? ["warn", "Đóng lúc " + t.due_vn] : EXIT[t.exit_reason] || ["muted", t.exit_reason];
       var money = t.status === "open" ? "đang mở" : '<span class="' + tone(t.pnl) + '">' + signed(t.pnl) + " USD</span>";
@@ -314,7 +328,7 @@
         h += '<div class="empty"><p>Tài khoản này chưa có lệnh. ' + (d.enabled ? waitText(d.live) : "Bật tài khoản để bot bắt đầu vào lệnh theo chiến thuật trên.") +
           '</p><a href="/btc">Về màn BTC</a></div>';
       } else {
-        h += '<h2>Nhật ký lệnh</h2><div id="tlist">' + d.rows.map(tradeRow).join("") + "</div>" +
+        h += '<h2>Nhật ký lệnh (giờ VN)</h2><div id="tlist">' + d.rows.map(tradeRow).join("") + "</div>" +
           (d.rows.length === 50 ? '<button class="btn line block" type="button" id="more">Tải thêm</button>' : "");
         lastId = d.rows[d.rows.length - 1].id;
       }
@@ -342,14 +356,17 @@
     function load() {
       if (busy11) return;
       busy11 = true;
-      api("/api/btc/accounts/" + code).then(function (d) { loaded = true; render(d); })
+      api("/api/btc/accounts/" + code).then(function (d) {
+        if (!d || !d.code || !Array.isArray(d.rows) || !d.total || !d.today) { var e = new Error("shape"); e.shape = true; throw e; }
+        loaded = true; render(d);
+      })
         .catch(function (e) {
           if (e.message === "auth") return;
           if (loaded) return;
           content.innerHTML = '<div class="error" role="alert"><p>' + esc(errText(e)) + '</p><button class="btn" type="button" id="retry">Thử lại</button></div>';
-          document.getElementById("retry").addEventListener("click", load);
+          document.getElementById("retry").addEventListener("click", function () { this.disabled = true; this.textContent = "Đang thử…"; load(); });
         })
-        .then(function () { busy11 = false; });
+        .finally(function () { busy11 = false; });
     }
     load();
     setInterval(function () {

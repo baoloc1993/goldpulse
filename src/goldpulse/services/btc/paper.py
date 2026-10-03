@@ -255,7 +255,8 @@ async def live(session: AsyncSession, now: datetime) -> dict[str, Any]:
     first, last = await repo.candle_span(session, SYMBOL)
     lag = None
     if last is not None:
-        lag = max(0.0, (now - (last + MIN)).total_seconds())
+        # Nến cuối đã đóng ở last+1m; nến kế tiếp đáng lẽ có sau last+2m → chỉ tính phần TRỄ hơn mốc đó
+        lag = max(0.0, (now - (last + 2 * MIN)).total_seconds())
     return {
         "price": price["price"] if price else None,
         "lag_seconds": round(lag) if lag is not None else None,

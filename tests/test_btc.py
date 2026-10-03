@@ -219,3 +219,15 @@ async def test_lan_dau_chi_tinh_gio_vua_dong_khong_ghi_gio_bi_lo(db):
         assert len(await repo.signal_bars(s, SYMBOL, now - timedelta(days=2))) <= 1  # không ghi 24 giờ cũ
         for code in ("BTC-A", "BTC-B", "BTC-C", "BTC-D"):
             assert all(r["skip_reason"] != "stale" for r in await _rows(s, code))
+
+
+@needs_db
+async def test_do_tre_nen_chi_tinh_phan_tre_hon_nen_ke_tiep(db):
+    """Nến đã đóng cuối ở last+1m, nến kế tiếp có sau last+2m → trong 0–60 s đầu KHÔNG phải trễ (dogfood vòng 4)."""
+    now = datetime(2026, 10, 3, 12, 0, 50, tzinfo=UTC)
+    async with db() as s:
+        await _candles(s, datetime(2026, 10, 3, 11, 59, tzinfo=UTC), [P0])  # nến 11:59 vừa đóng lúc 12:00:00
+        lv = await paper.live(s, now)
+        assert lv["lag_seconds"] == 0 and lv["fresh"]
+        lv = await paper.live(s, datetime(2026, 10, 3, 12, 4, 0, tzinfo=UTC))  # nến kế tiếp lẽ ra có từ 12:01:00 → trễ 180 s
+        assert lv["lag_seconds"] == 180 and not lv["fresh"]

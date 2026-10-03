@@ -13,7 +13,8 @@ services:
       POSTGRES_DB: goldpulse_btc
     volumes: ["pgdata_btc:/var/lib/postgresql/data"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U goldpulse -d goldpulse_btc"]
+      # Qua TCP (-h 127.0.0.1): server tạm lúc khởi tạo volume mới chỉ nhận unix socket, pg_isready qua socket báo "healthy" quá sớm
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U goldpulse -d goldpulse_btc"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -56,10 +57,17 @@ services:
     command:
       - |
         while true; do
+          until pg_isready -h db -U goldpulse -d goldpulse_btc -q; do sleep 5; done
           f=/backups/goldpulse-btc-$$(date -u +%Y%m%d-%H%M).dump
-          pg_dump -h db -U goldpulse -d goldpulse_btc -Fc -f "$$f.tmp" && mv "$$f.tmp" "$$f" && echo "backup ok $$f"
-          ls -1t /backups/*.dump 2>/dev/null | tail -n +15 | xargs -r rm -f
-          sleep 86400
+          if pg_dump -h db -U goldpulse -d goldpulse_btc -Fc -f "$$f.tmp" && mv "$$f.tmp" "$$f"; then
+            echo "backup ok $$f"
+            ls -1t /backups/*.dump 2>/dev/null | tail -n +15 | xargs -r rm -f
+            sleep 86400
+          else
+            echo "backup FAILED — thử lại sau 5 phút"
+            rm -f "$$f.tmp"
+            sleep 300
+          fi
         done
     depends_on: { db: { condition: service_healthy } }
     restart: unless-stopped

@@ -1,4 +1,4 @@
-"""Gói dữ liệu cố định cho não (ARCHITECTURE §6 "Gói dữ liệu quá dài", §7 E4/F3).
+"""Gói dữ liệu cố định cho não.
 
 Não KHÔNG có tool: mọi con số nó được nói ra đều nằm trong gói này. Không nhét nến phút thô.
 """
@@ -33,7 +33,7 @@ def next_open(now: datetime) -> datetime | None:
 
 
 async def live_state(session: AsyncSession, now: datetime) -> dict[str, Any]:
-    """Giá + độ trễ + thị trường mở + được phép gợi ý/ghi dự đoán không (AC-9)."""
+    """Giá + độ trễ + thị trường mở + được phép gợi ý/ghi dự đoán không."""
     sample = await feed_repo.latest_price_sample(session)
     lag = (now - sample["source_ts"]).total_seconds() if sample and sample["source_ts"] else None
     fresh = lag is not None and lag < LAG_LIMIT_S
@@ -154,14 +154,14 @@ async def market_pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
         "bot_accuracy": {
             k: acc[k] for k in ("rate", "scored", "correct", "wrong", "flat", "unscored", "pending", "verdict")
         },
-        "paper_accounts": await paper.pack(session, now),  # (v3) tiền giả — AC-15
+        "paper_accounts": await paper.pack(session, now),  # (v3) tiền giả
     }
 
 
 async def build_chat(session: AsyncSession, thread_id: int, answer_id: int, now: datetime | None = None) -> dict:
     now = now or datetime.now(UTC)
     pack = await market_pack(session, now)
-    # Mỗi tin cắt 800 ký tự: 20 × 2000 ký tự sẽ vượt trần ~12k token của gói (ARCHITECTURE §6)
+    # Mỗi tin cắt 800 ký tự: 20 × 2000 ký tự sẽ vượt trần ~12k token của gói
     history = [
         {"role": m["role"], "content": m["content"][:HISTORY_CHARS]}
         for m in await chat_repo.messages_before(session, thread_id, answer_id, HISTORY_MESSAGES)

@@ -1,4 +1,4 @@
-"""(v3) Soạn tin báo Telegram từ sổ giấy — chỉ đọc `paper_trade`/`paper_day`, không đổi luật (DECISIONS 2026-10-02).
+"""(v3) Soạn tin báo Telegram từ sổ giấy — chỉ đọc `paper_trade`/`paper_day`, không đổi luật.
 
 Không gọi HTTP (ranh giới `services/`): worker vòng K lấy tin ở đây rồi gửi bằng `integrations/telegram.py`.
 Mốc trong `worker_status.telegram`: `last_trade_id` (dòng sổ mới → tin vào lệnh, gộp theo dự đoán) và
@@ -17,7 +17,7 @@ from .calendar import VN
 STATE_KEY = "telegram"
 CLOSED_WINDOW = timedelta(hours=6)
 DIRECTION = {"up": "TĂNG", "down": "GIẢM"}
-# Cùng chữ với S9 (`paper.js` SKIP)
+# Cùng chữ với Nhật ký lệnh (`paper.js` SKIP)
 SKIP = {
     "rule": "không khớp luật",
     "open_trade": "đang có lệnh mở",

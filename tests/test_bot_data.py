@@ -1,6 +1,6 @@
 """(v2) Luồng DỮ LIỆU của bot: tín hiệu → job · chấm dự đoán · tỉ lệ đúng · não xử job dự đoán · nạp FED · gói chat.
 
-Chỗ sai ở đây là sổ dự đoán sai (tỉ lệ đúng — metric GO/KILL của PRD §6) hoặc bản ghi trùng.
+Chỗ sai ở đây là sổ dự đoán sai (tỉ lệ đúng — metric GO/KILL) hoặc bản ghi trùng.
 Não chạy backend `fake` — không gọi mạng.
 """
 
@@ -113,7 +113,7 @@ async def test_no_job_when_model_is_not_confident_even_with_signals(db, worker, 
     freeze_worker_now(monkeypatch, BAR_OPEN + timedelta(seconds=60))
     monkeypatch.setattr("goldpulse.worker.__main__.model15m.evaluate", _unsure_model)
     await worker.signal_once(BAR_OPEN)
-    assert await signal_jobs(db) == []  # 2 tín hiệu vẫn bật, nhưng luật mới do mô hình quyết (DECISIONS 2026-09-26)
+    assert await signal_jobs(db) == []  # 2 tín hiệu vẫn bật, nhưng luật mới do mô hình quyết
     st = await signal_status(db)
     assert st["has_signal"] is True and st["model"]["trigger"] is False and st["job_id"] is None
 
@@ -147,7 +147,7 @@ async def test_signal_in_last_15_minutes_before_daily_break_records_status_but_n
     await worker.signal_once(BAR_BEFORE_BREAK)
     assert await signal_jobs(db) == []
     st = await signal_status(db)
-    assert st is not None, "S6 phải thấy tín hiệu mới nhất kể cả khi không được dự đoán"
+    assert st is not None, "Dự đoán phải thấy tín hiệu mới nhất kể cả khi không được dự đoán"
     assert st["bar_end"] == BAR_BEFORE_BREAK.isoformat()
     assert st["has_signal"] is True and st["market_ok"] is False and st["job_id"] is None
 
@@ -232,7 +232,7 @@ async def test_accuracy_counts_only_correct_and_wrong_and_waits_for_100_scored(d
     assert sm["verdict"] == "pending"  # 75% nhưng mới 4 lần chấm — chưa được kết luận GO
     assert sm["by_source"]["auto"]["rate"] == 100.0 and sm["by_source"]["chat"]["rate"] == 0.0
 
-    # Chat nhiều mấy cũng KHÔNG vào phán quyết (PRD §6 phương án 2: chỉ dự đoán tự động của mô hình)
+    # Chat nhiều mấy cũng KHÔNG vào phán quyết (chỉ dự đoán tự động của mô hình)
     await _bulk(db, 52, "chat", "up", "correct", 1000)
     await _bulk(db, 44, "chat", "down", "wrong", 2000)
     async with db() as s:

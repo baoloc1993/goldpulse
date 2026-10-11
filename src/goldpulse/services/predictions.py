@@ -1,4 +1,4 @@
-"""Dự đoán hướng 15 phút: tạo · chấm · tỉ lệ đúng (ARCHITECTURE §6b, §7 F/G; metric PRD §6).
+"""Dự đoán hướng 15 phút: tạo · chấm · tỉ lệ đúng.
 
 Chấm: price_due = close nến phút cuối < due_at trong 5 phút; không có → unscored; |Δ| < 0,01 → flat.
 """
@@ -22,7 +22,7 @@ PRICE_WINDOW = timedelta(minutes=5)
 FLAT_USD = 0.01
 GO, KILL = 55.0, 50.0
 MIN_SCORED = 100
-# PRD §6 (chủ dự án chốt 2026-09-26, phương án 2): bằng chứng chính = kiểm lịch sử của mô hình; chạy thật chỉ để
+# Phương án chốt: bằng chứng chính = kiểm lịch sử của mô hình; chạy thật chỉ để
 # XÁC NHẬN — đủ 40 dự đoán tự động đã chấm mà ≥ 50% là GO; dưới 50% thì chạy tiếp tới 100 rồi áp 55/50
 MIN_CONFIRM = 40
 CONFIRM_LINE = 50.0
@@ -93,7 +93,7 @@ def _rate(correct: int, wrong: int) -> float | None:
 
 
 def verdict(rate: float | None, scored: int) -> str:
-    """Phán quyết trên dự đoán TỰ ĐỘNG (PRD §6): < 40 lần → pending · 40–99 lần: ≥ 50% → go, dưới → pending (chạy
+    """Phán quyết trên dự đoán TỰ ĐỘNG: < 40 lần → pending · 40–99 lần: ≥ 50% → go, dưới → pending (chạy
     tiếp) · ≥ 100 lần: ≥ 55% go · 50–55% pivot · < 50% kill."""
     if rate is None or scored < MIN_CONFIRM:
         return "pending"
@@ -162,7 +162,7 @@ async def page(session: AsyncSession, before_id: int | None, limit: int = 50) ->
 
 
 async def screen(session: AsyncSession) -> dict[str, Any]:
-    """Dữ liệu S6: tỉ lệ + tách nguồn/hướng · tín hiệu gần nhất · 50 hàng đầu · số job dự đoán bỏ qua vì lỗi."""
+    """Dữ liệu Dự đoán: tỉ lệ + tách nguồn/hướng · tín hiệu gần nhất · 50 hàng đầu · số job dự đoán bỏ qua vì lỗi."""
     from .context_pack import live_state  # context_pack import module này — tránh vòng lặp import
 
     live = await live_state(session, datetime.now(VN))

@@ -1,6 +1,6 @@
-"""Tua lịch sử BTC — chọn khung đoán (15m / 1h / 4h) và luật vào lệnh cho vòng 4.
+"""Tua lịch sử BTC — chọn khung đoán (15m / 1h / 4h) và luật vào lệnh.
 
-Cùng phương pháp vòng 2–3 của vàng: luyện 2018–2021 · chọn ngưỡng 2022–2024 · kiểm cuối 2025–2026
+Cùng phương pháp như với vàng: luyện 2018–2021 · chọn ngưỡng 2022–2024 · kiểm cuối 2025–2026
 (không nhìn kiểm cuối khi chọn). Phí khứ hồi COST = 2 × (0,05% phí + 0,02% trượt) = 0,14% giá trị lệnh.
 Lệnh: vào ở close nến trigger, ra ở close nến kế (giữ 1 nến) — hoặc giữ H nến với luật "giữ lâu".
 

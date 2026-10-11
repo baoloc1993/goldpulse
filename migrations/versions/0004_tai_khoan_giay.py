@@ -1,4 +1,4 @@
-"""vòng 3 — tài khoản giấy: paper_account · paper_trade · paper_day (chỉ THÊM bảng) + seed 4 tài khoản A–D
+"""tài khoản giấy: paper_account · paper_trade · paper_day (chỉ THÊM bảng) + seed 4 tài khoản A–D
 
 Revision ID: 0004
 Revises: 0003
@@ -16,7 +16,7 @@ down_revision = "0003"
 branch_labels = None
 depends_on = None
 
-# PRD §7 "Tài khoản giấy (v3)" — 4 luật = 4 giả thuyết; tham số từ research/paper_filters.py (DECISIONS 2026-09-27)
+# 4 luật = 4 giả thuyết; tham số từ research/paper_filters.py
 ACCOUNTS = [
     ("A", "Gốc", {"kind": "all", "horizon_minutes": 15}),
     ("B", "Biến động", {"kind": "volatility", "min_vol": 2.0, "horizon_minutes": 15}),
@@ -69,7 +69,7 @@ def upgrade() -> None:
             "('rule', 'open_trade', 'margin', 'burned', 'disabled', 'market_closing', 'stale')",
             name="ck_paper_skip",
         ),
-        # Một dự đoán tối đa một lệnh mỗi tài khoản (ARCHITECTURE §6c)
+        # Một dự đoán tối đa một lệnh mỗi tài khoản
         sa.UniqueConstraint("account_code", "prediction_id", name="ux_paper_trade_account_prediction"),
     )
     op.create_index("ix_paper_trade_account_id", "paper_trade", ["account_code", "id"])
@@ -89,7 +89,7 @@ def upgrade() -> None:
         sa.Column("burned", sa.Boolean, nullable=False, server_default=sa.false()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
-    # Mốc đọc dự đoán = dự đoán mới nhất lúc deploy: dự đoán tự động vòng 2 KHÔNG được thành hàng "bỏ qua"
+    # Mốc đọc dự đoán = dự đoán mới nhất lúc deploy: dự đoán tự động có sẵn KHÔNG được thành hàng "bỏ qua"
     # vĩnh viễn trong sổ giấy (bug-hunter v3) — thí nghiệm bắt đầu từ dự đoán kế tiếp
     op.execute(
         "INSERT INTO worker_status (key, value, updated_at) "

@@ -1,4 +1,4 @@
-"""Luồng worker trên Postgres thật: A (HistData) · C (lấy bù) · metric độ phủ · smoke luồng lõi tới S1/S3.
+"""Luồng worker trên Postgres thật: A (HistData) · C (lấy bù) · metric độ phủ · smoke luồng lõi tới Tổng quan/Tra thử.
 
 HistData được thay bằng client giả trả nến dựng sẵn — không gọi mạng.
 """
@@ -130,7 +130,7 @@ def histdata_from_fixture(day: date) -> list[RawCandle]:
     return [RawCandle(c.ts, c.open, c.high, c.low, c.close, 1.0) for c in raw if c.volume > 0]
 
 
-# --- 1. Smoke luồng lõi: worker nạp ngày → session_bar → S3 → thẻ metric S1 --------------------------------
+# --- 1. Smoke luồng lõi: worker nạp ngày → session_bar → Tra thử → thẻ metric Tổng quan ---------------------
 
 
 async def test_smoke_worker_loads_day_then_query_and_overview_show_it(db, worker, client):
@@ -150,7 +150,7 @@ async def test_smoke_worker_loads_day_then_query_and_overview_show_it(db, worker
     row = await crawl_row(db, day)
     assert row["status"] == "ok" and row["covered_minutes"] == row["calendar_minutes"] == 1380
 
-    # S3: phiên Âu 15/02/2024 có đúng biên độ = high − low của nến trong khung 07:00–16:00 UTC
+    # Tra thử: phiên Âu 15/02/2024 có đúng biên độ = high − low của nến trong khung 07:00–16:00 UTC
     async with db() as s:
         hi, lo = (
             await s.execute(
@@ -164,7 +164,7 @@ async def test_smoke_worker_loads_day_then_query_and_overview_show_it(db, worker
     assert body["count"] == 1
     assert body["avg_range"] == pytest.approx(round(hi - lo, 2), abs=0.01)
 
-    # S1: thẻ độ phủ 100%, tiến độ đếm ngày ok, nguồn lịch sử báo ok (HistData)
+    # Tổng quan: thẻ độ phủ 100%, tiến độ đếm ngày ok, nguồn lịch sử báo ok (HistData)
     ov = (await client.get("/api/overview")).json()
     assert ov["metrics"]["coverage"]["value"] == 100.0
     assert ov["history"]["ok_days"] == 1 and ov["history"]["error_days"] == 0
@@ -249,7 +249,7 @@ async def test_histdata_missing_file_for_old_day_is_error(db, worker):
 
     row = await crawl_row(db, day)
     assert row["status"] == "error" and row["attempts"] == 1
-    assert row["last_error"]  # hiện ở danh sách ngày lỗi S2
+    assert row["last_error"]  # hiện ở danh sách ngày lỗi Độ phủ
     assert out.failed == 1
 
 
@@ -354,11 +354,11 @@ async def test_coverage_counts_pending_and_error_as_missing_and_excludes_empty(d
 
     monitor.invalidate_coverage_cache()
     ov = (await client.get("/api/overview")).json()
-    assert ov["metrics"]["coverage"]["value"] == 33.33  # thẻ S1 không được báo 100% khi còn ngày chưa nạp
+    assert ov["metrics"]["coverage"]["value"] == 33.33  # thẻ Tổng quan không được báo 100% khi còn ngày chưa nạp
 
 
 async def test_edge_days_awaiting_release_do_not_block_coverage_verdict(db, client):
-    """Ngày mép HistData chưa phát hành không vào mẫu số và không làm S1 kẹt "đang nạp" mãi."""
+    """Ngày mép HistData chưa phát hành không vào mẫu số và không làm Tổng quan kẹt "đang nạp" mãi."""
     from goldpulse.repositories import crawl as crawl_repo
     from goldpulse.services import monitor
 

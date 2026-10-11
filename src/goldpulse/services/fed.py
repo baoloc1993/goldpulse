@@ -1,4 +1,4 @@
-"""FED: ghép mức lãi suất FRED với lịch FOMC tĩnh + phản ứng vàng (ARCHITECTURE §6b, §7 H).
+"""FED: ghép mức lãi suất FRED với lịch FOMC tĩnh + phản ứng vàng.
 
 Không gọi HTTP — worker đưa chuỗi FRED vào `build_decisions`.
 """
@@ -190,7 +190,7 @@ async def pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
 
 
 async def screen(session: AsyncSession, now: datetime | None = None) -> dict[str, Any]:
-    """Dữ liệu S7: kỳ kế tiếp · thẻ nguồn (lần nạp, số kỳ, lỗi FRED) · mọi kỳ họp mới nhất trước + phản ứng."""
+    """Dữ liệu Lịch FED: kỳ kế tiếp · thẻ nguồn (lần nạp, số kỳ, lỗi FRED) · mọi kỳ họp mới nhất trước + phản ứng."""
     now = now or datetime.now(UTC)
     st = await feed_repo.get_status(session, "fed") or {}
     w = await feed_repo.get_status(session, "worker")

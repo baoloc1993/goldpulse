@@ -1,4 +1,4 @@
-"""bot_job — hàng chờ trong Postgres giữa web/worker và tiến trình não (ARCHITECTURE §6b)."""
+"""bot_job — hàng chờ trong Postgres giữa web/worker và tiến trình não."""
 
 import json
 from datetime import datetime

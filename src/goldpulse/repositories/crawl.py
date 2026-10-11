@@ -118,7 +118,7 @@ async def retry(session: AsyncSession, day: date) -> bool:
 
 # Ngày "chờ phát hành": pending, chưa thử lần nào, nằm SAU ngày có phút mở cuối cùng đã xử lý (ok / empty /
 # error) — nguồn (HistData trễ ~1 tuần) chưa có chứ không phải thiếu. Pending nằm giữa các ngày đã xử lý là
-# thiếu thật. Không tính vào mẫu số độ phủ, không làm S1/S2 kẹt "đang nạp" mãi.
+# thiếu thật. Không tính vào mẫu số độ phủ, không làm Tổng quan/Độ phủ kẹt "đang nạp" mãi.
 _AWAITING = """
     (status = 'pending' AND attempts = 0
      AND day > (SELECT coalesce(max(day), DATE '1900-01-01') FROM crawl_day

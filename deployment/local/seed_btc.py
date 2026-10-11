@@ -1,11 +1,11 @@
-"""Seed dogfood vòng 4: tua lại N ngày gần nhất của kho nến BTC bằng ĐÚNG logic app → tín hiệu + lệnh giấy BTC.
+"""Seed dữ liệu thử: tua lại N ngày gần nhất của kho nến BTC bằng ĐÚNG logic app → tín hiệu + lệnh giấy BTC.
 
     DATABASE_URL=…/goldpulse_btcdev python -m uv run python deployment/local/seed_btc.py [số ngày, mặc định 7]
 
 Với từng giờ tròn trong N ngày: tính 4 chiến thuật (`services/btc/strategies.evaluate`) trên 90 ngày nến trước đó rồi
 `paper.close_open` / `paper.open_from_signal` với `now` = giờ đó + 61 giây — như worker chạy đúng giờ. TRUNCATE
 inst_trade/inst_day/inst_signal trước khi tua (chạy lại được). PHẢI dừng worker trước (script tự kiểm). Chỉ dùng cho
-DB dogfood: từ chối chạy trên DB có tên production (`goldpulse`, `goldpulse_btc`).
+DB thử: từ chối chạy trên DB có tên production (`goldpulse`, `goldpulse_btc`).
 """
 
 import asyncio
@@ -27,8 +27,8 @@ FORBIDDEN = {"goldpulse", "goldpulse_btc"}
 async def main(days: int) -> None:
     db_name = urlsplit(os.environ.get("DATABASE_URL", "")).path.lstrip("/")
     if db_name in FORBIDDEN or not db_name:
-        raise SystemExit(f"Từ chối: DB '{db_name}' là kho production — seed chỉ dùng cho DB dogfood")
-    # Worker giữ advisory lock 20260924 suốt đời — còn worker thì seed và worker ghi chen nhau (dogfood vòng 4)
+        raise SystemExit(f"Từ chối: DB '{db_name}' là kho production — seed chỉ dùng cho DB thử")
+    # Worker giữ advisory lock 20260924 suốt đời — còn worker thì seed và worker ghi chen nhau
     lock = await engine.connect()
     if not (await lock.execute(text("SELECT pg_try_advisory_lock(20260924)"))).scalar():
         raise SystemExit("Còn một worker đang chạy trên DB này — dừng worker trước khi seed")

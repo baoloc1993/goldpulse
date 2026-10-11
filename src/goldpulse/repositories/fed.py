@@ -1,4 +1,4 @@
-"""fed_decision — upsert kỳ họp + phản ứng vàng quanh giờ công bố (ARCHITECTURE §6b)."""
+"""fed_decision — upsert kỳ họp + phản ứng vàng quanh giờ công bố."""
 
 from collections.abc import Sequence
 from datetime import datetime

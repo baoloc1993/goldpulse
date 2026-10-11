@@ -8,7 +8,7 @@ h1 { font-size: var(--text-xl); margin: 0 0 var(--space-md); font-weight: 600; }
 h2 { font-size: var(--text-base); margin: var(--space-lg) 0 var(--space-sm); font-weight: 600; color: var(--color-text-muted); }
 .muted { color: var(--color-text-muted); font-size: var(--text-sm); }
 .mt { margin-top: var(--space-sm); }
-/* Link: --color-primary trên --color-surface chỉ 3.3:1 (< AA) → chữ chính + gạch chân (DECISIONS 2026-09-24) */
+/* Link: --color-primary trên --color-surface chỉ 3.3:1 (< AA) → chữ chính + gạch chân */
 a { color: var(--color-text); text-decoration: underline; }
 .up { color: var(--color-success); }
 .down { color: var(--color-danger); }
@@ -42,7 +42,7 @@ a.card { display: block; color: inherit; text-decoration: none; }
 /* C2 trường chọn / nhập */
 .field { margin-bottom: var(--space-md); }
 .field label { display: block; font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: 4px; }
-/* 16px (không phải --text-base 15px): iOS tự phóng to trang khi chạm trường < 16px (DECISIONS 2026-09-24) */
+/* 16px (không phải --text-base 15px): iOS tự phóng to trang khi chạm trường < 16px */
 .field select, .field input { width: 100%; font: inherit; font-size: 16px; color: var(--color-text); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-sm); min-height: 44px; }
 .field select:focus, .field input:focus { outline: 2px solid var(--color-primary); }
 .field.bad input, .field.bad select { border-color: var(--color-danger); }
@@ -94,7 +94,7 @@ p.muted { margin: var(--space-sm) 0; }
 /* C8 thanh điều hướng dưới */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--color-surface); display: flex; box-shadow: var(--shadow); padding-bottom: env(safe-area-inset-bottom); }
 .tabbar a { flex: 1; text-align: center; padding: var(--space-md) 0; color: var(--color-text-muted); text-decoration: none; font-size: var(--text-sm); }
-/* Mục đang chọn: primary trên surface chỉ 3.2:1 ở 13px → chữ chính + vạch primary phía trên (DECISIONS 2026-09-24) */
+/* Mục đang chọn: primary trên surface chỉ 3.2:1 ở 13px → chữ chính + vạch primary phía trên */
 .tabbar a.on { color: var(--color-text); font-weight: 600; box-shadow: inset 0 3px 0 var(--color-primary); }
 
 @media (min-width: 768px) {
@@ -104,13 +104,13 @@ p.muted { margin: var(--space-sm) 0; }
   .grid.g2 { grid-template-columns: 1fr 1fr 1fr; }
 }
 
-/* Xoay ngang (màn thấp): thanh dưới thôi cố định — nếu không nó che nút Tra ở S3 */
+/* Xoay ngang (màn thấp): thanh dưới thôi cố định — nếu không nó che nút Tra ở Tra thử */
 @media (max-height: 480px) {
   .tabbar { position: static; margin-top: var(--space-lg); }
   .wrap { padding-bottom: var(--space-md); }
 }
 
-/* ---------------- (v2) S5 Chat · S6 Dự đoán · S7 FED ---------------- */
+/* ---------------- (v2) Chat · Dự đoán · Lịch FED FED ---------------- */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .titlebar { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); }
 .titlebar h1 { margin: 0; }
@@ -119,15 +119,15 @@ p.muted { margin: var(--space-sm) 0; }
 .btn.small { font-size: var(--text-sm); padding: var(--space-sm); }
 a.back { color: var(--color-text); font-size: var(--text-sm); padding-right: var(--space-md); min-width: 44px; }
 
-/* C3 gọn — đầu màn S5 */
+/* C3 gọn — đầu màn Chat */
 .head3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-sm); margin-bottom: var(--space-sm); }
 .head3 .card { margin: 0; padding: var(--space-sm); min-width: 0; }
 .head3 .value { font-size: var(--text-base); overflow-wrap: anywhere; }
 .head3 .muted { overflow-wrap: anywhere; }
 .skel.head { height: 101px; margin: 0; }
-/* Đầu màn dính trên cùng khi cuộn: đọc câu trả lời vẫn thấy giá + độ trễ (dogfood 2026-09-26) */
+/* Đầu màn dính trên cùng khi cuộn: đọc câu trả lời vẫn thấy giá + độ trễ */
 body[data-screen="s5"] .head3 { position: sticky; top: 0; z-index: 1; background: var(--color-bg); padding: var(--space-sm) 0; }
-/* Màn thấp (xoay ngang, bàn phím mở): đầu màn thôi dính — không thì nó che câu trả lời mới (dogfood mobile) */
+/* Màn thấp (xoay ngang, bàn phím mở): đầu màn thôi dính — không thì nó che câu trả lời mới */
 @media (max-height: 560px) { .head3 { position: static; } }
 body.typing .tabbar { display: none; }
 body.typing .sendbar { bottom: 0; }
@@ -181,7 +181,7 @@ body[data-screen="s5"] .wrap { padding-bottom: 180px; }
 .react div { background: var(--color-bg); border-radius: var(--radius); padding: var(--space-sm); text-align: center; }
 .badge.muted { color: var(--color-text-muted); }
 
-/* (v3) S8/S9 tài khoản giấy — C14–C17 (DESIGN-SYSTEM §4), chỉ token §2 */
+/* (v3) tài khoản giấy — chỉ dùng token màu/cỡ chữ ở đầu file */
 .fake { font-size: var(--text-sm); color: var(--color-text-muted); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-sm) var(--space-md); margin: var(--space-sm) 0 var(--space-md); }
 .acc { border-left: 4px solid var(--color-surface); cursor: pointer; }
 .acc.burn { border-left-color: var(--color-danger); }
@@ -217,11 +217,11 @@ a.card.link { display: block; color: inherit; text-decoration: none; }
 .acc .chev { color: var(--color-text-muted); margin-left: 4px; }
 .note { font-size: var(--text-sm); color: var(--color-text-muted); margin: var(--space-sm) 0; }
 
-/* (v4) S8 "‹ Dự đoán" + "BTC ›" cùng hàng khi instance chạy chung hai cặp */
+/* (v4) Tài khoản giấy "‹ Dự đoán" + "BTC ›" cùng hàng khi instance chạy chung hai cặp */
 .toplinks { display: flex; justify-content: space-between; gap: var(--space-sm); }
 
-/* (v4) S10/S11: biểu đồ BTC cao 140px (trục Y theo dữ liệu thật, chữ trục 13px); số không bị bẻ dòng, thẻ đầu 2+1 cột
-   ở ≤360px để giá 6 chữ số (100,215.30) và huy hiệu "Nến trễ …" không vỡ (dogfood mobile vòng 4) */
+/* (v4) BTC/Nhật ký lệnh BTC: biểu đồ BTC cao 140px (trục Y theo dữ liệu thật, chữ trục 13px); số không bị bẻ dòng, thẻ đầu 2+1 cột
+   ở ≤360px để giá 6 chữ số (100,215.30) và huy hiệu "Nến trễ …" không vỡ  */
 .curve svg.chart.btc { height: 140px; }
 .head3.btc .value { white-space: nowrap; }
 @media (max-width: 360px) {

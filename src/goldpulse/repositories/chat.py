@@ -1,4 +1,4 @@
-"""chat_thread + chat_message (ARCHITECTURE §6b). Không có đường xoá."""
+"""chat_thread + chat_message. Không có đường xoá."""
 
 import json
 from typing import Any

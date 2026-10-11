@@ -1,4 +1,4 @@
-"""Trang HTML: S4 Nhập khoá · S1 Tổng quan · S2 Độ phủ · S3 Tra thử. Số liệu do JS tải từ /api."""
+"""Trang HTML: Nhập khoá · Tổng quan · Độ phủ · Tra thử. Số liệu do JS tải từ /api."""
 
 import re
 from datetime import UTC, datetime
@@ -18,7 +18,7 @@ from ..limiter import limiter
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[2] / "web" / "templates")
 router = APIRouter()
 
-# (v2) màn S5–S7 dựng ở routes/chat.py — ở đây chỉ để `next` sau đăng nhập được quay về đúng màn
+# (v2) màn Chat–Lịch FED dựng ở routes/chat.py — ở đây chỉ để `next` sau đăng nhập được quay về đúng màn
 V2_PATHS = ("chat", "predictions", "fed")
 
 SCREENS = {
@@ -29,11 +29,11 @@ SCREENS = {
 
 
 def home() -> str:
-    """(v4) Màn đầu sau khoá: instance chỉ BTC vào thẳng S10 (PROTOTYPE §2 v4)."""
+    """(v4) Màn đầu sau khoá: instance chỉ BTC vào thẳng trang BTC."""
     return "/overview" if settings.gold_on else "/btc"
 
 
-# (v4) S8 có liên kết "BTC ›" chỉ khi instance chạy chung hai cặp
+# (v4) Tài khoản giấy có liên kết "BTC ›" chỉ khi instance chạy chung hai cặp
 templates.env.globals["btc_on"] = settings.btc_on
 templates.env.globals["gold_on"] = settings.gold_on
 
@@ -48,12 +48,12 @@ async def root(request: Request) -> RedirectResponse:
 
 
 def safe_next(value: str | None) -> str:
-    """Chỉ nhận các màn nội bộ (giữ query string, vd bộ lọc S3) — chặn open redirect (//evil.com, http://…)."""
+    """Chỉ nhận các màn nội bộ (giữ query string, vd bộ lọc Tra thử) — chặn open redirect (//evil.com, http://…)."""
     if not value:
         return home()
     parts = urlsplit(value)
     internal = {f"/{name}" for name in (*SCREENS, *V2_PATHS)} | {"/paper", "/btc"}
-    # (v3) /paper/<mã tài khoản A–Z> — dogfood edge: mở link S9 khi chưa đăng nhập thì vào lại đúng S9; (v4) /btc/BTC-X
+    # (v3) /paper/<mã tài khoản A–Z> — mở link khi chưa đăng nhập thì vào lại đúng trang đó; (v4) /btc/BTC-X
     is_s9 = re.fullmatch(r"/paper/[A-Z]|/btc/BTC-[A-Z]", parts.path) is not None
     if parts.scheme or parts.netloc or (parts.path not in internal and not is_s9):
         return home()

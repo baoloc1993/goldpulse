@@ -1,4 +1,4 @@
-"""API JSON cho trang theo dõi — mọi route cần khoá truy cập (PERSONAS §2)."""
+"""API JSON cho trang theo dõi — mọi route cần khoá truy cập."""
 
 from datetime import date
 from typing import Annotated

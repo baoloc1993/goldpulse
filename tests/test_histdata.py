@@ -1,4 +1,4 @@
-"""Nguồn HistData — không cần WARP/proxy (DECISIONS 2026-09-25)."""
+"""Nguồn HistData — không cần WARP/proxy."""
 
 from datetime import UTC, date, datetime, timedelta
 

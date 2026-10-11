@@ -20,26 +20,26 @@ class Settings(BaseSettings):
 
     history_start_date: date = date(2004, 1, 1)
     realtime_poll_seconds: float = 5.0
-    # Lấy bù HistData: HistData chỉ phát hành ~1 lần/tuần nên một lần/ngày là đủ (DECISIONS 2026-09-25)
+    # Lấy bù HistData: HistData chỉ phát hành ~1 lần/tuần nên một lần/ngày là đủ
     backfill_hours: float = 24.0
     # Chỉ bật khi web đứng sau Cloudflare Tunnel: tin header CF-Connecting-IP để giới hạn theo IP thật.
-    # Không có Tunnel mà bật → người gọi tự đặt header để né giới hạn đăng nhập (DECISIONS 2026-09-25)
+    # Không có Tunnel mà bật → người gọi tự đặt header để né giới hạn đăng nhập
     trust_cloudflare_ip: bool = False
     # Cookie chỉ gửi qua HTTPS. None = tự theo APP_ENV (production → bật). Đặt false khi xem qua http trong
-    # mạng LAN nhà (điện thoại vứt cookie Secure trên http → vòng lặp về trang khoá) — DECISIONS 2026-09-25
+    # mạng LAN nhà (điện thoại vứt cookie Secure trên http → vòng lặp về trang khoá)
     cookie_secure: bool | None = None
-    # Số file Dukascopy tải song song — Dukascopy chậm 15–50s/file, hay trả 503 (DECISIONS 2026-09-24)
+    # Số file Dukascopy tải song song — Dukascopy chậm 15–50s/file, hay trả 503
     dukascopy_concurrency: int = 3
     dukascopy_delay_seconds: float = 0.5
     # Proxy tuỳ chọn chỉ cho worker khi tới Dukascopy (vd. WARP chế độ proxy: socks5://127.0.0.1:40000)
     dukascopy_proxy: str | None = None
 
-    # --- vòng 2: não bot (DECISIONS 2026-09-25) ---
+    # --- não bot (chat, dự đoán) ---
     # cli = `claude -p` bằng gói thuê bao Claude (mặc định) · api = SDK anthropic
-    # fake = câu mẫu theo schema, chỉ cho test / dogfood đợt 1 (bị chặn ở production)
+    # fake = câu mẫu theo schema, chỉ cho test / chạy thử (bị chặn ở production)
     brain_backend: Literal["cli", "api", "fake"] = "cli"
     claude_cli_model: str = "opus"
-    # Mức nghĩ của `claude -p` — mặc định của Claude Code rất cao (76 giây/câu, đo thật 2026-09-26) > trần 60s AC-6
+    # Mức nghĩ của `claude -p` — mặc định của Claude Code rất cao (76 giây/câu, đo thật 2026-09-26) > trần 60s
     claude_cli_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     claude_cli_bin: str = "claude"
     anthropic_api_key: str | None = None
@@ -47,12 +47,12 @@ class Settings(BaseSettings):
     brain_timeout_seconds: float = 120.0
     prediction_horizon_minutes: int = 15
 
-    # --- (v3) báo Telegram khi tài khoản giấy vào/đóng lệnh — trống token = tắt (DECISIONS 2026-10-02) ---
+    # --- (v3) báo Telegram khi tài khoản giấy vào/đóng lệnh — trống token = tắt ---
     telegram_bot_token: str | None = None
     # Trống → chat riêng đầu tiên nhắn bot, khoá vào worker_status.telegram
     telegram_chat_id: int | None = None
 
-    # --- (v4) cặp bật trong instance (DECISIONS 2026-10-03): XAUUSD = vòng 1–3 y nguyên · BTCUSDT = BTC độc lập ---
+    # --- (v4) cặp bật trong instance: XAUUSD = hành vi vàng y nguyên · BTCUSDT = BTC độc lập ---
     instruments: str = "XAUUSD"
     binance_base_url: str = "https://api.binance.com"
     btc_poll_seconds: float = 10.0

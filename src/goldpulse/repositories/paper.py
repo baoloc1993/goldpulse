@@ -1,4 +1,4 @@
-"""paper_account · paper_trade · paper_day — sổ giao dịch giấy (ARCHITECTURE §6c). Không xoá; web chỉ đổi `enabled`."""
+"""paper_account · paper_trade · paper_day — sổ giao dịch giấy. Không xoá; web chỉ đổi `enabled`."""
 
 import json
 from datetime import date, datetime
@@ -135,7 +135,7 @@ async def days_recent(session: AsyncSession, code: str, n: int) -> list[dict[str
 
 
 async def totals(session: AsyncSession, code: str) -> dict[str, Any]:
-    """Tích luỹ mọi ngày + phần dùng cho GO/PIVOT/KILL (lệnh đã đóng, loại `market_close` — PRD §6)."""
+    """Tích luỹ mọi ngày + phần dùng cho GO/PIVOT/KILL (lệnh đã đóng, loại `market_close`)."""
     d = (
         (
             await session.execute(
@@ -201,7 +201,7 @@ async def trades_today(session: AsyncSession, day: date) -> dict[str, dict[str, 
 
 async def latest_close(session: AsyncSession, not_before: datetime, at: datetime) -> dict[str, Any] | None:
     """Nến phút mới nhất trong [not_before, at] — giá tạm tính lãi/lỗ lệnh mở, kiểm cháy. Chặn trên bởi `at` để
-    tua lại lịch sử (seed dogfood) không nhìn giá tương lai."""
+    tua lại lịch sử (seed thử) không nhìn giá tương lai."""
     row = (
         (
             await session.execute(
@@ -216,7 +216,7 @@ async def latest_close(session: AsyncSession, not_before: datetime, at: datetime
 
 
 async def bump_view(session: AsyncSession, day: str) -> None:
-    """worker_status['paper_views'] = {"YYYY-MM-DD": số lần mở S8/S9} — đo H2 (chủ dự án có mở thật không)."""
+    """worker_status['paper_views'] = {"YYYY-MM-DD": số lần mở Tài khoản giấy/Nhật ký lệnh} — đo mức sử dụng."""
     await session.execute(
         text("""
             INSERT INTO worker_status (key, value, updated_at)
@@ -230,7 +230,7 @@ async def bump_view(session: AsyncSession, day: str) -> None:
     )
 
 
-# --- (v3) báo Telegram: chỉ đọc (DECISIONS 2026-10-02) ---------------------------------------------------------
+# --- (v3) báo Telegram: chỉ đọc ---------------------------------------------------------
 
 
 async def max_trade_id(session: AsyncSession) -> int:

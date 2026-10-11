@@ -1,6 +1,6 @@
 """(v4) Đặc trưng nến 1h BTC — Python thuần, khớp `research/btc_methods.py::features` (pandas) từng hàng.
 
-Quy ước pandas được chép lại có chủ đích (lệch quy ước là lỗi im lặng nguy hiểm nhất — DECISIONS 2026-09-26):
+Quy ước pandas được chép lại có chủ đích (lệch quy ước là lỗi im lặng nguy hiểm nhất):
 - rolling(n): cần đủ n giá trị không NaN, độ lệch chuẩn mẫu ddof = 1, quantile nội suy tuyến tính
 - ewm(alpha, adjust=False) cho RSI: khởi từ giá trị không NaN đầu tiên; ewm(span, adjust=True) cho EMA 24h
 - chia cho 0 / log(0) → inf → coi là NaN (`replace([inf, -inf], nan)`)

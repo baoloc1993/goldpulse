@@ -48,7 +48,7 @@ THROTTLE_MAX_S = 900
 IDLE_S = 600
 HD_BATCH = 400  # ngày một lượt — một file năm HistData phủ ~300 ngày
 SIGNAL_DELAY_S = 60  # tính tín hiệu 60s sau mốc 15 phút — nến phút cuối của nến 15m đã được ghi
-CHAT_EXPIRE_S = 600  # câu hỏi chờ não quá 10 phút → lỗi "Quá lâu — gửi lại" (ARCHITECTURE §6)
+CHAT_EXPIRE_S = 600  # câu hỏi chờ não quá 10 phút → lỗi "Quá lâu — gửi lại"
 FED_HOUR_UTC = 6
 FED_RETRY_S = 1800
 FED_SINCE = date(2003, 6, 1)  # mức lãi suất trước kỳ họp đầu tiên 2004
@@ -363,7 +363,7 @@ class Worker:
             sig["vol96"] = await signals.vol96(s, bar_end)  # (v3) luật B tài khoản giấy
             job_id = None
             # Nến mới nhất phải là nến vừa đóng ngay trước mốc — 18:00 NY mở cửa thì nến cuối là 16:45 (trước giờ
-            # nghỉ / cuối tuần), không phải "nến vừa đóng" (AC-10)
+            # nghỉ / cuối tuần), không phải "nến vừa đóng"
             fresh_bar = sig["last_bar_ts"] == (bar_end - timedelta(minutes=signals.BAR_MINUTES)).isoformat()
             # Ai quyết lúc nào dự đoán: mô hình logistic, chỉ 2% nến tự tin nhất (chủ dự án chốt 2026-09-26)
             mdl = await model15m.evaluate(s, bar_end) if fresh_bar else None
@@ -421,7 +421,7 @@ class Worker:
                             s, "fed", {"loaded_at": datetime.now(UTC).isoformat(), "count": n, "last_error": None}
                         )
                     log.info("fed_loaded", meetings=n)
-                except Exception as e:  # noqa: BLE001 — lỗi gì cũng ghi cho S7 rồi chờ lượt sau
+                except Exception as e:  # noqa: BLE001 — lỗi gì cũng ghi cho Lịch FED rồi chờ lượt sau
                     log.warning("fed_failed", error=str(e), kind=type(e).__name__)
                     async with session_scope() as s:
                         await feed_repo.set_status(s, "fed", {**prev, "last_error": f"{type(e).__name__}: {e}"[:300]})
@@ -430,7 +430,7 @@ class Worker:
                 nxt = now.replace(hour=FED_HOUR_UTC, minute=0, second=0, microsecond=0)
                 if nxt <= now:
                     nxt += timedelta(days=1)
-                # Lỗi → thử lại sau 30 phút (không để S7 trống tới 06:00 hôm sau); vẫn thưa, không bão request
+                # Lỗi → thử lại sau 30 phút (không để Lịch FED trống tới 06:00 hôm sau); vẫn thưa, không bão request
                 await self.sleep(FED_RETRY_S if failed else (nxt - now).total_seconds())
         finally:
             await fred.close()

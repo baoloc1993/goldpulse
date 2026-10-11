@@ -26,7 +26,7 @@
     return fetch(path, Object.assign({ credentials: "same-origin", headers: { Accept: "application/json" } }, opts || {}))
       .then(function (r) {
         if (r.status === 401) {
-          // Hết phiên → S4 kèm lời nhắn, nhập xong quay lại đúng màn đang đứng
+          // Hết phiên → Nhập khoá kèm lời nhắn, nhập xong quay lại đúng màn đang đứng
           location.href = "/login?het=1&next=" + encodeURIComponent(location.pathname + location.search);
           throw new Error("auth");
         }
@@ -50,7 +50,7 @@
     return '<div class="error" role="alert"><p>' + esc(msg) + '</p><button class="btn" type="button" id="' + retryId + '">Thử lại</button></div>';
   }
 
-  /* ---------------- S1 Tổng quan ---------------- */
+  /* ---------------- Tổng quan ---------------- */
   var lastOverview = null;
   var receivedAt = 0;        // Date.now() lúc nhận lastOverview — độ trễ cộng thêm thời gian đã trôi
   var offline = null;       // lỗi của lần tải gần nhất (null = đang cập nhật bình thường)
@@ -87,7 +87,7 @@
     card.className = b.fail ? "card fail" : "card";
   }
 
-  // (v3) tóm tắt tài khoản giấy cho thẻ liên kết ở S1 — dùng chung API của S8
+  // (v3) tóm tắt tài khoản giấy cho thẻ liên kết ở Tổng quan — dùng chung API của Tài khoản giấy
   var paperSumText = null;
   function fillPaperSummary() {
     var el = document.getElementById("paperSum");
@@ -143,7 +143,7 @@
     var hist = d.history;
     var srcBad = hist.source === "unreachable" || hist.source === "throttled";
     var m = d.metrics;
-      // (v3) liên kết sang S8 — đặt trước 3 ngưỡng kho (dogfood newbie), số tóm tắt nạp riêng, lỗi thì chỉ còn liên kết
+      // (v3) liên kết sang Tài khoản giấy — đặt trước 3 ngưỡng kho, số tóm tắt nạp riêng, lỗi thì chỉ còn liên kết
       h += '<a class="card link" id="paperLink" href="/paper"><div class="label">Tài khoản giấy · tiền giả</div>' +
         '<div class="value small num" id="paperSum">4 tài khoản · xem dashboard ›</div></a>';
     if (!hist.ok_days) {
@@ -236,7 +236,7 @@
     });
   }
 
-  /* ---------------- S2 Độ phủ ---------------- */
+  /* ---------------- Độ phủ ---------------- */
   function vnDateTime(iso) {  // "02/01/2007 20:05" — cùng kiểu dd/mm với ngày, tránh nhầm "02-01" thành 1 tháng 2
     var d = new Date(iso);
     var p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
@@ -359,7 +359,7 @@
     });
   }
 
-  /* ---------------- S3 Tra thử ---------------- */
+  /* ---------------- Tra thử ---------------- */
   var SESS = { asia: "Á", europe: "Âu", us: "Mỹ" };
   var lastQuery = null;  // bộ lọc của kết quả đang hiện
   var syncStale = function () {};

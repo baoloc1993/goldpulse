@@ -1,6 +1,6 @@
 """(v2) Bot chat: tín hiệu · FED · chấm dự đoán · luật do code giữ (không phụ thuộc não) · hàng chờ · phân quyền.
 
-Não chạy backend `fake` — không gọi mạng, không tốn credit (DECISIONS 2026-09-25).
+Não chạy backend `fake` — không gọi mạng, không tốn credit.
 """
 
 from datetime import UTC, date, datetime, timedelta
@@ -101,7 +101,7 @@ def test_outcome_rules():
     assert predictions.outcome_of("down", 100.0, 100.5) == "wrong"
     assert predictions.outcome_of("up", 100.0, 100.005) == "flat"
     assert predictions.outcome_of("up", 100.0, None) == "unscored"
-    # PRD §6 phương án 2 (2026-09-26): xác nhận khi đủ 40 lần tự động ≥ 50%; dưới thì chạy tiếp tới 100
+    # Xác nhận khi đủ 40 lần tự động ≥ 50%; dưới thì chạy tiếp tới 100
     assert predictions.verdict(70.0, 39) == "pending"
     assert predictions.verdict(50.0, 40) == "go"
     assert predictions.verdict(47.5, 40) == "pending"  # chưa KILL ở 40 lần — chạy tiếp
@@ -232,7 +232,7 @@ async def test_chat_roundtrip_with_fake_brain(client, db, monkeypatch):
     thread = (await client.get("/api/chat/thread")).json()
     assert [x["role"] for x in thread["messages"]] == ["user", "assistant"]  # lịch sử giữ lại khi mở lại trang
     s6 = (await client.get("/api/predictions")).json()
-    # Dự đoán của não `fake` nằm trong sổ nhưng KHÔNG bao giờ vào metric PRD §6
+    # Dự đoán của não `fake` nằm trong sổ nhưng KHÔNG bao giờ vào metric GO/KILL
     assert [r["backend"] for r in s6["rows"]] == ["fake"]
     assert s6["summary"]["total"] == 0
 
@@ -319,7 +319,7 @@ async def test_scoring_uses_candles_and_is_final(db):
 @needs_db
 async def test_fed_screen_and_reactions(client, db):
     await _login(client)
-    assert (await client.get("/api/fed")).json()["rows"] == []  # S7 rỗng: "Đang nạp lịch FED…"
+    assert (await client.get("/api/fed")).json()["rows"] == []  # Lịch FED rỗng: "Đang nạp lịch FED…"
     from goldpulse.repositories import fed as fed_repo
 
     ann = fed.announced_at(date(2024, 9, 18))
@@ -381,7 +381,7 @@ def test_model15m_needs_history_and_uses_threshold():
 
 @needs_db
 async def test_brain_recovers_when_db_hangs(db, monkeypatch):
-    """DB treo (Docker/WSL khởi động lại) → não không chờ mãi: bỏ pool, nối lại, lấy job tiếp (DECISIONS 2026-10-01)."""
+    """DB treo (Docker/WSL khởi động lại) → não không chờ mãi: bỏ pool, nối lại, lấy job tiếp."""
     import asyncio
 
     from goldpulse.brain import __main__ as brain

@@ -1,4 +1,4 @@
-"""Interface chung của ba backend não (ARCHITECTURE §8): ask(system, user, schema) -> BrainReply.
+"""Interface chung của ba backend não: ask(system, user, schema) -> BrainReply.
 
 Não KHÔNG có tool — chỉ nhận văn bản và trả JSON đúng schema.
 """

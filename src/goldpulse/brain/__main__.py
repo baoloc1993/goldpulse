@@ -1,8 +1,8 @@
 """Não bot: `python -m goldpulse.brain` (`make brain`) — chạy trên máy chủ, NGOÀI Docker khi backend `cli`.
 
 Vòng lặp: lấy bot_job (SKIP LOCKED) → soạn gói dữ liệu → hỏi Claude (cli | api | fake) → ghi kết quả.
-Nhịp tim 30s vào worker_status.brain — S5 báo "Não bot chưa chạy" khi nhịp tim cũ > 2 phút.
-Web không bao giờ gọi Claude: não chết thì web + worker vẫn sống (AC-11).
+Nhịp tim 30s vào worker_status.brain — Chat báo "Não bot chưa chạy" khi nhịp tim cũ > 2 phút.
+Web không bao giờ gọi Claude: não chết thì web + worker vẫn sống.
 
 `--production` (dùng bởi `make brain`): ép APP_ENV=production trước khi đọc cấu hình — backend `fake` bị chặn dù
 `deployment/local/.env` (dùng chung với `make dev`) đang để APP_ENV=development.
@@ -56,7 +56,7 @@ AUTO_MAX_AGE_S = 300  # job dự đoán tự động chờ quá 5 phút → giá
 RETRY_PAUSE_S = 20
 HEARTBEAT_S = 30
 # Docker/WSL khởi động lại → kết nối asyncpg chết im lặng, chờ mãi không lỗi (01/10: treo 9 giờ, mất 1 dự đoán).
-# Quá hạn → bỏ pool cũ, nối lại (DECISIONS 2026-10-01)
+# Quá hạn → bỏ pool cũ, nối lại
 DB_TIMEOUT_S = 30
 JOB_TIMEOUT_S = 300
 
@@ -86,7 +86,7 @@ def make_backend() -> Brain:
 
 
 def compose_answer(data: dict[str, Any], live: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
-    """Nội dung cuối + dự đoán được phép ghi. Luật do CODE giữ, không phụ thuộc não (AC-9):
+    """Nội dung cuối + dự đoán được phép ghi. Luật do CODE giữ, không phụ thuộc não:
     từ chối → câu chuẩn; không được gợi ý → bỏ dự đoán; có gợi ý → chèn dòng miễn trừ."""
     if not isinstance(data, dict):
         raise BrainError("Não trả dữ liệu không đúng dạng.")
@@ -107,12 +107,12 @@ def compose_answer(data: dict[str, Any], live: dict[str, Any]) -> tuple[str, dic
             )
             answer = f"{answer}\n\nLưu ý: {why} — câu trả lời này không phải gợi ý mua/bán và không được ghi dự đoán."
         pred = None
-    # Dòng miễn trừ cho MỌI câu trả lời không phải từ chối — không phụ thuộc cờ hay cách viết của não (AC-9)
+    # Dòng miễn trừ cho MỌI câu trả lời không phải từ chối — không phụ thuộc cờ hay cách viết của não
     return f"{answer}\n\n---\n{DISCLAIMER}", pred
 
 
 def user_error(e: BrainError) -> str:
-    """Câu lỗi cho người đọc 10–30 giây: làm gì tiếp trước, chi tiết kỹ thuật sau (dogfood 2026-09-26)."""
+    """Câu lỗi cho người đọc 10–30 giây: làm gì tiếp trước, chi tiết kỹ thuật sau."""
     if e.retryable:
         head = "Bot chưa trả lời được sau 3 lần thử — bấm Gửi lại, hoặc thử lại sau vài phút."
     else:
@@ -229,7 +229,7 @@ class BrainLoop:
                     await self.reconnect(f"job {job['id']}")
                     continue
                 if not ok:
-                    await asyncio.sleep(RETRY_PAUSE_S)  # "thử lại tối đa 3 lần cách 20s" (ARCHITECTURE §6)
+                    await asyncio.sleep(RETRY_PAUSE_S)  # "thử lại tối đa 3 lần cách 20s"
             except Exception as e:
                 log.exception("brain_loop_error")
                 await record_error("brain", e)

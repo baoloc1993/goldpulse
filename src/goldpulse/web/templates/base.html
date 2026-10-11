@@ -16,7 +16,7 @@
 {% block body %}{% endblock %}
 </main>
 {% if screen %}
-{# (v4) S10/S11 không có thanh điều hướng dưới — instance BTC chỉ có hai màn (DECISIONS 2026-10-03) #}
+{# (v4) Trang BTC không có thanh điều hướng dưới — instance BTC chỉ có hai màn #}
 {% if screen not in ('s10', 's11') %}
 <nav class="tabbar" aria-label="Điều hướng">
   <a href="/overview" class="{{ 'on' if screen == 's1' }}" {% if screen == 's1' %}aria-current="page"{% endif %}>Tổng quan</a>

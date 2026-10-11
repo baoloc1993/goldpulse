@@ -92,7 +92,7 @@ async def main() -> int:
     finally:
         await hd.close()
 
-    # Dukascopy chỉ cần khi nạp lại 2004 → 03/2009 (DECISIONS 2026-09-25) — không làm doctor đỏ
+    # Dukascopy chỉ cần khi nạp lại 2004 → 03/2009 — không làm doctor đỏ
     duka = DukascopyClient(proxy=settings.dukascopy_proxy)
     try:
         await duka.fetch_day((now - timedelta(days=7)).date())
@@ -110,7 +110,7 @@ async def main() -> int:
         pts = await fred.target_rates((now - timedelta(days=30)).date())
         line(True, f"FRED: lãi suất mục tiêu {pts[-1].lower:.2f}–{pts[-1].upper:.2f}% (ngày {pts[-1].day:%d/%m/%Y})")
     except Exception as e:  # noqa: BLE001
-        good &= line(False, f"FRED: {e} — S7 dùng bảng đã nạp")
+        good &= line(False, f"FRED: {e} — Lịch FED dùng bảng đã nạp")
     finally:
         await fred.close()
     good &= await check_brain(settings)
@@ -125,7 +125,7 @@ async def check_brain(settings) -> bool:
 
     backend = settings.brain_backend
     if backend == "fake":
-        return line(not settings.is_production, "BRAIN_BACKEND=fake (chỉ cho test/dogfood — cấm ở production)")
+        return line(not settings.is_production, "BRAIN_BACKEND=fake (chỉ cho test — cấm ở production)")
     if backend == "api":
         return line(
             bool(settings.anthropic_api_key),

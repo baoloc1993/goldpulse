@@ -27,7 +27,7 @@ def test_session_windows_winter_and_summer():
 
 
 def test_day_touches_only_its_own_three_sessions():
-    """Challenge pha I: nạp ngày UTC D chỉ phải tính lại (phiên, D)."""
+    """Nạp ngày UTC D chỉ phải tính lại (phiên, D)."""
     for d in (date(2024, 1, 15), date(2024, 3, 12), date(2024, 7, 15), date(2024, 11, 4)):
         start = datetime(d.year, d.month, d.day, tzinfo=UTC)
         keys = sessions_touching(start, start + timedelta(days=1))

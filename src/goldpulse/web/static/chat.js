@@ -1,4 +1,4 @@
-/* GoldPulse (v2) — S5 Chat · S6 Dự đoán · S7 Lịch FED. JS thuần, không thư viện ngoài.
+/* GoldPulse (v2) — Chat · Dự đoán · Lịch FED. JS thuần, không thư viện ngoài.
    Câu trả lời hiện MỘT LẦN trọn vẹn (không chữ chạy): gửi → poll 2s tới khi hết "pending". */
 (function () {
   "use strict";
@@ -53,7 +53,7 @@
     return '<div class="error" role="alert"><p>' + esc(msg) + '</p><button class="btn" type="button" id="' + retryId + '">' + (label || "Thử lại") + "</button></div>";
   }
 
-  /* ================= S5 Chat ================= */
+  /* ================= Chat ================= */
   if (screen === "s5") {
     var head = document.getElementById("head");
     var brainBadge = document.getElementById("brainBadge");
@@ -68,7 +68,7 @@
     var waiting = 0;      // số câu đang chờ bot — nút Gửi khoá khi > 0
     var brainState = null;
     var headData = null, headAt = 0;
-    var sending = false;  // POST đang bay — chặn chạm đúp / Ctrl+Enter ngay sau Gửi (dogfood rushed)
+    var sending = false;  // POST đang bay — chặn chạm đúp / Ctrl+Enter ngay sau Gửi
     var prevThread = null;
     var wrap = document.querySelector(".wrap");
     var tabbar = document.querySelector(".tabbar");
@@ -295,7 +295,7 @@
       askCount.hidden = n < 1800;
       askCount.textContent = n + "/2000 ký tự" + (n >= 2000 ? " — không gõ thêm được" : "");
     });
-    // Điện thoại: Enter = xuống dòng, bấm Gửi mới gửi (DESIGN-SYSTEM C13). Bàn phím rời: Ctrl/⌘ + Enter gửi
+    // Điện thoại: Enter = xuống dòng, bấm Gửi mới gửi. Bàn phím rời: Ctrl/⌘ + Enter gửi
     ask.addEventListener("keydown", function (ev) {
       if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); submit(ask.value); }
     });
@@ -326,7 +326,7 @@
     }, 1000);
   }
 
-  /* ================= S6 Dự đoán ================= */
+  /* ================= Dự đoán ================= */
   if (screen === "s6") {
     var content = document.getElementById("content");
     var SIG = { bollinger: "Bollinger", streak: "Chuỗi nến", rsi9: "RSI 9" };
@@ -337,7 +337,7 @@
     var CONF = { low: "thấp", medium: "vừa", high: "cao" };
 
     function rateText(a) { return a.scored ? fmt(a.rate, 1) + "%" : "—"; }
-    // (v3) thẻ đầu màn sang S8 — số nạp riêng từ API của S8, lỗi thì chỉ còn liên kết
+    // (v3) thẻ đầu màn sang Tài khoản giấy — số nạp riêng từ API của Tài khoản giấy, lỗi thì chỉ còn liên kết
     var paperSum = null;
     function paperCard() {
       return '<a class="card link" href="/paper"><div class="label">Tài khoản giấy · 4 luật · tiền giả</div>' +
@@ -387,7 +387,7 @@
           esc(why) + " Nến 15 phút gần nhất: " + esc(sigText(d.signal)) + '.</p><a href="/chat">Sang Chat hỏi thử</a></div>';
         return;
       }
-      // Thẻ chính = dự đoán TỰ ĐỘNG của mô hình (PRD §6 phương án 2): xác nhận khi đủ 40 lần ≥ 50%
+      // Thẻ chính = dự đoán TỰ ĐỘNG của mô hình: xác nhận khi đủ 40 lần ≥ 50%
       var a = s.auto, bt = s.backtest;
       var cls = s.verdict === "go" ? "card pass" : s.verdict === "kill" ? "card fail" : "card";
       var note;
@@ -441,11 +441,11 @@
     }, 60000);
   }
 
-  /* ================= S7 Lịch FED ================= */
+  /* ================= Lịch FED ================= */
   if (screen === "s7") {
     var box = document.getElementById("content");
     function bp(n) {
-      if (n > 0) return '<span class="down">▲ +' + n + " bp</span>";   // tăng lãi suất: đỏ (DESIGN-SYSTEM C12)
+      if (n > 0) return '<span class="down">▲ +' + n + " bp</span>";   // tăng lãi suất: đỏ
       if (n < 0) return '<span class="up">▼ −' + Math.abs(n) + " bp</span>";
       return '<span class="muted">— giữ</span>';
     }

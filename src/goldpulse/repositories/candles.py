@@ -23,7 +23,7 @@ _UPSERT_FINAL = """
 """
 _KEEP_DUKASCOPY = " WHERE candle_1m.source <> 'dukascopy'"
 
-# Nến tạm goldapi KHÔNG BAO GIỜ đè nến final (ARCHITECTURE §6).
+# Nến tạm goldapi KHÔNG BAO GIỜ đè nến final.
 _UPSERT_TEMP = text("""
     INSERT INTO candle_1m (ts, open, high, low, close, volume, source, is_final, updated_at)
     VALUES (:ts, :o, :h, :l, :c, 0, 'goldapi', false, now())
@@ -34,7 +34,7 @@ _UPSERT_TEMP = text("""
 """)
 
 # Phiên chỉ được ghi khi có ít nhất một phút có giao dịch thật (volume > 0) hoặc nến realtime —
-# khung phiên rơi vào cuối tuần / lễ chỉ có nến đứng giá thì không phải một phiên (DECISIONS 2026-09-24).
+# khung phiên rơi vào cuối tuần / lễ chỉ có nến đứng giá thì không phải một phiên.
 _UPSERT_SESSION = text("""
     INSERT INTO session_bar (session, trade_date, open_ts, close_ts, open, high, low, close, range,
                              direction, minutes_present, minutes_traded, is_final, updated_at)
@@ -110,7 +110,7 @@ async def latest_candle_ts(session: AsyncSession) -> datetime | None:
 
 
 async def session_stats(session: AsyncSession, name: str, year_from: int, year_to: int, isodow: int | None) -> dict:
-    """Thống kê phiên trên session_bar (đã tính sẵn) — câu tra của S3."""
+    """Thống kê phiên trên session_bar (đã tính sẵn) — câu tra của Tra thử."""
     sql = """
         SELECT count(*) AS n,
                avg(range) AS avg_range,
@@ -144,7 +144,7 @@ async def data_years(session: AsyncSession) -> tuple[int | None, int | None]:
     return row[0], row[1]
 
 
-# --- vòng 2: nến gộp cho tín hiệu + giá chấm dự đoán (ARCHITECTURE §6 "Tín hiệu 15 phút") --------------
+# --- nến gộp cho tín hiệu + giá chấm dự đoán --------------
 
 # Phút "sống" = có giao dịch thật hoặc nến tạm gold-api (chỉ dựng khi có mẫu tươi) — bỏ nến đứng giá tự điền.
 LIVE = "(volume > 0 OR source = 'goldapi')"

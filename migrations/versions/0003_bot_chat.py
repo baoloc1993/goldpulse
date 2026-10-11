@@ -1,4 +1,4 @@
-"""vòng 2 — bot chat: fed_decision · chat_thread · chat_message · bot_job · prediction (chỉ THÊM bảng)
+"""bot chat: fed_decision · chat_thread · chat_message · bot_job · prediction (chỉ THÊM bảng)
 
 Revision ID: 0003
 Revises: 0002
@@ -51,7 +51,7 @@ def upgrade() -> None:
         sa.CheckConstraint("status IN ('pending', 'running', 'done', 'error')", name="ck_job_status"),
     )
     op.create_index("ix_bot_job_status_created", "bot_job", ["status", "created_at"])
-    # Worker khởi động lại giữa nến không được đẻ job dự đoán trùng (ARCHITECTURE §6b)
+    # Worker khởi động lại giữa nến không được đẻ job dự đoán trùng
     op.create_index(
         "ux_bot_job_signal_bar",
         "bot_job",
@@ -110,7 +110,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Chỉ bỏ bảng vòng 2 — kho vòng 1 không bị chạm. Sổ dự đoán mất theo (đó là dữ liệu của tính năng bị gỡ).
+    # Chỉ bỏ bảng bot chat — kho dữ liệu không bị chạm. Sổ dự đoán mất theo (đó là dữ liệu của tính năng bị gỡ).
     op.drop_table("chat_message")
     op.drop_table("prediction")
     op.drop_table("bot_job")

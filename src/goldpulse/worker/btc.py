@@ -1,4 +1,4 @@
-"""(v4) Vòng lặp BTC của worker — chạy khi `INSTRUMENTS` chứa BTCUSDT (ARCHITECTURE §7 L–O). Không chạm bảng vàng.
+"""(v4) Vòng lặp BTC của worker — chạy khi `INSTRUMENTS` chứa BTCUSDT. Không chạm bảng vàng.
 
 L `price_loop`: nến 1m Binance mỗi BTC_POLL_SECONDS, lấy bù khi hở (kho rỗng → 90 ngày) · M+N `trade_loop`: mỗi 20 s
 đóng lệnh tới hạn/cháy rồi tính giờ tín hiệu còn thiếu · O `notify_loop`: bot Telegram BTC riêng.

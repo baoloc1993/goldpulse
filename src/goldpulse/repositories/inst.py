@@ -1,4 +1,4 @@
-"""(v4) inst_candle · inst_feed · inst_signal · inst_account · inst_trade · inst_day — bảng cặp mới (ARCHITECTURE §6d).
+"""(v4) inst_candle · inst_feed · inst_signal · inst_account · inst_trade · inst_day — bảng cặp mới.
 
 Không đọc/ghi bảng vàng. Lệnh giấy không xoá; web chỉ đổi `enabled`.
 """
@@ -168,7 +168,7 @@ async def latest_price(session: AsyncSession, symbol: str) -> dict[str, Any] | N
 
 
 async def feed_lag_ratio(session: AsyncSession, symbol: str, since: datetime) -> dict[str, Any]:
-    """AC-16: tỉ lệ lần poll mà nến đã đóng mới nhất trễ < 60 s (lần poll lỗi tính là trễ)."""
+    """Tỉ lệ lần poll mà nến đã đóng mới nhất trễ < 60 s (lần poll lỗi tính là trễ)."""
     row = (
         (
             await session.execute(
@@ -372,7 +372,7 @@ async def days_recent(session: AsyncSession, code: str, n: int) -> list[dict[str
 
 
 async def totals(session: AsyncSession, code: str) -> dict[str, Any]:
-    """Cộng dồn mọi ngày + phần dùng cho GO/PIVOT/KILL (lệnh đã đóng trừ `day_close` — PRD §6 vòng 4)."""
+    """Cộng dồn mọi ngày + phần dùng cho GO/PIVOT/KILL (lệnh đã đóng trừ `day_close`)."""
     d = (
         (
             await session.execute(

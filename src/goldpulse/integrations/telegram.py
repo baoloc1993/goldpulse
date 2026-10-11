@@ -1,4 +1,4 @@
-"""(v3) Gửi tin Telegram qua Bot API — chỉ text, không ghi DB (DECISIONS 2026-10-02)."""
+"""(v3) Gửi tin Telegram qua Bot API — chỉ text, không ghi DB."""
 
 import httpx
 

@@ -69,7 +69,7 @@ async def store_history_day(session: AsyncSession, day: date, candles: Sequence[
 
 
 async def store_backfill_day(session: AsyncSession, day: date, candles: Sequence[RawCandle]) -> None:
-    """Luồng C: nến final đè nến tạm + tính lại phiên. KHÔNG ghi crawl_day (ARCHITECTURE §7 C)."""
+    """Luồng C: nến final đè nến tạm + tính lại phiên. KHÔNG ghi crawl_day."""
     await candle_repo.upsert_final(session, candles)
     start, end = day_bounds(day)
     await recompute_sessions(session, start, end)
@@ -77,7 +77,7 @@ async def store_backfill_day(session: AsyncSession, day: date, candles: Sequence
 
 async def store_temp_minute(session: AsyncSession, minute: datetime, prices: Sequence[float]) -> bool:
     # gold-api vẫn trả giá "tươi" đứng yên lúc thị trường nghỉ — nến đó lọt vào chuỗi nến sống làm tín hiệu
-    # bật giả sáng thứ Hai (DECISIONS 2026-09-28)
+    # bật giả sáng thứ Hai
     if not is_market_open(minute):
         return False
     ohlc = build_temp_candle(prices)
@@ -90,7 +90,7 @@ async def store_temp_minute(session: AsyncSession, minute: datetime, prices: Seq
 
 def slice_and_fill(day: date, candles: Sequence[RawCandle], until: datetime | None = None) -> list[RawCandle]:
     """Nến của ngày UTC `day` từ một dãy nến đã sắp xếp (HistData), điền nến đứng giá cho phút thị trường mở
-    không có tick — cùng quy ước với Dukascopy (DECISIONS 2026-09-25). Không điền quá `until` (mép dữ liệu)."""
+    không có tick — cùng quy ước với Dukascopy. Không điền quá `until` (mép dữ liệu)."""
     start, end = day_bounds(day)
     by_ts = {c.ts: c for c in candles if start <= c.ts < end}
     prev = None

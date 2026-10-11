@@ -116,7 +116,7 @@ async def test_final_candle_overwrites_temp(db):
 
 
 async def test_no_temp_candle_when_market_closed(db):
-    """gold-api vẫn trả giá lúc nghỉ — không dựng nến tạm cho thứ Bảy / giờ nghỉ 17:00 NY (DECISIONS 2026-09-28)."""
+    """gold-api vẫn trả giá lúc nghỉ — không dựng nến tạm cho thứ Bảy / giờ nghỉ 17:00 NY."""
     from goldpulse.services import ingest
 
     saturday = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
@@ -168,7 +168,7 @@ async def test_soft_fail_retries_then_errors(db):
 
 
 async def test_access_matrix(client):
-    """PERSONAS §2: không có khoá → mọi thứ bị chặn trừ /health (chỉ ok/down)."""
+    """Không có khoá → mọi thứ bị chặn trừ /health (chỉ ok/down)."""
     h = await client.get("/health")
     assert h.status_code == 200 and h.json() == {"ok": True}
     for path in ("/overview", "/coverage", "/query"):
@@ -203,7 +203,7 @@ async def test_query_and_speed_metric(client, db):
     body = r.json()
     assert r.status_code == 200
     assert body["count"] == 1 and body["span_years"] == 23
-    assert body["missing_years"] == [y for y in range(2004, 2027) if y != 2024]  # S3 phải nói rõ năm thiếu
+    assert body["missing_years"] == [y for y in range(2004, 2027) if y != 2024]  # Tra thử phải nói rõ năm thiếu
     assert body["up_pct"] + body["down_pct"] + body["flat_pct"] == pytest.approx(100.0)
     r = await client.get("/api/query", params={"session": "europe", "year_from": 2024, "year_to": 2024, "dow": 5})
     assert r.json()["count"] == 0  # 15/02/2024 là thứ Năm
@@ -257,8 +257,8 @@ async def test_login_next_only_internal(client):
     r = await client.post("/login", data={"key": "test-key-0123456789", "next": "/query"})
     assert r.headers["location"] == "/query"
     r = await client.post("/login", data={"key": "test-key-0123456789", "next": "/query?session=us&year_from=2004"})
-    assert r.headers["location"] == "/query?session=us&year_from=2004"  # giữ bộ lọc S3
-    for bad in ("//evil.com", "https://evil.com", "/\evil.com", "/api/overview", "/login", "javascript:alert(1)"):
+    assert r.headers["location"] == "/query?session=us&year_from=2004"  # giữ bộ lọc Tra thử
+    for bad in ("//evil.com", "https://evil.com", "/\\evil.com", "/api/overview", "/login", "javascript:alert(1)"):
         r = await client.post("/login", data={"key": "test-key-0123456789", "next": bad})
         assert r.headers["location"] == "/overview"
 

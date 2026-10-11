@@ -1,4 +1,4 @@
-"""Tua lại lịch sử để đo + luyện prompt dự đoán 15 phút (pha E vòng 2, DECISIONS 2026-09-26).
+"""Tua lại lịch sử để đo + luyện prompt dự đoán 15 phút.
 
     python -m goldpulse.eval.replay sample --since 2025-01-01 --until 2026-09-20 --n 300 --out data/eval/samples.jsonl
     python -m goldpulse.eval.replay run --samples data/eval/samples.jsonl --split train --prompt <file.md> \

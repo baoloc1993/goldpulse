@@ -1,6 +1,6 @@
-/* GoldPulse (v4) — S10 BTC · S11 Nhật ký lệnh BTC. TIỀN GIẢ. JS thuần, không thư viện ngoài.
-   Cùng khuôn với paper.js (S8/S9): số tự tải lại 5 giây, đường số dư SVG vẽ tay, 4 đường phân biệt bằng nét (C15).
-   Chiến thuật nói bằng lời thường, không công thức (PROTOTYPE S10). */
+/* GoldPulse (v4) — BTC · Nhật ký lệnh BTC. TIỀN GIẢ. JS thuần, không thư viện ngoài.
+   Cùng khuôn với paper.js (Tài khoản giấy/Nhật ký lệnh): số tự tải lại 5 giây, đường số dư SVG vẽ tay, 4 đường phân biệt bằng nét.
+   Chiến thuật nói bằng lời thường, không công thức . */
 (function () {
   "use strict";
   var screen = document.body.dataset.screen;
@@ -13,7 +13,7 @@
   };
   var EXIT = { horizon: ["ok", "Hết hạn"], day_close: ["muted", "Hết ngày"], stopout: ["err", "Cháy"] };
   var toggleErr = null;
-  var pressing = 0; // chạm gần nhất — tự tải lại không dựng lại DOM đúng lúc ngón tay đang bấm (dogfood rushed)
+  var pressing = 0; // chạm gần nhất — tự tải lại không dựng lại DOM đúng lúc ngón tay đang bấm
   ["pointerdown", "touchstart", "keydown"].forEach(function (ev) { document.addEventListener(ev, function () { pressing = Date.now(); }, true); });
   function touching() { return Date.now() - pressing < 700; }
 
@@ -65,7 +65,7 @@
     return "";
   }
   function waitText(lv) {
-    // Khi nào có lệnh + người dùng có phải làm gì không (dogfood newbie vòng 4)
+    // Khi nào có lệnh + người dùng có phải làm gì không 
     return "Bot tự vào lệnh khi có tín hiệu — bạn không cần làm gì. Kiểm mỗi giờ tròn (lần tới " + esc(lv.next_check_vn || "") +
       " giờ VN); có thể nhiều giờ, thậm chí cả ngày không có lệnh.";
   }
@@ -118,13 +118,13 @@
     }
   }
   var VERDICT = { go: "đạt điều kiện GO", pivot: "lãi nhưng chưa đủ điều kiện (PIVOT)", none: "chưa lãi" };
-  // Con số mà quyết định GO/PIVOT/KILL thực sự dựa vào (PRD §6 vòng 4): số lệnh đánh giá (không tính lệnh hết ngày) / ngưỡng
+  // Con số mà quyết định GO/PIVOT/KILL thực sự dựa vào: số lệnh đánh giá (không tính lệnh hết ngày) / ngưỡng
   function evalText(tot, thr) {
     return "Đánh giá 8 tuần: " + tot.eval_n + "/" + thr.go_min_trades + " lệnh · cộng dồn " + signed(tot.pnl) + " USD · " + (VERDICT[tot.verdict] || "—");
   }
   function arrowOf(dir) { return dir === 1 ? '<span class="up">▲ mua</span>' : '<span class="down">▼ bán</span>'; }
 
-  /* ================= S10 ================= */
+  /* ================= BTC ================= */
   if (screen === "s10") {
     var last = null, offline = null, busy = false, shownErr = "", thr = { go_min_trades: 30 };
 
@@ -282,7 +282,7 @@
     setInterval(function () { if (!document.hidden && !content.querySelector(".sw[disabled]") && !touching()) load(false); }, 5000);
   }
 
-  /* ================= S11 ================= */
+  /* ================= Nhật ký lệnh BTC ================= */
   if (screen === "s11") {
     var code = content.dataset.code, lastId = null, loaded = false, extra = false, busy11 = false;
 

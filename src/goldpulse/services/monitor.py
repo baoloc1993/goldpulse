@@ -1,4 +1,4 @@
-"""Số liệu cho trang theo dõi: S1 Tổng quan · S2 Độ phủ · S3 Tra thử (ARCHITECTURE §7 D)."""
+"""Số liệu cho trang theo dõi: Tổng quan · Độ phủ · Tra thử."""
 
 import time
 from datetime import UTC, date, datetime, timedelta
@@ -128,7 +128,7 @@ async def overview(session: AsyncSession, now: datetime | None = None) -> dict[s
 
 
 async def coverage(session: AsyncSession, fresh: bool = False) -> dict[str, Any]:
-    """Độ phủ theo năm + đoạn thiếu (cache 10 phút, ARCHITECTURE §7 D3) + trạng thái nguồn lúc này."""
+    """Độ phủ theo năm + đoạn thiếu (cache 10 phút) + trạng thái nguồn lúc này."""
     src = await feed_repo.get_status(session, "history_source") or {}
     return {
         **await _coverage_years(session, fresh),
@@ -229,7 +229,7 @@ async def session_query(
         "last_day": stats["last_day"].isoformat() if stats["last_day"] else None,
         "duration_ms": round(duration_ms, 1),
         "span_years": span,
-        # Năm trong khoảng tra KHÔNG có phiên nào — để S3 nói rõ kết quả đang lấp chỗ trống
+        # Năm trong khoảng tra KHÔNG có phiên nào — để Tra thử nói rõ kết quả đang lấp chỗ trống
         "missing_years": [y for y in range(year_from, year_to + 1) if y not in set(stats["years"] or [])],
     }
 
@@ -249,5 +249,5 @@ async def db_alive(session: AsyncSession) -> bool:
 
 
 async def wake_history(session: AsyncSession) -> None:
-    """Nút "Thử lại ngay" ở S1: đánh thức luồng nạp/lấy bù đang tạm dừng."""
+    """Nút "Thử lại ngay" ở Tổng quan: đánh thức luồng nạp/lấy bù đang tạm dừng."""
     await feed_repo.set_status(session, "history_wake", {"by": "operator"})

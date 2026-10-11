@@ -1,4 +1,4 @@
-"""/health — công khai, chỉ trả ok/down, không lộ số liệu (PERSONAS §2)."""
+"""/health — công khai, chỉ trả ok/down, không lộ số liệu."""
 
 from typing import Annotated
 

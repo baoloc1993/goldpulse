@@ -1,8 +1,8 @@
-# Instance BTC (vòng 4, DECISIONS 2026-10-03): cùng image với production vàng, INSTRUMENTS=BTCUSDT, project Docker riêng
+# Instance BTC: cùng image với production vàng, INSTRUMENTS=BTCUSDT, project Docker riêng
 # `goldpulse-btc` → Postgres + volume riêng, KHÔNG đụng production vàng (project `goldpulse`, cổng 8080/5432).
 # Chạy:  docker compose -f deployment/btc/docker-compose.yml --env-file deployment/btc/.env up -d --build
 # Web: http://127.0.0.1:8081 (WEB_BIND=0.0.0.0 để điện thoại cùng LAN vào). Không có brain. Có container backup
-# (pg_dump mỗi ngày, giữ 14 bản, vào deployment/btc/backups). Khôi phục: DEPLOY.md §4.
+# (pg_dump mỗi ngày, giữ 14 bản, vào deployment/btc/backups). Khôi phục: pg_restore từ file dump.
 name: goldpulse-btc
 services:
   db:
@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
 
   backup:
-    # pg_dump mỗi ngày vào deployment/btc/backups, giữ 14 bản (review vòng 4: mất volume = mất cả thí nghiệm 8 tuần,
+    # pg_dump mỗi ngày vào deployment/btc/backups, giữ 14 bản (mất volume = mất cả thí nghiệm 8 tuần,
     # sổ giấy KHÔNG dựng lại được từ nến vì các quyết định bỏ qua/tắt/bật không nằm trong nến)
     image: postgres:16-alpine
     environment:

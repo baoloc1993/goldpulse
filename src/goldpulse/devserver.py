@@ -16,7 +16,7 @@ WEB = [
     "127.0.0.1",
     "--port",
     "8000",
-    # Trang S1 giữ kết nối keep-alive (tải lại 5s/lần) — thiếu mốc này thì reload treo mãi
+    # Trang Tổng quan giữ kết nối keep-alive (tải lại 5s/lần) — thiếu mốc này thì reload treo mãi
     "--timeout-graceful-shutdown",
     "3",
     # Như Dockerfile production: không tin X-Forwarded-For do client tự đặt (giới hạn tốc độ theo IP thật)

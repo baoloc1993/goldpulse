@@ -1,10 +1,10 @@
-"""Seed dogfood vòng 3: tua lại N ngày gần nhất của kho bằng ĐÚNG logic production → dự đoán tự động + lệnh giấy.
+"""Seed dữ liệu thử: tua lại N ngày gần nhất của kho bằng ĐÚNG logic production → dự đoán tự động + lệnh giấy.
 
     DATABASE_URL=…/goldpulse_dev python -m uv run python deployment/local/seed_paper.py [số ngày, mặc định 7]
 
 Mỗi mốc 15 phút có trong kho: `model15m.evaluate` (mô hình thật) quyết có dự đoán không; có → ghi `prediction(auto,
 backend='replay')` với giá `predictions.price_at` + `vol96`, rồi `paper.open_for_new` / `paper.close_due` bước từng
-phút như worker. Chỉ dùng cho DB dogfood — từ chối chạy trên kho production `goldpulse`.
+phút như worker. Chỉ dùng cho DB thử — từ chối chạy trên kho production `goldpulse`.
 TRUNCATE paper_trade/paper_day + xoá prediction backend 'replay' trước khi tua (chạy lại được).
 """
 
@@ -26,7 +26,7 @@ sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
 
 async def main(days: int) -> None:
-    # Danh sách TRẮNG (review v3): script TRUNCATE sổ giấy — lọt vào production là mất sổ 4 tuần của pha E
+    # Danh sách TRẮNG : script TRUNCATE sổ giấy — lọt vào production là mất sổ 4 tuần
     db_name = urlsplit(os.environ.get("DATABASE_URL", "")).path.lstrip("/")
     if db_name not in ("goldpulse_dev", "goldpulse_dogfood") or settings.app_env == "production":
         raise SystemExit("Từ chối: seed chỉ chạy trên goldpulse_dev / goldpulse_dogfood, APP_ENV khác production.")
@@ -49,7 +49,7 @@ async def main(days: int) -> None:
                         sig = {"vol96": await signals.vol96(s, t), "model": slim}
                         await predictions.create(
                             s, made_at=t, source="auto", direction=mdl["direction"], confidence="low", price=price,
-                            signals=sig, reasoning="(tua lại cho dogfood — không có lời của não)", backend="replay",
+                            signals=sig, reasoning="(tua lại để thử — không có lời của não)", backend="replay",
                             model="logit15m_v1", job_id=None,
                         )  # fmt: skip
                         made += 1

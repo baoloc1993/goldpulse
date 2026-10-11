@@ -1,4 +1,4 @@
-"""Xuất mô hình BTC `btc_logit1h_v1` ra JSON cho app — ĐÚNG mô hình đã tua ở `btc_strategies.py` (DECISIONS 2026-10-03:
+"""Xuất mô hình BTC `btc_logit1h_v1` ra JSON cho app — ĐÚNG mô hình đã tua ở `btc_strategies.py` (
 đóng băng, không luyện lại). Luyện 2018–21 · ngưỡng tự tin top 5% / top 10% lấy trên 2022–24.
 
     python -m uv run --no-project --with numpy --with pandas --with scikit-learn python research/btc_export_model.py
@@ -48,7 +48,7 @@ def main() -> None:
         "thr_top10": float(np.quantile(conf[sel], 0.90)),
         "trained": "2018-01-01..2021-12-31 (Binance spot 1m → 1h), C=0.1",
         "thresholds_from": "2022-01-01..2024-12-31",
-        "tested": "2025-01-01..2026-10-02 — EXPERIMENTS-v4.md",
+        "tested": "2025-01-01..2026-10-02",
         "source": "research/btc_export_model.py",
     }
     OUT.write_text(json.dumps(model, indent=1), encoding="utf-8")

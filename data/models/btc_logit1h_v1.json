@@ -107,6 +107,6 @@
  "thr_top10": 0.11664529017880973,
  "trained": "2018-01-01..2021-12-31 (Binance spot 1m \u2192 1h), C=0.1",
  "thresholds_from": "2022-01-01..2024-12-31",
- "tested": "2025-01-01..2026-10-02 \u2014 EXPERIMENTS-v4.md",
+ "tested": "2025-01-01..2026-10-02",
  "source": "research/btc_export_model.py"
 }

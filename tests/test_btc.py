@@ -123,7 +123,7 @@ async def test_het_ngay_dong_o_nen_2359_khong_tinh_danh_gia(db):
         assert t["exit_reason"] == "day_close" and t["closed_at"] == datetime(2026, 10, 2, 0, 0, tzinfo=UTC)
         assert t["pnl"] == pytest.approx(200 * (0.001 - 0.0014), abs=1e-4)
         tot = await repo.totals(s, "BTC-D")
-        assert tot["trades"] == 1 and tot["eval_n"] == 0  # PRD §6: không tính vào số lệnh đánh giá
+        assert tot["trades"] == 1 and tot["eval_n"] == 0  # không tính vào số lệnh đánh giá
 
 
 @needs_db
@@ -227,7 +227,7 @@ async def test_lan_dau_chi_tinh_gio_vua_dong_khong_ghi_gio_bi_lo(db):
 
 @needs_db
 async def test_do_tre_nen_chi_tinh_phan_tre_hon_nen_ke_tiep(db):
-    """Nến đã đóng cuối ở last+1m, nến kế tiếp có sau last+2m → trong 0–60 s đầu KHÔNG phải trễ (dogfood vòng 4)."""
+    """Nến đã đóng cuối ở last+1m, nến kế tiếp có sau last+2m → trong 0–60 s đầu KHÔNG phải trễ ."""
     now = datetime(2026, 10, 3, 12, 0, 50, tzinfo=UTC)
     async with db() as s:
         await _candles(s, datetime(2026, 10, 3, 11, 59, tzinfo=UTC), [P0])  # nến 11:59 vừa đóng lúc 12:00:00

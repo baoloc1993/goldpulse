@@ -25,11 +25,11 @@ log = structlog.get_logger("web")
 
 app = FastAPI(title="GoldPulse", docs_url=None, redoc_url=None, openapi_url=None)
 app.state.limiter = limiter
-MAX_BODY = 64 * 1024  # mọi body hợp lệ < 3 KB (câu chat ≤ 2000 ký tự); 20 MB vẫn bị parse trọn (dogfood breaker v3)
+MAX_BODY = 64 * 1024  # mọi body hợp lệ < 3 KB (câu chat ≤ 2000 ký tự); 20 MB vẫn bị parse trọn
 
 
 class SafeStatic(StaticFiles):
-    """Tên file có ký tự Windows cấm (`<`, `?`, `|`…) → os.stat ném OSError → 500 + lộ đường dẫn ở S1. Coi là 404."""
+    """Tên file có ký tự Windows cấm (`<`, `?`, `|`…) → os.stat ném OSError → 500 + lộ đường dẫn. Coi là 404."""
 
     def lookup_path(self, path: str):  # type: ignore[override]
         try:
@@ -129,7 +129,7 @@ async def _not_found(request: Request, exc: StarletteHTTPException) -> Response:
 
 @app.exception_handler(Exception)
 async def _server_error(request: Request, exc: Exception) -> Response:
-    """Lỗi chưa lường trước: log đủ ngữ cảnh + ghi để S1 hiện, người dùng chỉ thấy câu tiếng Việt — không traceback."""
+    """Lỗi chưa lường trước: log đủ ngữ cảnh + ghi lại, người dùng chỉ thấy câu tiếng Việt — không traceback."""
     log.exception("unhandled_error", path=request.url.path)
     await record_error(f"web {request.method} {request.url.path}", exc)
     if request.url.path.startswith("/api/"):

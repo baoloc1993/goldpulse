@@ -294,7 +294,7 @@ async def test_market_pack_has_paper_accounts_marked_fake_money(db):
     json.dumps(pack, ensure_ascii=False)  # không có date/Decimal lọt vào gói
 
 
-# --- (v3) báo Telegram: chỉ đọc sổ (DECISIONS 2026-10-02) ------------------------------------------------------
+# --- (v3) báo Telegram: chỉ đọc sổ ------------------------------------------------------
 
 
 @needs_db

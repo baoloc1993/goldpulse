@@ -1,4 +1,4 @@
-"""Dependency: session DB + kiểm khoá truy cập vận hành (PERSONAS §2)."""
+"""Dependency: session DB + kiểm khoá truy cập vận hành."""
 
 import hashlib
 import hmac
@@ -39,7 +39,7 @@ def is_operator(request: Request) -> bool:
 
 
 class LoginRequired(Exception):
-    """Trang HTML không có khoá → chuyển sang S4."""
+    """Trang HTML không có khoá → chuyển sang Nhập khoá."""
 
 
 def require_operator_page(request: Request) -> None:

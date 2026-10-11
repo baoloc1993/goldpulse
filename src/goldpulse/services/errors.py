@@ -1,5 +1,5 @@
-"""Lỗi hệ thống "tự báo về một nơi" khi chưa bật Sentry: ghi lỗi gần nhất vào worker_status để S1 hiện ra
-(DECISIONS 2026-09-25). Chi tiết đầy đủ vẫn nằm trong log JSON (`docker compose logs`)."""
+"""Lỗi hệ thống "tự báo về một nơi" khi chưa bật Sentry: ghi lỗi gần nhất vào worker_status để trang Tổng quan hiện ra.
+Chi tiết đầy đủ vẫn nằm trong log JSON (`docker compose logs`)."""
 
 import structlog
 

@@ -1,4 +1,4 @@
-"""vòng 4 — cặp mới độc lập với vàng: inst_candle · inst_feed · inst_signal · inst_account · inst_trade · inst_day
+"""cặp mới độc lập với vàng: inst_candle · inst_feed · inst_signal · inst_account · inst_trade · inst_day
 (chỉ THÊM bảng, không đụng bảng vàng) + seed 4 tài khoản BTC-A..BTC-D
 
 Revision ID: 0005
@@ -17,7 +17,7 @@ down_revision = "0004"
 branch_labels = None
 depends_on = None
 
-# PRD §7 "Tài khoản giấy BTC (v4)" — 4 chiến thuật khác biệt nhất của research/btc_strategies.py (chốt 2026-10-03)
+# 4 chiến thuật khác biệt nhất của research/btc_strategies.py (chốt 2026-10-03)
 ACCOUNTS = [
     ("BTC-A", "Mô hình", {"kind": "model", "min_conf": "thr_top5", "hold_hours": 1}),
     ("BTC-B", "Thuận xu hướng", {"kind": "model_trend", "min_conf": "thr_top10", "hold_hours": 1}),
@@ -99,7 +99,7 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "skip_reason IS NULL OR skip_reason IN ('open_trade', 'burned', 'disabled', 'stale')", name="ck_inst_skip"
         ),
-        # Một giờ tín hiệu tối đa một dòng mỗi tài khoản — worker khởi động lại không mở trùng (ARCHITECTURE §6d)
+        # Một giờ tín hiệu tối đa một dòng mỗi tài khoản — worker khởi động lại không mở trùng
         sa.UniqueConstraint("account_code", "bar_ts", name="ux_inst_trade_account_bar"),
     )
     op.create_index("ix_inst_trade_account_id", "inst_trade", ["account_code", "id"])

@@ -1,5 +1,5 @@
 """(v4) Tin Telegram cho bot BTC riêng — chỉ đọc `inst_trade`/`inst_day`, cùng cơ chế mốc với bot vàng
-(services/notify.py) nhưng state riêng `worker_status.btc_telegram` và token riêng (AC-20). Không gọi HTTP."""
+(services/notify.py) nhưng state riêng `worker_status.btc_telegram` và token riêng. Không gọi HTTP."""
 
 from collections import defaultdict
 from datetime import datetime, timedelta

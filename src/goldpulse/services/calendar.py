@@ -1,4 +1,4 @@
-"""Lịch thị trường + khung phiên (ARCHITECTURE §6). Thuần tính toán, không I/O.
+"""Lịch thị trường + khung phiên. Thuần tính toán, không I/O.
 
 Lịch: mở Chủ nhật 18:00 → Thứ sáu 17:00 giờ New York, nghỉ hằng ngày 17:00–18:00 NY.
 Phiên (giờ địa phương, zoneinfo tự đổi giờ mùa hè):
@@ -120,7 +120,7 @@ def merge_ranges(minutes: list[datetime]) -> list[tuple[datetime, datetime]]:
 
 
 def last_complete_day(now: datetime) -> date:
-    """Ngày UTC cuối cùng đã kết thúc ≥ 24 giờ (ARCHITECTURE §7 A1)."""
+    """Ngày UTC cuối cùng đã kết thúc ≥ 24 giờ."""
     return (now - timedelta(days=2)).date()
 
 

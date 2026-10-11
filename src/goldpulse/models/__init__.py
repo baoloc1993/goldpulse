@@ -1,4 +1,4 @@
-"""Bảng DB (ARCHITECTURE §6). Mọi thời điểm là UTC timestamptz. Không dùng làm response."""
+"""Bảng DB. Mọi thời điểm là UTC timestamptz. Không dùng làm response."""
 
 from datetime import date, datetime
 from typing import Any
@@ -76,7 +76,7 @@ class QueryLog(SQLModel, table=True):
 
 
 class WorkerStatus(SQLModel, table=True):
-    """Trạng thái worker cho S1: nguồn lịch sử tới được không, lần lấy bù cuối, lúc chạy lần đầu.
+    """Trạng thái worker cho Tổng quan: nguồn lịch sử tới được không, lần lấy bù cuối, lúc chạy lần đầu.
     (v2) thêm key `brain` (nhịp tim não), `fed` (lần nạp FED), `signal` (tín hiệu nến 15m gần nhất)."""
 
     __tablename__ = "worker_status"
@@ -85,7 +85,7 @@ class WorkerStatus(SQLModel, table=True):
     updated_at: datetime = _ts(nullable=False)
 
 
-# --- vòng 2 (migration 0003) — ARCHITECTURE §6b ---------------------------------------------
+# --- bot chat (migration 0003) ---------------------------------------------
 
 
 class FedDecision(SQLModel, table=True):
@@ -127,7 +127,7 @@ class BotJob(SQLModel, table=True):
 
 
 class Prediction(SQLModel, table=True):
-    """Sổ chấm — bất biến sau khi chấm (PERSONAS §2)."""
+    """Sổ chấm — bất biến sau khi chấm."""
 
     __tablename__ = "prediction"
     id: int | None = Field(default=None, sa_column=Column(Integer, primary_key=True, autoincrement=True))

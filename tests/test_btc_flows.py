@@ -1,5 +1,5 @@
 """(v4) BTC — luồng tiền/dữ liệu chưa có ở test_btc.py: sổ ngày UTC, ngưỡng cháy hai chiều, day_close, GO/PIVOT,
-đóng lệnh khi thiếu nến, gửi hai lần, gộp nến 1h, công thức tín hiệu, tin Telegram, phân trang, S10, migration.
+đóng lệnh khi thiếu nến, gửi hai lần, gộp nến 1h, công thức tín hiệu, tin Telegram, phân trang, BTC, migration.
 
 Tiền giả. Mọi kịch bản truyền `now` tường minh (giờ UTC); dữ liệu tự dựng trong test. Tài khoản 10 USD, x20 →
 lệnh 200 USD, phí + trượt khứ hồi 0,14% → ngưỡng cháy (10 − 200 × 0,0014) / 200 = 4,86%.
@@ -226,7 +226,7 @@ async def test_lenh_4h_dung_ranh_gioi_nua_dem_horizon_hay_day_close(db):
             {"pnl": 5.0, "eval_pnl": 5.0, "eval_n": 40, "days": 0, "burned_days": 0},
             "go",
         ),  # chưa có ngày nào: không chia cho 0
-        # Dấu lãi theo Σ các ngày (day_close vẫn tính vào số dư — PRD §6): lãi cộng dồn > 0 dù lệnh đánh giá lỗ nhẹ
+        # Dấu lãi theo Σ các ngày (day_close vẫn tính vào số dư): lãi cộng dồn > 0 dù lệnh đánh giá lỗ nhẹ
         ({"pnl": 1.0, "eval_pnl": -2.0, "eval_n": 30, "days": 30, "burned_days": 0}, "go"),
         ({"pnl": -1.0, "eval_pnl": 2.0, "eval_n": 30, "days": 30, "burned_days": 0}, "none"),
     ],
@@ -625,7 +625,7 @@ async def test_telegram_chay_va_het_ngay_ghi_ro_ly_do_va_khong_tinh_danh_gia(db)
         assert sum(m.startswith("🟢") for m in msgs) == 2  # hai tin vào lệnh
 
 
-# --- (10) API / S10 / phân quyền -----------------------------------------------------------------------------------
+# --- (10) API / BTC / phân quyền -----------------------------------------------------------------------------------
 
 
 async def _login(client, nxt: str = "/btc") -> None:
@@ -749,7 +749,7 @@ async def test_tat_tai_khoan_giua_lenh_mo_lenh_van_dong_dung_va_tin_hieu_sau_bi_
 
 @needs_db
 async def test_ha_cap_0004_roi_len_head_giu_nguyen_bang_vang_va_dung_lai_bang_btc(db):
-    """Rollback vòng 4 chỉ bỏ bảng inst_*; sổ vàng (paper_*, prediction) giữ từng hàng; nâng lại có đủ 4 tài khoản."""
+    """Rollback BTC chỉ bỏ bảng inst_*; sổ vàng (paper_*, prediction) giữ từng hàng; nâng lại có đủ 4 tài khoản."""
     from goldpulse.db import engine
     from tests.test_paper import _pred
 

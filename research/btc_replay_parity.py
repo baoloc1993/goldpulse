@@ -1,4 +1,4 @@
-"""AC-18: tua lại N ngày gần nhất bằng CHÍNH code app (services/btc/paper.py trên DB `goldpulse_test`) và bằng
+"""Tua lại N ngày gần nhất bằng CHÍNH code app (services/btc/paper.py trên DB `goldpulse_test`) và bằng
 `btc_strategies.simulate` (nghiên cứu) trên cùng nến 1m Binance → so danh sách lệnh từng tài khoản.
 
 Ghi đè `goldpulse_test` (bảng inst_*) — DB của `make test`, không phải production.

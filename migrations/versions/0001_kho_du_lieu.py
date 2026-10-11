@@ -1,4 +1,4 @@
-"""kho dữ liệu XAUUSD vòng 1
+"""kho dữ liệu XAUUSD
 
 Revision ID: 0001
 Revises:

@@ -1,4 +1,4 @@
-/* S4 — tách khỏi HTML để CSP chặn được mọi script inline. */
+/* Nhập khoá — tách khỏi HTML để CSP chặn được mọi script inline. */
 (function () {
   "use strict";
   document.getElementById("showKey").addEventListener("change", function (e) {

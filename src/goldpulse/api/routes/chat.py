@@ -1,6 +1,6 @@
-"""(v2) S5 Chat + S6 Dự đoán + S7 Lịch FED · (v3) S8/S9 Tài khoản giấy — trang HTML + API JSON.
+"""(v2) Chat + Dự đoán + Lịch FED · (v3) Tài khoản giấy/Tài khoản giấy — trang HTML + API JSON.
 
-Mọi route cần khoá truy cập (PERSONAS §2).
+Mọi route cần khoá truy cập.
 
 Không có route nào gọi Claude hay gửi lệnh giao dịch: câu hỏi chỉ được xếp vào bot_job cho tiến trình não.
 """
@@ -25,7 +25,7 @@ from .pages import templates
 pages = APIRouter(dependencies=[Depends(require_operator_page)])
 api = APIRouter(prefix="/api", dependencies=[Depends(require_operator_api)])
 DB = Annotated[AsyncSession, Depends(get_session)]
-INT4 = 2**31 - 1  # id là integer Postgres — vượt quá thì 422 thay vì 500 (dogfood breaker 2026-09-26)
+INT4 = 2**31 - 1  # id là integer Postgres — vượt quá thì 422 thay vì 500
 MsgId = Annotated[int, Path(ge=1, le=INT4)]
 
 V2_SCREENS = {"chat": ("s5", "Chat"), "predictions": ("s6", "Dự đoán 15 phút"), "fed": ("s7", "Lịch quyết định FED")}
@@ -77,7 +77,7 @@ async def chat_post(request: Request, body: ChatIn, session: DB) -> Json:
     try:
         out = await chat_svc.post(session, body.thread_id, body.content)
         # Commit TRƯỚC khi trả phản hồi: dependency có yield commit sau khi phản hồi đã gửi → client dùng ngay
-        # thread_id / message_id có thể gặp 404 (dogfood breaker 2026-09-26)
+        # thread_id / message_id có thể gặp 404
         await session.commit()
         return out
     except chat_svc.ChatError as e:
@@ -129,7 +129,7 @@ async def fed(session: DB) -> Json:
     return await fed_svc.screen(session)
 
 
-# --- (v3) S8 Tài khoản giấy · S9 Nhật ký lệnh — tiền giả, web chỉ được đổi `enabled` (PERSONAS §2) -------------
+# --- (v3) Tài khoản giấy · Nhật ký lệnh — tiền giả, web chỉ được đổi `enabled` -------------
 AccCode = Annotated[str, Path(pattern="^[A-Z]$")]
 
 
@@ -139,13 +139,13 @@ class EnabledIn(BaseModel):
 
 @pages.get("/paper", response_class=HTMLResponse, include_in_schema=False)
 async def page_paper(request: Request, session: DB) -> HTMLResponse:
-    await paper_svc.record_view(session)  # H2 EXPERIMENTS-v3
+    await paper_svc.record_view(session)
     return templates.TemplateResponse(request, "paper.html", {"screen": "s8", "title": "Tài khoản giấy"})
 
 
 @pages.get("/paper/{code}", response_class=HTMLResponse, include_in_schema=False)
 async def page_paper_account(request: Request, code: str, session: DB) -> HTMLResponse:
-    # Trang HTML: mã sai kiểu (/paper/a) → 404 tử tế như /paper/Z, không 422 JSON (dogfood edge 2026-09-27)
+    # Trang HTML: mã sai kiểu (/paper/a) → 404 tử tế như /paper/Z, không 422 JSON
     if not re.fullmatch(r"[A-Z]", code) or not await paper_svc.account_exists(session, code):
         raise HTTPException(404, "Không có tài khoản này")
     await paper_svc.record_view(session)

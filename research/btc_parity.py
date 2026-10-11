@@ -1,5 +1,5 @@
 """Đối chiếu bản app (`services/btc/strategies.py`, Python thuần, chỉ thấy 90 ngày nến như worker) với bản nghiên cứu
-(`btc_strategies.py`, pandas, toàn bộ lịch sử) — từng giờ, 4 chiến thuật, N ngày cuối (AC-17, H2 EXPERIMENTS-v4).
+(`btc_strategies.py`, pandas, toàn bộ lịch sử) — từng giờ, 4 chiến thuật, N ngày cuối.
 
     PYTHONPATH=src python -m uv run --no-project --with numpy --with pandas --with scikit-learn python research/btc_parity.py [ngày=30]
 """

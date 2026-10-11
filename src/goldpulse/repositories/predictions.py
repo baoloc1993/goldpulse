@@ -1,4 +1,4 @@
-"""prediction — sổ dự đoán + chấm (ARCHITECTURE §6b). Bất biến sau khi chấm; không có đường xoá."""
+"""prediction — sổ dự đoán + chấm. Bất biến sau khi chấm; không có đường xoá."""
 
 import json
 from datetime import datetime
@@ -48,7 +48,7 @@ async def score(session: AsyncSession, pid: int, price_due: float | None, outcom
 
 
 async def stats(session: AsyncSession) -> dict[str, Any]:
-    # Dự đoán của backend `fake` (test/dogfood) không bao giờ tính vào metric PRD §6
+    # Dự đoán của backend `fake` (test) không bao giờ tính vào metric GO/KILL
     rows = await session.execute(
         text(
             "SELECT source, direction, outcome, count(*) FROM prediction"

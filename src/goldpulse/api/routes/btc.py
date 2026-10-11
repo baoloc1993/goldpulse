@@ -1,4 +1,4 @@
-"""(v4) S10 BTC · S11 Nhật ký lệnh BTC — trang HTML + API JSON, sau khoá truy cập (PERSONAS §2 v4).
+"""(v4) BTC · Nhật ký lệnh BTC — trang HTML + API JSON, sau khoá truy cập.
 
 Chỉ đọc bảng `inst_*`; ghi duy nhất là bật/tắt tài khoản. Không route nào mở/đóng/sửa lệnh, không gọi sàn hay Claude.
 """
@@ -36,7 +36,7 @@ async def page_btc(request: Request) -> HTMLResponse:
 
 @pages.get("/btc/{code}", response_class=HTMLResponse, include_in_schema=False)
 async def page_btc_account(request: Request, code: str, session: DB) -> HTMLResponse:
-    # Mã sai kiểu → 404 tử tế, không 422 JSON (bài học dogfood S9 vòng 3)
+    # Mã sai kiểu → 404 tử tế, không 422 JSON
     if not re.fullmatch(CODE_RE, code) or not await btc_svc.account_exists(session, code):
         raise HTTPException(404, "Không có tài khoản này")
     return templates.TemplateResponse(

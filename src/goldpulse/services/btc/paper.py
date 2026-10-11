@@ -1,6 +1,6 @@
-"""(v4) Tài khoản giấy BTC: mở theo tín hiệu giờ · đóng/cháy theo từng nến 1m · sổ ngày UTC · số cho S10/S11.
+"""(v4) Tài khoản giấy BTC: mở theo tín hiệu giờ · đóng/cháy theo từng nến 1m · sổ ngày UTC · số liệu cho các trang BTC.
 
-Mô phỏng ĐÚNG `research/btc_strategies.py::simulate` (DECISIONS 2026-10-03): vào ở close nến 1m cuối của giờ tín hiệu;
+Mô phỏng ĐÚNG `research/btc_strategies.py::simulate`: vào ở close nến 1m cuối của giờ tín hiệu;
 giá trị lệnh = đòn bẩy × số dư; đi từng nến 1m — lỗ tạm theo high/low ≥ ngưỡng cháy → mất trọn số dư; tới nến cuối
 trước hạn → `horizon`; tới nến 23:59 UTC trước hạn → `day_close`. Tiền GIẢ — không import `integrations/`.
 """
@@ -25,10 +25,10 @@ CURVE_DAYS = 20
 LOOKBACK = timedelta(days=90)
 MISSED_MAX = timedelta(hours=24)
 STATUS_KEY = "btc"
-TRADE_KEY = "btc_trade"  # nhịp tim vòng lệnh (M+N) — vòng giá sống mà vòng lệnh chết thì S10 phải báo đỏ
+TRADE_KEY = "btc_trade"  # nhịp tim vòng lệnh (M+N) — vòng giá sống mà vòng lệnh chết thì BTC phải báo đỏ
 ALIVE_S = 120
 LAG_LIMIT_S = 60
-# PRD §6 vòng 4 — ghi trước khi nhìn số (chốt 2026-10-03)
+# Ghi trước khi nhìn số (chốt 2026-10-03)
 GO_MIN_TRADES = 30
 GO_MAX_BURN_RATIO = 0.20
 
@@ -209,7 +209,7 @@ async def process_hours(session: AsyncSession, now: datetime) -> list[datetime]:
     have = await repo.signal_bars(session, SYMBOL, top - MISSED_MAX)
     done: list[datetime] = []
     # Mốc bắt đầu = giờ tín hiệu đầu tiên từng có (lần chạy đầu: giờ vừa đóng). Giờ TRƯỚC mốc chưa từng chạy nên không
-    # phải "giờ bị lỡ" — S11 không rác; giờ SAU mốc mà worker vắng thì vẫn bù + ghi skipped(stale) tối đa 24 giờ.
+    # phải "giờ bị lỡ" — không rác nhật ký; giờ SAU mốc mà worker vắng thì vẫn bù + ghi skipped(stale) <= 24 giờ.
     begin = await repo.first_signal_bar(session, SYMBOL) or (top - timedelta(hours=1))
     bar_ts = max(top - MISSED_MAX, begin)
     while bar_ts < top:
@@ -236,12 +236,12 @@ async def process_hours(session: AsyncSession, now: datetime) -> list[datetime]:
     return done
 
 
-# --- số cho S10 / S11 -----------------------------------------------------------------------------------------------
+# --- số liệu cho các trang BTC -----------------------------------------------
 
 
 def verdict(t: dict[str, Any]) -> str:
-    """PRD §6 vòng 4: go · pivot (lãi nhưng chưa đủ 30 lệnh, hoặc đủ mà cháy > 20% ngày) · none."""
-    # Dấu lãi theo Σ các ngày (day_close vẫn tính vào số dư — PRD §6); số lệnh đánh giá thì LOẠI day_close
+    """Phán quyết: go · pivot (lãi nhưng chưa đủ 30 lệnh, hoặc đủ mà cháy > 20% ngày) · none."""
+    # Dấu lãi theo Σ các ngày (day_close vẫn tính vào số dư); số lệnh đánh giá thì LOẠI day_close
     if t["pnl"] <= 0:
         return "none"
     burn_ok = t["days"] == 0 or t["burned_days"] / t["days"] <= GO_MAX_BURN_RATIO
@@ -329,7 +329,7 @@ async def account_view(session: AsyncSession, acc: dict[str, Any], now: datetime
 
 
 async def screen(session: AsyncSession, now: datetime | None = None) -> dict[str, Any]:
-    """Dữ liệu S10."""
+    """Dữ liệu BTC."""
     now = now or datetime.now(UTC)
     lv = await live(session, now)
     accounts = [await account_view(session, a, now, lv["price"]) for a in await repo.accounts(session, SYMBOL)]
@@ -349,7 +349,7 @@ async def screen(session: AsyncSession, now: datetime | None = None) -> dict[str
 
 
 async def account_screen(session: AsyncSession, code: str, now: datetime | None = None) -> dict[str, Any] | None:
-    """Dữ liệu S11."""
+    """Dữ liệu Nhật ký lệnh BTC."""
     now = now or datetime.now(UTC)
     acc = await repo.get_account(session, code)
     if not acc or acc["symbol"] != SYMBOL:

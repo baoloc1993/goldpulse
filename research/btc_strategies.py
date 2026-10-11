@@ -1,4 +1,4 @@
-"""Tua NHIỀU họ chiến thuật BTC khung 1 giờ trên đúng luật tài khoản giấy vòng 4, chọn ra các luật khác biệt nhất.
+"""Tua NHIỀU họ chiến thuật BTC khung 1 giờ trên đúng luật tài khoản giấy, chọn ra các luật khác biệt nhất.
 
 Luật tài khoản (chủ dự án chốt 2026-10-03): 10 USD mỗi ngày, reset 00:00 UTC · đòn bẩy x20 (lệnh = 20 × số dư)
 · phí 0,05% + trượt 0,02% mỗi chiều (0,14% khứ hồi trên giá trị lệnh) · mỗi tài khoản một lệnh một lúc

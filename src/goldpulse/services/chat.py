@@ -1,4 +1,4 @@
-"""S5 Chat phía web (ARCHITECTURE §7 E1–E3, E7): ghi câu hỏi + xếp job cho não; web KHÔNG gọi Claude."""
+"""Chat phía web: ghi câu hỏi + xếp job cho não; web KHÔNG gọi Claude."""
 
 from datetime import UTC, datetime
 from typing import Any
@@ -14,7 +14,7 @@ from . import fed
 from .calendar import SESSIONS, VN, active_sessions
 from .context_pack import live_state
 
-BRAIN_STALE_S = 120  # nhịp tim não 30s — cũ hơn 2 phút là não chưa chạy (PRD §7)
+BRAIN_STALE_S = 120  # nhịp tim não 30s — cũ hơn 2 phút là não chưa chạy
 BRAIN_ERROR_WINDOW_S = 600  # lỗi trong 10 phút gần nhất → huy hiệu đỏ "lỗi lần cuối"
 MAX_LEN = 2000
 ZERO_WIDTH = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u2060\ufeff"))
@@ -58,7 +58,7 @@ async def worker_alive(session: AsyncSession, now: datetime) -> bool:
 
 
 async def header(session: AsyncSession, now: datetime | None = None) -> dict[str, Any]:
-    """Đầu màn S5: giá + độ trễ · phiên đang chạy · FED gần nhất · não bot."""
+    """Đầu màn Chat: giá + độ trễ · phiên đang chạy · FED gần nhất · não bot."""
     now = now or datetime.now(UTC)
     live = await live_state(session, now)
     sample = await feed_repo.latest_price_sample(session)

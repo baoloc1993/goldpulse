@@ -1,4 +1,4 @@
-"""(v4) Mô hình `btc_logit1h_v1` + 4 chiến thuật BTC khung 1h — đúng `research/btc_strategies.py` (ARCHITECTURE §6d).
+"""(v4) Mô hình `btc_logit1h_v1` + 4 chiến thuật BTC khung 1h — đúng `research/btc_strategies.py`.
 
 A `model`: |p − 0,5| ≥ thr_top5, hướng mô hình · B `model_trend`: ≥ thr_top10 và cùng dấu với (close − EMA 24h)
 C `spike`: |Δlog close 1h| ≥ 3 × σ24 của nến trước, theo nến · D `squeeze`: độ rộng Bollinger nến trước < phân vị 20%
@@ -16,7 +16,7 @@ from . import features as feat
 MODEL_FILE = Path(__file__).resolve().parents[4] / "data" / "models" / "btc_logit1h_v1.json"
 SQUEEZE_WINDOW = 720
 SQUEEZE_Q = 0.2
-# Đủ cho cửa sổ dài nhất (480 cho chế độ biến động, 720 + 20 cho nén) — ARCHITECTURE §6d
+# Đủ cho cửa sổ dài nhất (480 cho chế độ biến động, 720 + 20 cho nén)
 MIN_BARS = 760
 
 

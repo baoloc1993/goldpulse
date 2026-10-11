@@ -1,4 +1,4 @@
-"""Backend `fake`: câu trả lời mẫu ĐÚNG schema, dựng từ chính gói dữ liệu — cho `make test` và dogfood đợt 1.
+"""Backend `fake`: câu trả lời mẫu ĐÚNG schema, dựng từ chính gói dữ liệu — cho `make test` và chạy thử.
 
 Không gọi mạng, không tốn credit. Chỉ được bật khi APP_ENV ≠ production (brain chặn lúc khởi động).
 Ép lỗi để thử trạng thái lỗi: câu hỏi chứa "#lỗi" (lỗi thử lại được) hoặc "#hết-credit" (lỗi không thử lại).

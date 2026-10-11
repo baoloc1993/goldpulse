@@ -1,4 +1,4 @@
-"""Tín hiệu 15 phút (ARCHITECTURE §6, backtest EXPERIMENTS-v2) + ngữ cảnh cho não.
+"""Tín hiệu 15 phút + ngữ cảnh cho não.
 
 Ba tín hiệu trên nến 15 phút gộp từ phút sống, 60 nến đã đóng gần nhất:
   bollinger  %b(20, 2σ) < 0 → lên · > 100 → xuống
@@ -108,7 +108,7 @@ def bar_boundary(now: datetime) -> datetime:
 
 def auto_allowed(bar_end: datetime) -> bool:
     """Dự đoán tự động chỉ khi thị trường mở suốt [mốc, mốc + 15 phút + 5 phút chấm] — không tạo trong 15 phút
-    cuối trước giờ nghỉ hằng ngày / cuối tuần (ARCHITECTURE §6 ca biên). Giờ nghỉ dài 60 phút nên xét 2 đầu là đủ."""
+    cuối trước giờ nghỉ hằng ngày / cuối tuần. Giờ nghỉ dài 60 phút nên xét 2 đầu là đủ."""
     return is_market_open(bar_end) and is_market_open(bar_end + timedelta(minutes=BAR_MINUTES + 5))
 
 

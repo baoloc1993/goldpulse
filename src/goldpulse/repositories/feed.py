@@ -128,7 +128,7 @@ async def query_speed_p95(session: AsyncSession, min_span_years: int) -> tuple[f
 
 
 async def cleanup(session: AsyncSession) -> None:
-    """Dọn feed_sample / query_log cũ hơn 30 ngày (ARCHITECTURE §6)."""
+    """Dọn feed_sample / query_log cũ hơn 30 ngày."""
     await session.execute(text("DELETE FROM feed_sample WHERE polled_at < now() - interval '30 days'"))
     await session.execute(text("DELETE FROM query_log WHERE created_at < now() - interval '30 days'"))
 

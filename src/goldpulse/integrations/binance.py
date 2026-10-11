@@ -1,4 +1,4 @@
-"""(v4) Nến 1 phút từ Binance spot REST công khai — không key, chỉ đọc giá, không ghi DB (DECISIONS 2026-10-03).
+"""(v4) Nến 1 phút từ Binance spot REST công khai — không key, chỉ đọc giá, không ghi DB.
 
 `GET /api/v3/klines?symbol=…&interval=1m` trả mảng [openTime, open, high, low, close, volume, closeTime, …]; tối đa
 1000 nến/lần. Nến có closeTime ≥ giờ máy chủ Binance là nến ĐANG chạy — tách riêng, không bao giờ lưu.

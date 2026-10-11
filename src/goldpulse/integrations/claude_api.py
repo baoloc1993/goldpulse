@@ -18,7 +18,7 @@ class ClaudeApi:
 
     def __init__(self, api_key: str, model: str, timeout: float) -> None:
         self.model = model
-        # SDK tự thử lại 429/5xx/lỗi mạng 2 lần (ARCHITECTURE §9)
+        # SDK tự thử lại 429/5xx/lỗi mạng 2 lần
         self.client = anthropic.AsyncAnthropic(api_key=api_key, timeout=timeout, max_retries=2)
 
     async def close(self) -> None:
@@ -33,7 +33,7 @@ class ClaudeApi:
                 system=system,
                 messages=[{"role": "user", "content": user}],
                 thinking={"type": "adaptive"},
-                # medium: câu trả lời phải về trong ≤ 60 giây (AC-6)
+                # medium: câu trả lời phải về trong ≤ 60 giây
                 output_config={"effort": "medium", "format": {"type": "json_schema", "schema": schema}},
                 betas=["server-side-fallback-2026-07-01"],
                 fallbacks="default",

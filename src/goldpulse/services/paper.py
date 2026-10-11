@@ -1,8 +1,8 @@
-"""Tài khoản giấy (v3): 4 luật vào lệnh · mở theo dự đoán tự động · đóng/cháy mỗi phút · sổ ngày · số cho S8/S9.
+"""Tài khoản giấy (v3): 4 luật vào lệnh · mở theo dự đoán tự động · đóng/cháy mỗi phút · sổ ngày · số liệu cho web.
 
-ARCHITECTURE §6c + §7 I/J, PRD §7 "Tài khoản giấy". Tiền GIẢ — mọi thứ là hàng trong Postgres, module này không
+Tiền GIẢ — mọi thứ là hàng trong Postgres, module này không
 import `integrations/` và không có cấu hình sàn nào. Giá vào = `prediction.price_at`; giá ra = cùng quy tắc chấm dự
-đoán (`predictions.price_at(due_at)`); không mô phỏng trượt giá ngoài spread (DECISIONS 2026-09-27).
+đoán (`predictions.price_at(due_at)`); không mô phỏng trượt giá ngoài spread.
 """
 
 from datetime import UTC, date, datetime, timedelta
@@ -26,7 +26,7 @@ MTM_MAX_AGE = timedelta(minutes=3)
 CURVE_DAYS = 20
 STATUS_KEY = "paper"
 LIVE_KEYS = ("price", "lag_seconds", "fresh", "market_open", "price_time_vn", "lag_limit", "next_open_vn")
-# PRD §6 vòng 3 — ghi trước khi nhìn số
+# Ghi trước khi nhìn số
 GO_MIN_TRADES = 40
 GO_MAX_BURN_RATIO = 0.20
 
@@ -139,7 +139,7 @@ async def _close(
     session: AsyncSession, acc: dict[str, Any], t: dict[str, Any], price: float, reason: str, at: datetime
 ) -> bool:
     # Lỗ một lệnh không vượt số dư còn lại của ngày (như sàn có bảo vệ số dư âm): giá giật qua ngưỡng giữa hai nhịp
-    # kiểm cháy / worker vừa sống lại không được ghi −15, −20 USD cho tài khoản 10 USD (review v3, DECISIONS)
+    # kiểm cháy / worker vừa sống lại không được ghi −15, −20 USD cho tài khoản 10 USD
     equity, _ = await _equity_today(session, acc, t["trade_date"])
     pnl = max(pnl_of(acc, t["direction"], t["entry_price"], price), -round(equity, 4))
     burned = reason == "stopout" or equity + pnl <= 0
@@ -173,7 +173,7 @@ async def close_due(session: AsyncSession, now: datetime | None = None) -> int:
             continue  # đã tới hạn, chờ nến trước hạn được ghi (nhánh trên) — không cháy/đóng bằng giá sau hạn
         c = await repo.latest_close(session, now - MTM_MAX_AGE, now)
         if not c:
-            continue  # nguồn giá đứng — không cháy ảo, không đóng (ARCHITECTURE §6 ca biên)
+            continue  # nguồn giá đứng — không cháy ảo, không đóng
         if not is_market_open(now):
             closed += await _close(session, acc, t, float(c["close"]), "market_close", now)
             continue
@@ -191,11 +191,11 @@ async def tick(session: AsyncSession, now: datetime | None = None) -> tuple[int,
 
 
 def verdict(t: dict[str, Any]) -> str:
-    """PRD §6 vòng 3 — trên lệnh đã đóng trừ `market_close`: go · pivot (lãi nhưng chưa đủ 40) · none."""
+    """Phán quyết trên lệnh đã đóng trừ `market_close`: go · pivot (lãi nhưng chưa đủ 40) · none."""
     if t["eval_pnl"] <= 0:
         return "none"
     burn_ok = t["days"] == 0 or t["burned_days"] / t["days"] <= GO_MAX_BURN_RATIO
-    # ≥ 40 lệnh + lãi nhưng cháy > 20% ngày: PRD §6 bỏ ngỏ → PIVOT (chạy tiếp, không GO) — DECISIONS 2026-09-27
+    # ≥ 40 lệnh + lãi nhưng cháy > 20% ngày: luật chưa nói rõ → PIVOT (chạy tiếp, không GO)
     return "go" if t["eval_n"] >= GO_MIN_TRADES and burn_ok else "pivot"
 
 
@@ -257,7 +257,7 @@ async def account_view(session: AsyncSession, acc: dict[str, Any], now: datetime
 
 
 async def screen(session: AsyncSession, now: datetime | None = None) -> dict[str, Any]:
-    """Dữ liệu S8."""
+    """Dữ liệu Tài khoản giấy."""
     from .chat import worker_alive  # chat import predictions → tránh vòng lặp ở mức module
     from .context_pack import live_state
 
@@ -282,7 +282,7 @@ async def screen(session: AsyncSession, now: datetime | None = None) -> dict[str
 
 
 async def account_screen(session: AsyncSession, code: str, now: datetime | None = None) -> dict[str, Any] | None:
-    """Dữ liệu S9."""
+    """Dữ liệu Nhật ký lệnh."""
     now = now or datetime.now(UTC)
     acc = await repo.get_account(session, code)
     if not acc:
@@ -310,7 +310,7 @@ async def set_enabled(session: AsyncSession, code: str, enabled: bool) -> bool:
 
 
 async def pack(session: AsyncSession, now: datetime) -> dict[str, Any]:
-    """Khối `paper` trong gói dữ liệu cho não — 4 hàng tóm tắt, nói rõ tiền giả (AC-15)."""
+    """Khối `paper` trong gói dữ liệu cho não — 4 hàng tóm tắt, nói rõ tiền giả."""
     c = await repo.latest_close(session, now - timedelta(days=3), now)
     mark = float(c["close"]) if c else None
     out = []

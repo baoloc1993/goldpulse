@@ -1,6 +1,6 @@
-/* GoldPulse (v3) — S8 Tài khoản giấy · S9 Nhật ký lệnh. TIỀN GIẢ. JS thuần, không thư viện ngoài.
-   Số tự tải lại 5 giây như S1; đường số dư là SVG vẽ tay, 4 đường phân biệt bằng nét (DESIGN-SYSTEM C15).
-   Chữ viết cho trader, không cho kỹ sư (dogfood newbie 2026-09-27): luật bằng lời thường, nói rõ khi nào có lệnh. */
+/* GoldPulse (v3) — Tài khoản giấy · Nhật ký lệnh. TIỀN GIẢ. JS thuần, không thư viện ngoài.
+   Số tự tải lại 5 giây như Tổng quan; đường số dư là SVG vẽ tay, 4 đường phân biệt bằng nét.
+   Chữ viết cho trader, không cho kỹ sư: luật bằng lời thường, nói rõ khi nào có lệnh. */
 (function () {
   "use strict";
   var screen = document.body.dataset.screen;
@@ -26,7 +26,7 @@
   function api(path, opts) {
     var o = Object.assign({ credentials: "same-origin", headers: { Accept: "application/json" } }, opts || {});
     if (o.body && typeof o.body !== "string") { o.body = JSON.stringify(o.body); o.headers["Content-Type"] = "application/json"; }
-    // Máy chủ treo (Wi-Fi LAN chập chờn) → báo sau 15 giây thay vì khung xám mãi (dogfood edge)
+    // Máy chủ treo (Wi-Fi LAN chập chờn) → báo sau 15 giây thay vì khung xám mãi
     var ctrl = typeof AbortController === "function" ? new AbortController() : null;
     var timer = null;
     if (ctrl) { o.signal = ctrl.signal; timer = setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS); }
@@ -57,7 +57,7 @@
     return "Vào mọi dự đoán tự động của bot, " + h + ".";
   }
   function waitText(live) {
-    // Khi nào có lệnh (dogfood newbie ý c)
+    // Khi nào có lệnh
     if (live && live.market_open === false) return "Thị trường nghỉ — lệnh sớm nhất khi mở lại lúc " + esc(live.next_open_vn || "05:00") + " (giờ VN).";
     return "Chờ dự đoán tự động kế tiếp — bot xét mỗi 15 phút, khoảng 2 dự đoán mỗi ngày.";
   }
@@ -67,11 +67,11 @@
       '" aria-label="Tài khoản ' + esc(a.code) + '"><span class="track"></span><span class="lbl">' + (a.enabled ? "Bật" : "Tắt") + "</span></button>";
   }
   function settleToggleErr(accounts) {
-    // Máy chủ chậm (> 15 s) nhưng thực ra đã đổi xong → lần tải sau thấy khớp ý người bấm thì bỏ lời báo lỗi (dogfood rushed)
+    // Máy chủ chậm (> 15 s) nhưng thực ra đã đổi xong → lần tải sau thấy khớp ý người bấm thì bỏ lời báo lỗi
     if (!toggleErr) return;
     accounts.forEach(function (a) { if (toggleErr && a.code === toggleErr.code && a.enabled === toggleErr.want) toggleErr = null; });
   }
-  // Rời trang lúc công tắc còn đang gửi → lần bấm có thể chưa tới máy chủ (dogfood rushed)
+  // Rời trang lúc công tắc còn đang gửi → lần bấm có thể chưa tới máy chủ
   window.addEventListener("beforeunload", function (ev) {
     if (document.querySelector(".sw[disabled]")) { ev.preventDefault(); ev.returnValue = ""; }
   });
@@ -88,7 +88,7 @@
     return '<div class="card"><div class="label">XAUUSD</div><div class="value num">' + fmt(lv.price, 2) + "</div><div>" + badge + "</div></div>";
   }
 
-  /* bật/tắt — dùng chung S8/S9. Lỗi → công tắc về trạng thái cũ + khối lỗi GIỮ qua lần vẽ lại, có Thử lại (PRD §7) */
+  /* bật/tắt — dùng chung Tài khoản giấy/Nhật ký lệnh. Lỗi → công tắc về trạng thái cũ + khối lỗi GIỮ qua lần vẽ lại, có Thử lại */
   function postToggle(code, want, after) {
     return api("/api/paper/accounts/" + code + "/enabled", { method: "POST", body: { enabled: want } })
       .then(function () { toggleErr = null; }, function (e) { if (e.message !== "auth") toggleErr = { code: code, want: want, msg: errText(e) }; })
@@ -115,7 +115,7 @@
     }
   }
 
-  /* ================= S8 ================= */
+  /* ================= Tài khoản giấy ================= */
   if (screen === "s8") {
     var last = null, offline = null, busy = false;
 
@@ -174,7 +174,7 @@
       out += '<text x="' + (padL - 4) + '" y="' + (y(10) + 3) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">10</text>' +
         '<text x="' + (padL - 4) + '" y="' + (y(max) + 8) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">' + max + '</text>' +
         '<text x="' + (padL - 4) + '" y="' + (y(0) + 3) + '" font-size="10" text-anchor="end" fill="var(--color-text-muted)">0</text>';
-      // Hai tài khoản cùng số dư mọi ngày → nét sau đè kín nét trước; nói thẳng trong chú giải (dogfood mobile)
+      // Hai tài khoản cùng số dư mọi ngày → nét sau đè kín nét trước; nói thẳng trong chú giải
       function key(a) { return a.curve.map(function (p) { return p.date + ":" + p.end; }).join(","); }
       var dupOf = {};
       accs.forEach(function (a, i) { for (var j = 0; j < i; j++) if (accs[j].curve.length && key(accs[j]) === key(a)) { dupOf[a.code] = accs[j].code; break; } });
@@ -249,7 +249,7 @@
     setInterval(function () { if (!document.hidden && !content.querySelector(".sw[disabled]")) load(false); }, 5000);
   }
 
-  /* ================= S9 ================= */
+  /* ================= Nhật ký lệnh ================= */
   if (screen === "s9") {
     var code = content.dataset.code, lastId = null, loaded = false, extra = false, busy9 = false;
 
@@ -339,7 +339,7 @@
         .then(function () { busy9 = false; });
     }
     load();
-    // Tự tải lại 5 giây như S8 — trừ khi đang đọc chi tiết một lệnh hoặc đã "Tải thêm" (không để mất chỗ đang xem)
+    // Tự tải lại 5 giây như Tài khoản giấy — trừ khi đang đọc chi tiết một lệnh hoặc đã "Tải thêm" (không để mất chỗ đang xem)
     setInterval(function () {
       var reading = !!content.querySelector(".prow.open");
       var p = document.getElementById("paused");

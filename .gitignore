@@ -49,7 +49,6 @@ playwright-report/
 test-results/
 
 
-
 # Local database
 *.sqlite
 *.sqlite3

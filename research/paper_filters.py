@@ -1,17 +1,18 @@
 import json
+from pathlib import Path
 import sys
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, "research")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from features import build  # noqa: E402
 
 sys.stdout.reconfigure(encoding="utf-8")
 SPREAD = 0.30
-raw = pd.read_csv("research/bars15.csv", parse_dates=["ts"])
+raw = pd.read_csv(Path(__file__).resolve().parent / "bars15.csv", parse_dates=["ts"])
 df, F = build(raw)
-md = json.load(open("data/models/logit15m_v1.json", encoding="utf-8"))
+md = json.load(open(Path(__file__).resolve().parent.parent / "data/models/logit15m_v1.json", encoding="utf-8"))
 FV = F.values
 Z = (FV - np.array(md["mean"])) / np.array(md["scale"])
 P = 1 / (1 + np.exp(-(Z @ np.array(md["coef"]) + md["intercept"])))

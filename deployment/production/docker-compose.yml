@@ -1,4 +1,4 @@
-# Production = máy Windows của chủ dự án (PRD §7). `make deploy` gọi file này.
+# Production = một máy chủ chạy Docker Compose. `make deploy` gọi file này.
 # Cùng project `goldpulse` với deployment/local → dùng CHUNG volume `pgdata` đã nạp đủ 2004 → nay,
 # không phải nạp lại 10 triệu nến. KHÔNG chạy `make dev` cùng lúc (hai worker cùng ghi, hai web cùng cổng DB).
 name: goldpulse

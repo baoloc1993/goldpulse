@@ -1,9 +1,9 @@
 [project]
 name = "goldpulse"
 version = "0.1.0"
-description = "Kho dữ liệu XAUUSD 1 phút + trang theo dõi"
+description = "XAUUSD 1-minute data warehouse, monitoring dashboard, signal-driven predictions and paper trading"
 authors = [
-    { name = "baoloc1993@gmail.com", email = "baoloc1993@gmail.com" }
+    { name = "baoloc1993", email = "baoloc1993@gmail.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [

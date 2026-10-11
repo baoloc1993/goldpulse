@@ -17,7 +17,7 @@ down_revision = "0004"
 branch_labels = None
 depends_on = None
 
-# PRD §7 "Tài khoản giấy BTC (v4)" — 4 chiến thuật khác biệt nhất của research/btc_strategies.py (chủ dự án 2026-10-03)
+# PRD §7 "Tài khoản giấy BTC (v4)" — 4 chiến thuật khác biệt nhất của research/btc_strategies.py (chốt 2026-10-03)
 ACCOUNTS = [
     ("BTC-A", "Mô hình", {"kind": "model", "min_conf": "thr_top5", "hold_hours": 1}),
     ("BTC-B", "Thuận xu hướng", {"kind": "model_trend", "min_conf": "thr_top10", "hold_hours": 1}),

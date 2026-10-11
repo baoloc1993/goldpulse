@@ -1,4 +1,4 @@
-"""Backend `cli`: subprocess `claude -p` bằng đăng nhập Claude Code của chủ dự án (gói Max 5x).
+"""Backend `cli`: subprocess `claude -p` bằng đăng nhập Claude Code của chủ máy (gói thuê bao).
 
 Không tool (`--tools ""`), không MCP, không lưu phiên; câu hỏi + gói dữ liệu đi qua stdin (dòng lệnh Windows
 giới hạn ~32k ký tự); chạy trong thư mục trống để không nạp CLAUDE.md của repo.
@@ -17,7 +17,7 @@ from .claude_base import BrainError, BrainReply
 
 def child_env() -> dict[str, str]:
     """Env cho `claude -p`. Khi não được chạy từ bên trong một phiên Claude Code (vd agent chạy `make dev`), các
-    biến CLAUDE_CODE_* / ANTHROPIC_BASE_URL của phiên cha khiến tiến trình con bỏ qua đăng nhập của chủ dự án và
+    biến CLAUDE_CODE_* / ANTHROPIC_BASE_URL của phiên cha khiến tiến trình con bỏ qua đăng nhập của chủ máy và
     báo "OAuth session expired" — bỏ chúng đi (thử thật 2026-09-26)."""
     env = dict(os.environ)
     # ANTHROPIC_API_KEY/AUTH_TOKEN có trong env thì Claude Code dùng khoá API (tính tiền theo token) thay cho gói

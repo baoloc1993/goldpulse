@@ -28,7 +28,7 @@ STATUS_KEY = "btc"
 TRADE_KEY = "btc_trade"  # nhịp tim vòng lệnh (M+N) — vòng giá sống mà vòng lệnh chết thì S10 phải báo đỏ
 ALIVE_S = 120
 LAG_LIMIT_S = 60
-# PRD §6 vòng 4 — ghi trước khi nhìn số (chủ dự án 2026-10-03)
+# PRD §6 vòng 4 — ghi trước khi nhìn số (chốt 2026-10-03)
 GO_MIN_TRADES = 30
 GO_MAX_BURN_RATIO = 0.20
 

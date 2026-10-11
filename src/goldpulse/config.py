@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     dukascopy_proxy: str | None = None
 
     # --- vòng 2: não bot (DECISIONS 2026-09-25) ---
-    # cli = `claude -p` bằng gói thuê bao của chủ dự án (mặc định trên máy chủ dự án) · api = SDK anthropic
+    # cli = `claude -p` bằng gói thuê bao Claude (mặc định) · api = SDK anthropic
     # fake = câu mẫu theo schema, chỉ cho test / dogfood đợt 1 (bị chặn ở production)
     brain_backend: Literal["cli", "api", "fake"] = "cli"
     claude_cli_model: str = "opus"

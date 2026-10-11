@@ -1,6 +1,5 @@
 # GoldPulse
 
-[![CI](https://github.com/baoloc1993/goldpulse/actions/workflows/ci.yml/badge.svg)](https://github.com/baoloc1993/goldpulse/actions/workflows/ci.yml)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
